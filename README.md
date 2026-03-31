@@ -27,6 +27,8 @@
 ```bash
 # 1. 패키지 설치
 npm install
+npm install react-router-dom
+npm install -D @vitejs/plugin-react
 
 # 2. 환경변수 설정
 cp .env.example .env
@@ -51,12 +53,3 @@ main      ← 배포 브랜치 (hotfix/*, release/* 만 PR 허용)
 - PR 제목에 Jira 키 포함 필수 (예: `[FE][Feature] GP-123 잔재 목록 화면 구현`)
 - 브랜치명 형식: `feature/GP-123-설명`
 - `develop` 브랜치로만 PR 가능
-
-## GitHub Secrets 등록 필요 항목
-
-| Secret 이름 | 설명 |
-|---|---|
-| `JIRA_BASE_URL` | Jira 도메인 |
-| `JIRA_API_TOKEN` | Jira API 토큰 |
-| `JIRA_USER_EMAIL` | Jira 계정 이메일 |
-| `JIRA_DONE_TRANSITION_ID` | Jira "완료" 전환 ID |
