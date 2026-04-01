@@ -9,7 +9,7 @@ const mockUploadedHistory = [
   {
     id: 2,
     fileName: "blizzard_cutting_plan.pdf",
-    uploadedAt: "2026-04-01 13:21",
+    uploadedAt: "2026-03-31 17:45",
   },
 ];
 
@@ -45,28 +45,6 @@ export default function Web_LantekUploadModal({
         quantity: 4,
         note: "",
       },
-      {
-        id: 2,
-        qrNumber: "QR0002",
-        thickness: 12,
-        width: 1524,
-        length: 8000,
-        memberName: "B2",
-        estimatedTime: "00:18:40",
-        quantity: 2,
-        note: "",
-      },
-      {
-        id: 3,
-        qrNumber: "QR0003",
-        thickness: 9,
-        width: 1524,
-        length: 6096,
-        memberName: "B3",
-        estimatedTime: "00:10:10",
-        quantity: 1,
-        note: "발생 잔재 없음",
-      },
     ];
 
     const newHistory = {
@@ -77,6 +55,10 @@ export default function Web_LantekUploadModal({
 
     setUploadedHistory((prev) => [newHistory, ...prev]);
     onUpload(file, parsedRows);
+  };
+
+  const handleDeleteHistory = (targetId) => {
+    setUploadedHistory((prev) => prev.filter((item) => item.id !== targetId));
   };
 
   return (
@@ -96,49 +78,34 @@ export default function Web_LantekUploadModal({
         </div>
 
         <div className="p-8 space-y-8 max-h-[85vh] overflow-y-auto">
-          <div className="relative group">
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".pdf,application/pdf"
-              className="hidden"
-              onChange={(e) => handleFileSelect(e.target.files?.[0])}
-            />
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={(e) => handleFileSelect(e.target.files?.[0])}
+          />
 
-            <div className="w-full min-h-[220px] border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low flex flex-col items-center justify-center p-6 text-center transition-all group-hover:bg-surface-container group-hover:border-primary/40">
-              <div className="mb-4 w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined !text-3xl">
-                  upload_file
-                </span>
-              </div>
-
-              <p className="font-body text-on-surface font-medium leading-relaxed max-w-xs mb-6">
-                첨부할 파일을 여기에 끌어다 놓거나, 파일 선택 버튼을 눌러 파일을
-                직접 선택해주세요.
-              </p>
-
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 bg-primary hover:bg-primary-dim text-white px-8 py-3 rounded-lg font-body font-semibold transition-all shadow-md active:scale-95"
-                onClick={() => inputRef.current?.click()}
-              >
-                <span className="material-symbols-outlined">cloud_upload</span>
-                파일 선택
-              </button>
+          <div className="w-full min-h-[220px] border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low flex flex-col items-center justify-center p-6 text-center">
+            <div className="mb-4 w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+              <span className="material-symbols-outlined !text-3xl">
+                upload_file
+              </span>
             </div>
 
-            <div className="mt-4 flex items-center justify-center gap-4 text-xs text-on-surface-variant">
-              <div className="flex items-center gap-1">
-                <span className="material-symbols-outlined !text-sm">
-                  check_circle
-                </span>
-                Support: PDF
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="material-symbols-outlined !text-sm">info</span>
-                Max Size: 50MB
-              </div>
-            </div>
+            <p className="font-body text-on-surface font-medium leading-relaxed max-w-xs mb-6">
+              첨부할 파일을 여기에 끌어다 놓거나, 파일 선택 버튼을 눌러 파일을
+              직접 선택해주세요.
+            </p>
+
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 bg-primary hover:bg-primary-dim text-white px-8 py-3 rounded-lg font-body font-semibold transition-all shadow-md active:scale-95"
+              onClick={() => inputRef.current?.click()}
+            >
+              <span className="material-symbols-outlined">cloud_upload</span>
+              파일 선택
+            </button>
           </div>
 
           <div className="space-y-4">
@@ -175,9 +142,12 @@ export default function Web_LantekUploadModal({
                       <td className="px-4 py-3 text-right">
                         <button
                           type="button"
-                          className="rounded-lg bg-secondary-container px-3 py-2 text-xs font-semibold text-on-secondary-container hover:bg-secondary-fixed-dim"
+                          className="inline-flex items-center justify-center rounded-lg border border-outline-variant/30 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high"
+                          onClick={() => handleDeleteHistory(item.id)}
                         >
-                          보기
+                          <span className="material-symbols-outlined text-sm">
+                            delete
+                          </span>
                         </button>
                       </td>
                     </tr>
