@@ -1,8 +1,10 @@
 export default function Web_LantekProjectForm({
   projectInfo,
   shipmentDateError,
+  productionPlanError,
   onChange,
   onOpenHistory,
+  onFetchProductionPlanName,
 }) {
   return (
     <section className="relative bg-surface-container-lowest p-8 pb-16 rounded-xl shadow-sm border border-outline-variant/10">
@@ -43,11 +45,29 @@ export default function Web_LantekProjectForm({
           <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
             생산계획명
           </label>
-          <input
-            className="w-full bg-surface-container-high border-none rounded-lg px-4 py-3 text-sm"
-            value={projectInfo.productionPlanName}
-            readOnly
-          />
+
+          <div className="flex gap-2">
+            <input
+              className={`flex-1 bg-surface-container-high border-none rounded-lg px-4 py-3 text-sm ${
+                productionPlanError ? "ring-2 ring-error/40" : ""
+              }`}
+              value={projectInfo.productionPlanName}
+              placeholder="출하일 입력 후 조회 버튼으로 불러오세요"
+              readOnly
+            />
+
+            <button
+              type="button"
+              onClick={onFetchProductionPlanName}
+              className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-lg text-xs font-bold whitespace-nowrap"
+            >
+              이력 조회
+            </button>
+          </div>
+
+          {productionPlanError && (
+            <p className="text-xs text-error mt-1">{productionPlanError}</p>
+          )}
         </div>
 
         <div className="col-span-12 md:col-span-6 flex flex-col gap-2">
@@ -55,19 +75,19 @@ export default function Web_LantekProjectForm({
             이번 생산 계획 출하일
             <span className="text-error text-lg leading-none">*</span>
           </label>
-          <div>
-            <input
-              type="date"
-              className={`w-full bg-surface-container-high border-none rounded-lg px-4 py-3 text-sm ${
-                shipmentDateError ? "ring-2 ring-error/40" : ""
-              }`}
-              value={projectInfo.shipmentDate}
-              onChange={(e) => onChange("shipmentDate", e.target.value)}
-            />
-            {shipmentDateError && (
-              <p className="mt-2 text-xs text-error">{shipmentDateError}</p>
-            )}
-          </div>
+
+          <input
+            type="date"
+            className={`w-full bg-surface-container-high border-none rounded-lg px-4 py-3 text-sm ${
+              shipmentDateError ? "ring-2 ring-error/40" : ""
+            }`}
+            value={projectInfo.shipmentDate}
+            onChange={(e) => onChange("shipmentDate", e.target.value)}
+          />
+
+          {shipmentDateError && (
+            <p className="text-xs text-error mt-1">{shipmentDateError}</p>
+          )}
         </div>
 
         <div className="col-span-12 md:col-span-6 flex flex-col gap-2">
@@ -90,7 +110,7 @@ export default function Web_LantekProjectForm({
             value={projectInfo.processPriority}
             onChange={(e) => onChange("processPriority", e.target.value)}
           >
-            <option value="low">일반</option>
+            <option value="general">일반</option>
             <option value="urgent">긴급</option>
           </select>
         </div>

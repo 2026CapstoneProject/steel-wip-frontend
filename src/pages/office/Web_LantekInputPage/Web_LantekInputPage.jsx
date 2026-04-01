@@ -22,7 +22,9 @@ export default function Web_LantekInputPage() {
 
   const [lantekRows, setLantekRows] = useState([]);
   const [tempSavedFile, setTempSavedFile] = useState(null);
+
   const [shipmentDateError, setShipmentDateError] = useState("");
+  const [productionPlanError, setProductionPlanError] = useState("");
 
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -31,11 +33,12 @@ export default function Web_LantekInputPage() {
   const [isLoadingModalOpen, setIsLoadingModalOpen] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
-  const isProjectInfoReady =
+  const isProjectInfoReady = Boolean(
     projectInfo.projectName &&
-    projectInfo.productionPlanName &&
     projectInfo.projectDueDate &&
-    projectInfo.shipmentDate;
+    projectInfo.shipmentDate &&
+    projectInfo.productionPlanName,
+  );
 
   const isResetDisabled = lantekRows.length === 0;
   const isImportDisabled = !isProjectInfoReady;
@@ -46,8 +49,15 @@ export default function Web_LantekInputPage() {
       ...prev,
       [name]: value,
     }));
+
     if (name === "shipmentDate" && value) {
       setShipmentDateError("");
+      setProductionPlanError("");
+      setProjectInfo((prev) => ({
+        ...prev,
+        shipmentDate: value,
+        productionPlanName: "",
+      }));
     }
   };
 
@@ -55,9 +65,69 @@ export default function Web_LantekInputPage() {
     setIsHistoryModalOpen(true);
   };
 
+  // 임시 mock 함수
+  // 나중에는 백엔드 API 호출로 교체
+  const handleFetchProductionPlanName = async () => {
+    if (!projectInfo.projectName || !projectInfo.projectDueDate) {
+      alert("먼저 프로젝트 이력을 선택해주세요.");
+      return;
+    }
+
+    if (!projectInfo.shipmentDate) {
+      setShipmentDateError("필수 입력 사항입니다.");
+      return;
+    }
+
+    setShipmentDateError("");
+    setProductionPlanError("");
+
+    // 예시:
+    // 1) 같은 출하일이 있으면 해당 생산계획명 반환
+    // 2) 없으면 기존 이력보다 +1
+    // 실제로는 backend에서 처리
+    const mockExistingPlans = [
+      {
+        shipmentDate: "2026-04-10",
+        productionPlanName: "토네이도 건설-1",
+      },
+      {
+        shipmentDate: "2026-04-12",
+        productionPlanName: "토네이도 건설-2",
+      },
+    ];
+
+    const matchedPlan = mockExistingPlans.find(
+      (item) => item.shipmentDate === projectInfo.shipmentDate,
+    );
+
+    let nextPlanName = "";
+
+    if (matchedPlan) {
+      nextPlanName = matchedPlan.productionPlanName;
+    } else {
+      const latestNumber = mockExistingPlans.reduce((max, item) => {
+        const lastPart = item.productionPlanName.split("-").pop();
+        const parsed = Number(lastPart);
+        return Number.isNaN(parsed) ? max : Math.max(max, parsed);
+      }, 0);
+
+      nextPlanName = `${projectInfo.projectName}-${latestNumber + 1}`;
+    }
+
+    setProjectInfo((prev) => ({
+      ...prev,
+      productionPlanName: nextPlanName,
+    }));
+  };
+
   const handleOpenUpload = () => {
     if (!projectInfo.shipmentDate) {
       setShipmentDateError("필수 입력 사항입니다.");
+      return;
+    }
+
+    if (!projectInfo.productionPlanName) {
+      setProductionPlanError("생산계획명을 먼저 조회해주세요.");
       return;
     }
 
@@ -83,11 +153,17 @@ export default function Web_LantekInputPage() {
 
   const handleScenarioCheck = () => {
     if (!projectInfo.shipmentDate) {
-      setShipmentDateError("필수 입력 사항입니다.");
+      setShipmentDateError("*필수 입력 사항입니다.");
+      return;
+    }
+
+    if (!projectInfo.productionPlanName) {
+      setProductionPlanError("생산계획명을 먼저 조회해주세요.");
       return;
     }
 
     setShipmentDateError("");
+    setProductionPlanError("");
     setIsScenarioCheckModalOpen(true);
   };
 
@@ -107,8 +183,10 @@ export default function Web_LantekInputPage() {
         <Web_LantekProjectForm
           projectInfo={projectInfo}
           shipmentDateError={shipmentDateError}
+          productionPlanError={productionPlanError}
           onChange={handleProjectInfoChange}
           onOpenHistory={handleOpenHistory}
+          onFetchProductionPlanName={handleFetchProductionPlanName}
         />
 
         <Web_LantekDetailSection
@@ -133,8 +211,8 @@ export default function Web_LantekInputPage() {
             setProjectInfo((prev) => ({
               ...prev,
               projectName: project.projectName,
-              productionPlanName: project.productionPlanName,
               projectDueDate: project.projectDueDate,
+              productionPlanName: "",
             }));
             setIsHistoryModalOpen(false);
           }}
