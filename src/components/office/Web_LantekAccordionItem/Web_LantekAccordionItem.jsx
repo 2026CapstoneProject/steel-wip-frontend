@@ -4,13 +4,13 @@ export default function Web_LantekAccordionItem({ row, index }) {
   const [isOpen, setIsOpen] = useState(true);
   const [residuals, setResiduals] = useState(row.residuals || []);
 
-  const handleMemoChange = (targetId, value) => {
+  const handleResidualChange = (targetId, field, value) => {
     setResiduals((prev) =>
       prev.map((item) =>
         item.id === targetId
           ? {
               ...item,
-              memo: value,
+              [field]: value,
             }
           : item,
       ),
@@ -42,7 +42,7 @@ export default function Web_LantekAccordionItem({ row, index }) {
         <div className="flex items-center gap-6">
           <div className="text-right hidden sm:block">
             <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-              Estimated Time
+              ESTIMATED TIME
             </div>
             <div className="text-2xl font-bold text-on-surface">
               {row.estimatedCuttingTime || "-"}
@@ -70,7 +70,7 @@ export default function Web_LantekAccordionItem({ row, index }) {
                 <tr>
                   <th className="px-4 py-4 text-center font-semibold">NO</th>
                   <th className="px-4 py-4 text-center font-semibold">
-                    절단 후 두께(T)
+                    절단 후 두께(MM)
                   </th>
                   <th className="px-4 py-4 text-center font-semibold">
                     절단 후 폭(MM)
@@ -99,7 +99,13 @@ export default function Web_LantekAccordionItem({ row, index }) {
                       <input
                         type="number"
                         value={item.thickness}
-                        readOnly
+                        onChange={(e) =>
+                          handleResidualChange(
+                            item.id,
+                            "thickness",
+                            e.target.value,
+                          )
+                        }
                         className="w-full rounded-lg border border-outline-variant/20 bg-surface-container-lowest px-3 py-2 text-on-surface"
                       />
                     </td>
@@ -108,7 +114,9 @@ export default function Web_LantekAccordionItem({ row, index }) {
                       <input
                         type="number"
                         value={item.width}
-                        readOnly
+                        onChange={(e) =>
+                          handleResidualChange(item.id, "width", e.target.value)
+                        }
                         className="w-full rounded-lg border border-outline-variant/20 bg-surface-container-lowest px-3 py-2 text-on-surface"
                       />
                     </td>
@@ -117,7 +125,13 @@ export default function Web_LantekAccordionItem({ row, index }) {
                       <input
                         type="number"
                         value={item.length}
-                        readOnly
+                        onChange={(e) =>
+                          handleResidualChange(
+                            item.id,
+                            "length",
+                            e.target.value,
+                          )
+                        }
                         className="w-full rounded-lg border border-outline-variant/20 bg-surface-container-lowest px-3 py-2 text-on-surface"
                       />
                     </td>
@@ -126,7 +140,13 @@ export default function Web_LantekAccordionItem({ row, index }) {
                       <input
                         type="number"
                         value={item.weight}
-                        readOnly
+                        onChange={(e) =>
+                          handleResidualChange(
+                            item.id,
+                            "weight",
+                            e.target.value,
+                          )
+                        }
                         className="w-full rounded-lg border border-outline-variant/20 bg-surface-container-lowest px-3 py-2 text-on-surface"
                       />
                     </td>
@@ -136,7 +156,7 @@ export default function Web_LantekAccordionItem({ row, index }) {
                         type="text"
                         value={item.memo}
                         onChange={(e) =>
-                          handleMemoChange(item.id, e.target.value)
+                          handleResidualChange(item.id, "memo", e.target.value)
                         }
                         placeholder="메모 입력"
                         className="w-full rounded-lg border border-outline-variant/20 bg-surface-container-lowest px-3 py-2 text-on-surface placeholder:text-on-surface-variant"

@@ -115,10 +115,6 @@ export default function Web_LantekProjectForm({
           </select>
         </div>
       </div>
-
-      <p className="absolute right-8 bottom-4 text-xs text-on-surface-variant text-right">
-        <span className="text-red-500">*</span>는 필수 입력 사항입니다.
-      </p>
     </section>
   );
 }

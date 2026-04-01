@@ -6,7 +6,9 @@ export default function Web_LantekUploadModal({
   onUpload,
 }) {
   const inputRef = useRef(null);
+
   const [uploadedHistory, setUploadedHistory] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const formatUploadTime = (date) => {
     return new Intl.DateTimeFormat("ko-KR", {
@@ -29,6 +31,19 @@ export default function Web_LantekUploadModal({
 
     if (!isPdf) {
       alert("지원하지 않는 파일 형식 입니다");
+      return;
+    }
+
+    setSelectedFile(file);
+
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+  };
+
+  const handleConfirmUpload = () => {
+    if (!selectedFile) {
+      alert("파일을 먼저 선택해주세요.");
       return;
     }
 
@@ -78,18 +93,16 @@ export default function Web_LantekUploadModal({
         ],
       },
     ];
+
     const newHistory = {
       id: Date.now(),
-      fileName: file.name,
+      fileName: selectedFile.name,
       uploadedAt: formatUploadTime(new Date()),
     };
 
     setUploadedHistory((prev) => [newHistory, ...prev]);
-    onUpload(file, parsedRows);
-
-    if (inputRef.current) {
-      inputRef.current.value = "";
-    }
+    onUpload(selectedFile, parsedRows);
+    setSelectedFile(null);
   };
 
   const handleDeleteHistory = (targetId) => {
@@ -143,17 +156,44 @@ export default function Web_LantekUploadModal({
             </button>
           </div>
 
-          <div className="space-y-4">
-            <h3 className="font-headline font-bold text-base text-on-surface border-l-4 border-primary pl-3">
-              업로드 파일
-            </h3>
+          {selectedFile && (
+            <div className="rounded-xl border border-primary/20 bg-primary-container/30 px-4 py-4">
+              <p className="text-sm text-on-surface-variant mb-1">
+                선택한 파일
+              </p>
+              <p className="font-semibold text-on-surface">
+                {selectedFile.name}
+              </p>
+            </div>
+          )}
 
-            {tempSavedFile && (
-              <div className="rounded-lg bg-primary-container/40 px-4 py-3 text-sm text-on-surface">
-                현재 선택 파일:{" "}
-                <span className="font-semibold">{tempSavedFile.name}</span>
-              </div>
-            )}
+          {tempSavedFile && (
+            <div className="rounded-lg bg-surface-container px-4 py-3 text-sm text-on-surface">
+              임시저장 파일:{" "}
+              <span className="font-semibold">{tempSavedFile.name}</span>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              className="px-5 py-3 rounded-lg bg-surface-container text-on-surface font-medium hover:bg-surface-container-high"
+              onClick={onClose}
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              className={`px-5 py-3 rounded-lg font-semibold ${
+                selectedFile
+                  ? "bg-primary text-white hover:bg-primary-dim"
+                  : "bg-surface-container-high text-on-surface-variant cursor-not-allowed opacity-60"
+              }`}
+              onClick={handleConfirmUpload}
+              disabled={!selectedFile}
+            >
+              확인
+            </button>
           </div>
         </div>
       </div>

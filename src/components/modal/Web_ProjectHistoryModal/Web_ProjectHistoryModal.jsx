@@ -5,13 +5,11 @@ const initialProjects = [
     id: 1,
     projectName: "토네이도 건설",
     projectDueDate: "2026-03-06",
-    productionPlanName: "토네이도 건설-1",
   },
   {
     id: 2,
     projectName: "토네이도 I&C",
     projectDueDate: "2026-03-10",
-    productionPlanName: "토네이도 I&C-1",
   },
 ];
 
@@ -56,6 +54,11 @@ export default function Web_ProjectHistoryModal({ onClose, onSelectProject }) {
   };
 
   const handleEditSave = (projectId) => {
+    if (!editingForm.projectName || !editingForm.projectDueDate) {
+      alert("프로젝트 명과 납기일을 모두 입력해주세요.");
+      return;
+    }
+
     setProjects((prev) =>
       prev.map((project) =>
         project.id === projectId
@@ -63,11 +66,12 @@ export default function Web_ProjectHistoryModal({ onClose, onSelectProject }) {
               ...project,
               projectName: editingForm.projectName,
               projectDueDate: editingForm.projectDueDate,
-              productionPlanName: `${editingForm.projectName}-1`,
             }
           : project,
       ),
     );
+
+    // 저장 후에만 다시 선택 가능
     setEditingId(null);
   };
 
@@ -88,12 +92,14 @@ export default function Web_ProjectHistoryModal({ onClose, onSelectProject }) {
       id: Date.now(),
       projectName: newProjectForm.projectName,
       projectDueDate: newProjectForm.projectDueDate,
-      productionPlanName: `${newProjectForm.projectName}-1`,
     };
 
     setProjects((prev) => [newProject, ...prev]);
 
-    onSelectProject(newProject);
+    onSelectProject({
+      projectName: newProject.projectName,
+      projectDueDate: newProject.projectDueDate,
+    });
   };
 
   return (
@@ -147,6 +153,7 @@ export default function Web_ProjectHistoryModal({ onClose, onSelectProject }) {
               </thead>
 
               <tbody className="font-body text-sm">
+                {/* 신규 등록 행 */}
                 <tr className="bg-surface-container-low/50">
                   <td className="px-4 py-4 rounded-l">
                     <input
@@ -180,6 +187,7 @@ export default function Web_ProjectHistoryModal({ onClose, onSelectProject }) {
                   </td>
                 </tr>
 
+                {/* 기존 프로젝트 행 */}
                 {filteredProjects.map((project) => {
                   const isEditing = editingId === project.id;
 
@@ -221,37 +229,47 @@ export default function Web_ProjectHistoryModal({ onClose, onSelectProject }) {
                       <td className="px-4 py-4 text-right rounded-r">
                         <div className="flex justify-end gap-2">
                           {isEditing ? (
-                            <button
-                              type="button"
-                              className="px-4 py-2 bg-secondary-container text-on-secondary-container hover:bg-secondary-fixed-dim rounded font-semibold transition-colors"
-                              onClick={() => handleEditSave(project.id)}
-                            >
-                              저장
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className="px-4 py-2 border border-primary/30 text-primary hover:bg-primary-container/40 rounded font-semibold transition-colors"
-                              onClick={() => handleEditStart(project)}
-                            >
-                              수정
-                            </button>
-                          )}
+                            <>
+                              <button
+                                type="button"
+                                className="px-4 py-2 bg-secondary-container text-on-secondary-container hover:bg-secondary-fixed-dim rounded font-semibold transition-colors"
+                                onClick={() => handleEditSave(project.id)}
+                              >
+                                저장
+                              </button>
 
-                          <button
-                            type="button"
-                            className="px-4 py-2 bg-primary text-white hover:bg-primary-dim rounded font-semibold transition-colors"
-                            onClick={() =>
-                              onSelectProject({
-                                ...project,
-                                productionPlanName:
-                                  project.productionPlanName ||
-                                  `${project.projectName}-1`,
-                              })
-                            }
-                          >
-                            선택
-                          </button>
+                              <button
+                                type="button"
+                                className="px-4 py-2 bg-surface-container text-on-surface hover:bg-surface-container-high rounded font-semibold transition-colors"
+                                onClick={() => setEditingId(null)}
+                              >
+                                취소
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                className="px-4 py-2 border border-primary/30 text-primary hover:bg-primary-container/40 rounded font-semibold transition-colors"
+                                onClick={() => handleEditStart(project)}
+                              >
+                                수정
+                              </button>
+
+                              <button
+                                type="button"
+                                className="px-4 py-2 bg-primary text-white hover:bg-primary-dim rounded font-semibold transition-colors"
+                                onClick={() =>
+                                  onSelectProject({
+                                    projectName: project.projectName,
+                                    projectDueDate: project.projectDueDate,
+                                  })
+                                }
+                              >
+                                선택
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
