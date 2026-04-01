@@ -1,25 +1,24 @@
 import { useRef, useState } from "react";
 
-const mockUploadedHistory = [
-  {
-    id: 1,
-    fileName: "tornado_lantek_result.pdf",
-    uploadedAt: "2026-04-01 13:20",
-  },
-  {
-    id: 2,
-    fileName: "blizzard_cutting_plan.pdf",
-    uploadedAt: "2026-03-31 17:45",
-  },
-];
-
 export default function Web_LantekUploadModal({
   tempSavedFile,
   onClose,
   onUpload,
 }) {
   const inputRef = useRef(null);
-  const [uploadedHistory, setUploadedHistory] = useState(mockUploadedHistory);
+  const [uploadedHistory, setUploadedHistory] = useState([]);
+
+  const formatUploadTime = (date) => {
+    return new Intl.DateTimeFormat("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).format(date);
+  };
 
   const handleFileSelect = (file) => {
     if (!file) return;
@@ -45,16 +44,42 @@ export default function Web_LantekUploadModal({
         quantity: 4,
         note: "",
       },
+      {
+        id: 2,
+        qrNumber: "QR0002",
+        thickness: 12,
+        width: 1524,
+        length: 8000,
+        memberName: "B2",
+        estimatedTime: "00:18:40",
+        quantity: 2,
+        note: "",
+      },
+      {
+        id: 3,
+        qrNumber: "QR0003",
+        thickness: 9,
+        width: 1524,
+        length: 6096,
+        memberName: "B3",
+        estimatedTime: "00:10:10",
+        quantity: 1,
+        note: "발생 잔재 없음",
+      },
     ];
 
     const newHistory = {
       id: Date.now(),
       fileName: file.name,
-      uploadedAt: new Date().toLocaleString("ko-KR"),
+      uploadedAt: formatUploadTime(new Date()),
     };
 
     setUploadedHistory((prev) => [newHistory, ...prev]);
     onUpload(file, parsedRows);
+
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
   };
 
   const handleDeleteHistory = (targetId) => {
@@ -115,57 +140,10 @@ export default function Web_LantekUploadModal({
 
             {tempSavedFile && (
               <div className="rounded-lg bg-primary-container/40 px-4 py-3 text-sm text-on-surface">
-                임시저장 파일:{" "}
+                현재 선택 파일:{" "}
                 <span className="font-semibold">{tempSavedFile.name}</span>
               </div>
             )}
-
-            <div className="border border-surface-container rounded-lg overflow-hidden">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-surface-container-low text-on-surface-variant text-xs uppercase tracking-wider font-semibold">
-                  <tr>
-                    <th className="px-4 py-3">파일명</th>
-                    <th className="px-4 py-3">업로드 일시</th>
-                    <th className="px-4 py-3 text-right">작업</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-container">
-                  {uploadedHistory.map((item) => (
-                    <tr
-                      key={item.id}
-                      className="hover:bg-surface-container-low/50"
-                    >
-                      <td className="px-4 py-3">{item.fileName}</td>
-                      <td className="px-4 py-3 text-on-surface-variant">
-                        {item.uploadedAt}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          type="button"
-                          className="inline-flex items-center justify-center rounded-lg border border-outline-variant/30 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high"
-                          onClick={() => handleDeleteHistory(item.id)}
-                        >
-                          <span className="material-symbols-outlined text-sm">
-                            delete
-                          </span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-
-                  {uploadedHistory.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={3}
-                        className="px-4 py-6 text-center text-on-surface-variant"
-                      >
-                        업로드 이력이 없습니다.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
           </div>
         </div>
       </div>

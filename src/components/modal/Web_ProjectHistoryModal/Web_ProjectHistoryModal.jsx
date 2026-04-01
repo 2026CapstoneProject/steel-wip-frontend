@@ -1,42 +1,104 @@
 import { useMemo, useState } from "react";
 
-const mockProjects = [
+const initialProjects = [
   {
     id: 1,
-    projectName: "토네이도",
-    projectDueDate: "2026-04-30",
-    productionPlanName: "토네이도-1",
+    projectName: "토네이도 건설",
+    projectDueDate: "2026-03-06",
+    productionPlanName: "토네이도 건설-1",
   },
   {
     id: 2,
-    projectName: "토네이도",
-    projectDueDate: "2026-05-15",
-    productionPlanName: "토네이도-2",
-  },
-  {
-    id: 3,
-    projectName: "블리자드",
-    projectDueDate: "2026-06-10",
-    productionPlanName: "블리자드-1",
+    projectName: "토네이도 I&C",
+    projectDueDate: "2026-03-10",
+    productionPlanName: "토네이도 I&C-1",
   },
 ];
 
 export default function Web_ProjectHistoryModal({ onClose, onSelectProject }) {
   const [keyword, setKeyword] = useState("");
+  const [projects, setProjects] = useState(initialProjects);
+
+  const [editingId, setEditingId] = useState(null);
+  const [editingForm, setEditingForm] = useState({
+    projectName: "",
+    projectDueDate: "",
+  });
+
+  const [newProjectForm, setNewProjectForm] = useState({
+    projectName: "",
+    projectDueDate: "",
+  });
 
   const filteredProjects = useMemo(() => {
     const trimmed = keyword.trim().toLowerCase();
 
-    if (!trimmed) return mockProjects;
+    if (!trimmed) return projects;
 
-    return mockProjects.filter((project) =>
+    return projects.filter((project) =>
       project.projectName.toLowerCase().includes(trimmed),
     );
-  }, [keyword]);
+  }, [keyword, projects]);
+
+  const handleEditStart = (project) => {
+    setEditingId(project.id);
+    setEditingForm({
+      projectName: project.projectName,
+      projectDueDate: project.projectDueDate,
+    });
+  };
+
+  const handleEditChange = (name, value) => {
+    setEditingForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleEditSave = (projectId) => {
+    setProjects((prev) =>
+      prev.map((project) =>
+        project.id === projectId
+          ? {
+              ...project,
+              projectName: editingForm.projectName,
+              projectDueDate: editingForm.projectDueDate,
+              productionPlanName: `${editingForm.projectName}-1`,
+            }
+          : project,
+      ),
+    );
+    setEditingId(null);
+  };
+
+  const handleNewProjectChange = (name, value) => {
+    setNewProjectForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleRegisterNewProject = () => {
+    if (!newProjectForm.projectName || !newProjectForm.projectDueDate) {
+      alert("프로젝트 명과 납기일을 모두 입력해주세요.");
+      return;
+    }
+
+    const newProject = {
+      id: Date.now(),
+      projectName: newProjectForm.projectName,
+      projectDueDate: newProjectForm.projectDueDate,
+      productionPlanName: `${newProjectForm.projectName}-1`,
+    };
+
+    setProjects((prev) => [newProject, ...prev]);
+
+    onSelectProject(newProject);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/20 backdrop-blur-[1px]">
-      <div className="w-full max-w-2xl bg-surface-container-lowest rounded-modal shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col">
+      <div className="w-full max-w-5xl bg-surface-container-lowest rounded-modal shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col">
         <div className="px-8 py-6 flex items-center justify-between border-b border-surface-container">
           <h2 className="text-xl font-bold text-on-surface tracking-tight font-headline">
             프로젝트 이력 조회
@@ -75,7 +137,7 @@ export default function Web_ProjectHistoryModal({ onClose, onSelectProject }) {
           </div>
 
           <div className="overflow-hidden">
-            <table className="w-full border-separate border-spacing-y-2">
+            <table className="w-full border-separate border-spacing-y-3">
               <thead>
                 <tr className="text-on-surface-variant text-xs font-bold uppercase tracking-wider font-label">
                   <th className="px-4 py-2 text-left">프로젝트 명</th>
@@ -83,51 +145,129 @@ export default function Web_ProjectHistoryModal({ onClose, onSelectProject }) {
                   <th className="px-4 py-2 text-right">실행</th>
                 </tr>
               </thead>
-              <tbody className="font-body text-sm">
-                {filteredProjects.map((project) => (
-                  <tr
-                    key={project.id}
-                    className="bg-surface-container-low/50 hover:bg-surface-container-low transition-colors group"
-                  >
-                    <td className="px-4 py-4 rounded-l font-bold text-on-surface">
-                      {project.projectName}
-                    </td>
-                    <td className="px-4 py-4">{project.projectDueDate}</td>
-                    <td className="px-4 py-4 text-right rounded-r">
-                      <button
-                        type="button"
-                        className="px-4 py-2 bg-secondary-container text-on-secondary-container hover:bg-secondary-fixed-dim rounded font-semibold transition-colors"
-                        onClick={() => onSelectProject(project)}
-                      >
-                        선택
-                      </button>
-                    </td>
-                  </tr>
-                ))}
 
-                <tr className="bg-surface-container-low/50 hover:bg-surface-container-low transition-colors group">
-                  <td className="px-4 py-4 rounded-l font-bold text-on-surface">
-                    신규 프로젝트
+              <tbody className="font-body text-sm">
+                <tr className="bg-surface-container-low/50">
+                  <td className="px-4 py-4 rounded-l">
+                    <input
+                      type="text"
+                      value={newProjectForm.projectName}
+                      onChange={(e) =>
+                        handleNewProjectChange("projectName", e.target.value)
+                      }
+                      placeholder="프로젝트 명 입력"
+                      className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded px-3 py-2 text-sm"
+                    />
                   </td>
-                  <td className="px-4 py-4 text-on-surface-variant">
-                    프로젝트명으로 신규 등록
+                  <td className="px-4 py-4">
+                    <input
+                      type="date"
+                      value={newProjectForm.projectDueDate}
+                      onChange={(e) =>
+                        handleNewProjectChange("projectDueDate", e.target.value)
+                      }
+                      className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded px-3 py-2 text-sm"
+                    />
                   </td>
                   <td className="px-4 py-4 text-right rounded-r">
                     <button
                       type="button"
                       className="px-4 py-2 bg-primary text-white hover:bg-primary-dim rounded font-semibold transition-colors"
-                      onClick={() =>
-                        onSelectProject({
-                          projectName: keyword || "신규 프로젝트",
-                          projectDueDate: "",
-                          productionPlanName: `${keyword || "신규 프로젝트"}-1`,
-                        })
-                      }
+                      onClick={handleRegisterNewProject}
                     >
                       신규 등록
                     </button>
                   </td>
                 </tr>
+
+                {filteredProjects.map((project) => {
+                  const isEditing = editingId === project.id;
+
+                  return (
+                    <tr
+                      key={project.id}
+                      className="bg-surface-container-low/50 hover:bg-surface-container-low transition-colors"
+                    >
+                      <td className="px-4 py-4 rounded-l font-bold text-on-surface">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editingForm.projectName}
+                            onChange={(e) =>
+                              handleEditChange("projectName", e.target.value)
+                            }
+                            className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded px-3 py-2 text-sm"
+                          />
+                        ) : (
+                          project.projectName
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4">
+                        {isEditing ? (
+                          <input
+                            type="date"
+                            value={editingForm.projectDueDate}
+                            onChange={(e) =>
+                              handleEditChange("projectDueDate", e.target.value)
+                            }
+                            className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded px-3 py-2 text-sm"
+                          />
+                        ) : (
+                          project.projectDueDate
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4 text-right rounded-r">
+                        <div className="flex justify-end gap-2">
+                          {isEditing ? (
+                            <button
+                              type="button"
+                              className="px-4 py-2 bg-secondary-container text-on-secondary-container hover:bg-secondary-fixed-dim rounded font-semibold transition-colors"
+                              onClick={() => handleEditSave(project.id)}
+                            >
+                              저장
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="px-4 py-2 border border-primary/30 text-primary hover:bg-primary-container/40 rounded font-semibold transition-colors"
+                              onClick={() => handleEditStart(project)}
+                            >
+                              수정
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            className="px-4 py-2 bg-primary text-white hover:bg-primary-dim rounded font-semibold transition-colors"
+                            onClick={() =>
+                              onSelectProject({
+                                ...project,
+                                productionPlanName:
+                                  project.productionPlanName ||
+                                  `${project.projectName}-1`,
+                              })
+                            }
+                          >
+                            선택
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {filteredProjects.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={3}
+                      className="px-4 py-8 text-center text-on-surface-variant"
+                    >
+                      검색 결과가 없습니다.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

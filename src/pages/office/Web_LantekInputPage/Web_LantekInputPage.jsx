@@ -34,7 +34,8 @@ export default function Web_LantekInputPage() {
   const isProjectInfoReady =
     projectInfo.projectName &&
     projectInfo.productionPlanName &&
-    projectInfo.projectDueDate;
+    projectInfo.projectDueDate &&
+    projectInfo.shipmentDate;
 
   const isResetDisabled = lantekRows.length === 0;
   const isImportDisabled = !isProjectInfoReady;
@@ -45,6 +46,9 @@ export default function Web_LantekInputPage() {
       ...prev,
       [name]: value,
     }));
+    if (name === "shipmentDate" && value) {
+      setShipmentDateError("");
+    }
   };
 
   const handleOpenHistory = () => {
@@ -52,7 +56,13 @@ export default function Web_LantekInputPage() {
   };
 
   const handleOpenUpload = () => {
+    if (!projectInfo.shipmentDate) {
+      setShipmentDateError("필수 입력 사항입니다.");
+      return;
+    }
+
     if (isImportDisabled) return;
+
     setIsUploadModalOpen(true);
   };
 
