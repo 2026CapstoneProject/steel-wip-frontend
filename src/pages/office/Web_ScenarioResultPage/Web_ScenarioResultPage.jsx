@@ -160,7 +160,7 @@ export default function Web_ScenarioResultPage() {
         <div className="mb-8 flex items-end justify-between">
           <div>
             <p className="font-headline text-lg font-bold tracking-tight text-on-surface">
-              시나리오 생성 이력 &gt; 시나리오 결과 확인
+              LANTEK 결과 입력 &gt; 시나리오 결과 확인
             </p>
           </div>
 
