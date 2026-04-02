@@ -4,6 +4,7 @@ import { createBrowserRouter } from "react-router-dom";
 // 생산계획자(OFFICE) 페이지
 import DashboardPage from "../pages/office/DashboardPage/DashboardPage";
 import Web_WipListPage from "../pages/office/Web_WipListPage/Web_WipListPage";
+import Web_LantekInputPage from "../pages/office/Web_LantekInputPage/Web_LantekInputPage";
 import WorkOrderPage from "../pages/office/WorkOrderPage/WorkOrderPage";
 import ScenarioPage from "../pages/office/ScenarioPage/ScenarioPage";
 
@@ -13,18 +14,16 @@ import TaskDetailPage from "../pages/field/TaskDetailPage/TaskDetailPage";
 import CompletePage from "../pages/field/CompletePage/CompletePage";
 
 const router = createBrowserRouter([
-  // ── 생산계획자 화면 (웹) ──────────────────────────────
   {
     path: "/office",
     children: [
       { path: "dashboard", element: <DashboardPage /> },
       { path: "wip", element: <Web_WipListPage /> },
+      { path: "scenario/input", element: <Web_LantekInputPage /> },
       { path: "work-order", element: <WorkOrderPage /> },
       { path: "scenario", element: <ScenarioPage /> },
     ],
   },
-
-  // ── 현장직 화면 (모바일 웹) ───────────────────────────
   {
     path: "/field",
     children: [
@@ -33,8 +32,6 @@ const router = createBrowserRouter([
       { path: "complete", element: <CompletePage /> },
     ],
   },
-
-  // 기본 리다이렉트 (추후 역할 기반 분기)
   { path: "/", element: <DashboardPage /> },
 ]);
 
