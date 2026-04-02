@@ -21,6 +21,15 @@ export default function Web_ScenarioGoBackModal({
         </div>
 
         <div className="p-12 flex flex-col items-center text-center space-y-6">
+          <div className="w-16 h-16 rounded-xl bg-[#FDE7E9] flex items-center justify-center">
+            <span
+              className="material-symbols-outlined text-error text-3xl"
+              style={{ fontVariationSettings: '"FILL" 1' }}
+            >
+              warning
+            </span>
+          </div>
+
           <div className="space-y-3">
             <h1 className="font-headline font-bold text-xl text-on-surface leading-tight">
               기존 LANTEK 정보를 불러오시겠습니까?
@@ -28,33 +37,37 @@ export default function Web_ScenarioGoBackModal({
             <p className="text-on-surface-variant text-sm leading-relaxed max-w-[320px] mx-auto">
               아니오를 누르실 경우
               <br />
-              기존 입력된 정보는 삭제됩니다.
+              <span className="font-semibold text-error">
+                기존 입력된 정보는 삭제됩니다.
+              </span>
             </p>
           </div>
-        </div>
 
-        <div className="px-8 py-6 bg-surface-container-low flex justify-center gap-3">
-          <button
-            type="button"
-            className="px-6 py-2.5 rounded-lg bg-surface-container-high text-on-surface-variant font-medium hover:bg-surface-container-highest transition-colors"
-            onClick={onCancel}
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            className="px-6 py-2.5 rounded-lg bg-surface-container-high text-on-surface-variant font-medium hover:bg-surface-container-highest transition-colors"
-            onClick={onNo}
-          >
-            아니오
-          </button>
-          <button
-            type="button"
-            className="px-6 py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary-dim shadow-md transition-all active:scale-95"
-            onClick={onConfirm}
-          >
-            네, 확인했습니다.
-          </button>
+          <div className="flex w-full gap-3 pt-2">
+            <button
+              type="button"
+              className="flex-1 px-5 py-3 rounded-lg bg-surface-container text-on-surface font-semibold hover:bg-surface-container-high transition-colors"
+              onClick={onCancel}
+            >
+              취소
+            </button>
+
+            <button
+              type="button"
+              className="flex-1 px-5 py-3 rounded-lg bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300 transition-colors"
+              onClick={onNo}
+            >
+              아니오
+            </button>
+
+            <button
+              type="button"
+              className="flex-1 px-5 py-3 rounded-lg bg-gradient-to-r from-primary to-primary-dim text-white font-semibold shadow-md hover:opacity-95 transition-all"
+              onClick={onConfirm}
+            >
+              예
+            </button>
+          </div>
         </div>
       </div>
     </div>
