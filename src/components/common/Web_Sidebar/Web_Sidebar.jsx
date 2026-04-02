@@ -14,10 +14,23 @@ export default function Web_Sidebar() {
   const subInactiveClass = "text-slate-600 hover:bg-slate-200/50";
   const subActiveClass = "bg-blue-100 text-blue-700 font-semibold";
 
+  const getIsChildActive = (childPath) => {
+    const currentPath = location.pathname;
+
+    if (childPath === "/office/scenario/input") {
+      return (
+        currentPath === "/office/scenario/input" ||
+        currentPath === "/office/scenario/result"
+      );
+    }
+
+    return currentPath === childPath || currentPath.startsWith(`${childPath}/`);
+  };
+
   return (
-    <aside className="w-64 h-screen fixed left-0 top-0 bg-slate-100 flex flex-col py-6 px-4 z-50">
+    <aside className="fixed left-0 top-0 z-50 flex h-screen w-64 flex-col bg-slate-100 px-4 py-6">
       <div className="mb-10 px-2">
-        <h1 className="text-xl font-bold tracking-tight text-slate-900 font-headline">
+        <h1 className="font-headline text-xl font-bold tracking-tight text-slate-900">
           Digital Architect
         </h1>
         <p className="text-[0.75rem] font-medium text-on-surface-variant opacity-70">
@@ -29,7 +42,7 @@ export default function Web_Sidebar() {
         {WEB_OFFICE_NAV_ITEMS.map((item) => {
           if (item.children) {
             const isGroupActive = item.children.some((child) =>
-              location.pathname.startsWith(child.path),
+              getIsChildActive(child.path),
             );
 
             return (
@@ -45,25 +58,29 @@ export default function Web_Sidebar() {
                   <span className="font-label">{item.label}</span>
                 </div>
 
-                <div className="pl-4 space-y-1">
-                  {item.children.map((child) => (
-                    <NavLink
-                      key={child.key}
-                      to={child.path}
-                      className={({ isActive }) =>
-                        `${subBaseClass} ${
-                          isActive ? subActiveClass : subInactiveClass
-                        }`
-                      }
-                    >
-                      <span className="material-symbols-outlined text-[18px]">
-                        {child.icon}
-                      </span>
-                      <span className="text-[0.8rem] font-label">
-                        {child.label}
-                      </span>
-                    </NavLink>
-                  ))}
+                <div className="space-y-1 pl-4">
+                  {item.children.map((child) => {
+                    const isChildActive = getIsChildActive(child.path);
+
+                    return (
+                      <NavLink
+                        key={child.key}
+                        to={child.path}
+                        className={() =>
+                          `${subBaseClass} ${
+                            isChildActive ? subActiveClass : subInactiveClass
+                          }`
+                        }
+                      >
+                        <span className="material-symbols-outlined text-[18px]">
+                          {child.icon}
+                        </span>
+                        <span className="font-label text-[0.8rem]">
+                          {child.label}
+                        </span>
+                      </NavLink>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -80,7 +97,7 @@ export default function Web_Sidebar() {
               }
             >
               <span className="material-symbols-outlined">{item.icon}</span>
-              <span className="text-sm font-label">{item.label}</span>
+              <span className="font-label text-sm">{item.label}</span>
             </NavLink>
           );
         })}

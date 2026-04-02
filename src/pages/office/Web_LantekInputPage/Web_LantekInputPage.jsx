@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
 import Web_LantekProjectForm from "../../../components/office/Web_LantekProjectForm/Web_LantekProjectForm";
 import Web_LantekDetailSection from "../../../components/office/Web_LantekDetailSection/Web_LantekDetailSection";
@@ -10,7 +12,15 @@ import Web_ScenarioCheckModal from "../../../components/modal/Web_ScenarioCheckM
 import Web_LoadingModal from "../../../components/modal/Web_LoadingModal/Web_LoadingModal";
 import Web_ResetConfirmModal from "../../../components/modal/Web_ResetConfirmModal/Web_ResetConfirmModal";
 
+import {
+  getScenarioLantekCache,
+  setScenarioLantekCache,
+  clearScenarioLantekCache,
+} from "../../../utils/Web/lantekCache";
+
 export default function Web_LantekInputPage() {
+  const navigate = useNavigate();
+
   const [projectInfo, setProjectInfo] = useState({
     projectName: "",
     productionPlanName: "",
@@ -32,6 +42,38 @@ export default function Web_LantekInputPage() {
     useState(false);
   const [isLoadingModalOpen, setIsLoadingModalOpen] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isCacheReady, setIsCacheReady] = useState(false);
+
+  useEffect(() => {
+    const cachedData = getScenarioLantekCache();
+
+    if (cachedData?.projectInfo) {
+      setProjectInfo((prev) => ({
+        ...prev,
+        ...cachedData.projectInfo,
+      }));
+    }
+
+    if (Array.isArray(cachedData?.lantekRows)) {
+      setLantekRows(cachedData.lantekRows);
+    }
+
+    if (cachedData?.tempSavedFile) {
+      setTempSavedFile(cachedData.tempSavedFile);
+    }
+
+    setIsCacheReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isCacheReady) return;
+
+    setScenarioLantekCache({
+      projectInfo,
+      lantekRows,
+      tempSavedFile,
+    });
+  }, [isCacheReady, projectInfo, lantekRows, tempSavedFile]);
 
   const isProjectInfoReady = Boolean(
     projectInfo.projectName &&
@@ -65,8 +107,6 @@ export default function Web_LantekInputPage() {
     setIsHistoryModalOpen(true);
   };
 
-  // 임시 mock 함수
-  // 나중에는 백엔드 API 호출로 교체
   const handleFetchProductionPlanName = async () => {
     if (!projectInfo.projectName || !projectInfo.projectDueDate) {
       alert("먼저 프로젝트 이력을 선택해주세요.");
@@ -81,10 +121,6 @@ export default function Web_LantekInputPage() {
     setShipmentDateError("");
     setProductionPlanError("");
 
-    // 예시:
-    // 1) 같은 출하일이 있으면 해당 생산계획명 반환
-    // 2) 없으면 기존 이력보다 +1
-    // 실제로는 backend에서 처리
     const mockExistingPlans = [
       {
         shipmentDate: "2026-04-10",
@@ -144,10 +180,24 @@ export default function Web_LantekInputPage() {
   const handleConfirmReset = () => {
     setLantekRows([]);
     setTempSavedFile(null);
+
+    clearScenarioLantekCache();
+    setScenarioLantekCache({
+      projectInfo,
+      lantekRows: [],
+      tempSavedFile: null,
+    });
+
     setIsResetModalOpen(false);
   };
 
   const handleTemporarySave = () => {
+    setScenarioLantekCache({
+      projectInfo,
+      lantekRows,
+      tempSavedFile,
+    });
+
     console.log("임시저장", { projectInfo, lantekRows });
   };
 
@@ -168,12 +218,18 @@ export default function Web_LantekInputPage() {
   };
 
   const handleConfirmScenario = () => {
+    setScenarioLantekCache({
+      projectInfo,
+      lantekRows,
+      tempSavedFile,
+    });
+
     setIsScenarioCheckModalOpen(false);
     setIsLoadingModalOpen(true);
 
     setTimeout(() => {
       setIsLoadingModalOpen(false);
-      // 추후 결과 페이지로 navigate
+      navigate("/office/scenario/result");
     }, 2000);
   };
 
