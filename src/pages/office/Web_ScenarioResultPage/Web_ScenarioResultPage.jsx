@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
 import Web_ScenarioSummaryPanel from "../../../components/office/Web_ScenarioSummaryPanel/Web_ScenarioSummaryPanel";
 import Web_ScenarioMetricCards from "../../../components/office/Web_ScenarioMetricCards/Web_ScenarioMetricCards";
@@ -8,7 +10,15 @@ import Web_ScenarioGoBackModal from "../../../components/modal/Web_ScenarioGoBac
 import Web_ScenarioAddModal from "../../../components/modal/Web_ScenarioAddModal/Web_ScenarioAddModal";
 import Web_ScenarioSendModal from "../../../components/modal/Web_ScenarioSendModal/Web_ScenarioSendModal";
 
+import {
+  clearScenarioLantekCache,
+  getScenarioLantekCache,
+  setScenarioLantekCache,
+} from "../../../utils/Web/lantekCache";
+
 export default function Web_ScenarioResultPage() {
+  const navigate = useNavigate();
+
   const [isGoBackModalOpen, setIsGoBackModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
@@ -105,12 +115,51 @@ export default function Web_ScenarioResultPage() {
     },
   ];
 
+  const handleCloseGoBackModal = () => {
+    setIsGoBackModalOpen(false);
+  };
+
+  const handleCloseAddModal = () => {
+    setIsAddModalOpen(false);
+  };
+
+  const handleCloseSendModal = () => {
+    setIsSendModalOpen(false);
+  };
+
+  const handleGoBackNo = () => {
+    clearScenarioLantekCache();
+    setIsGoBackModalOpen(false);
+    navigate("/office/scenario/input");
+  };
+
+  const handleGoBackYes = () => {
+    const existingCache = getScenarioLantekCache();
+
+    if (existingCache) {
+      setScenarioLantekCache(existingCache);
+    }
+
+    setIsGoBackModalOpen(false);
+    navigate("/office/scenario/input");
+  };
+
+  const handleAddConfirm = () => {
+    setIsAddModalOpen(false);
+    navigate("/office/scenario/creationhistory");
+  };
+
+  const handleSendConfirm = () => {
+    setIsSendModalOpen(false);
+    navigate("/office/scenario/releasehistory");
+  };
+
   return (
     <Web_AppLayout pageTitle="시나리오 결과 확인">
       <div className="px-8 pt-8 pb-12">
-        <div className="flex justify-between items-end mb-8">
+        <div className="mb-8 flex items-end justify-between">
           <div>
-            <p className="text-lg font-bold text-on-surface tracking-tight font-headline">
+            <p className="font-headline text-lg font-bold tracking-tight text-on-surface">
               시나리오 생성 이력 &gt; 시나리오 결과 확인
             </p>
           </div>
@@ -118,7 +167,7 @@ export default function Web_ScenarioResultPage() {
           <div className="flex gap-3">
             <button
               type="button"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-outline-variant/10 bg-surface-container-lowest text-on-surface font-semibold text-sm hover:bg-surface-container transition-all active:scale-95"
+              className="flex items-center gap-2 rounded-xl border border-outline-variant/10 bg-surface-container-lowest px-5 py-2.5 text-sm font-semibold text-on-surface transition-all hover:bg-surface-container active:scale-95"
               onClick={() => setIsGoBackModalOpen(true)}
             >
               <span className="material-symbols-outlined text-lg">
@@ -129,7 +178,7 @@ export default function Web_ScenarioResultPage() {
 
             <button
               type="button"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-surface-container text-on-surface-variant font-semibold text-sm border border-outline-variant/10 hover:bg-surface-container-high transition-all active:scale-95"
+              className="flex items-center gap-2 rounded-xl border border-outline-variant/10 bg-surface-container px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition-all hover:bg-surface-container-high active:scale-95"
               onClick={() => setIsAddModalOpen(true)}
             >
               <span className="material-symbols-outlined text-lg">add_box</span>
@@ -138,7 +187,7 @@ export default function Web_ScenarioResultPage() {
 
             <button
               type="button"
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary to-primary-dim text-white font-bold text-sm shadow-md hover:opacity-90 transition-all active:scale-95"
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dim px-6 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-95"
               onClick={() => setIsSendModalOpen(true)}
             >
               <span className="material-symbols-outlined text-lg">publish</span>
@@ -147,7 +196,7 @@ export default function Web_ScenarioResultPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-12 gap-6 mb-10">
+        <div className="mb-10 grid grid-cols-12 gap-6">
           <Web_ScenarioSummaryPanel summary={scenarioSummary} />
           <Web_ScenarioMetricCards
             metrics={metrics}
@@ -161,40 +210,26 @@ export default function Web_ScenarioResultPage() {
 
       {isGoBackModalOpen && (
         <Web_ScenarioGoBackModal
-          onClose={() => setIsGoBackModalOpen(false)}
-          onCancel={() => setIsGoBackModalOpen(false)}
-          onNo={() => {
-            setIsGoBackModalOpen(false);
-            // navigate("/office/scenario/input")
-          }}
-          onConfirm={() => {
-            setIsGoBackModalOpen(false);
-            // 기존 LANTEK 정보 불러오기 후 이동
-            // navigate("/office/scenario/input")
-          }}
+          onClose={handleCloseGoBackModal}
+          onCancel={handleCloseGoBackModal}
+          onNo={handleGoBackNo}
+          onConfirm={handleGoBackYes}
         />
       )}
 
       {isAddModalOpen && (
         <Web_ScenarioAddModal
-          onClose={() => setIsAddModalOpen(false)}
-          onCancel={() => setIsAddModalOpen(false)}
-          onConfirm={() => {
-            setIsAddModalOpen(false);
-            // 이력 저장 후 시나리오 생성 이력 페이지로 이동
-            // navigate("/office/scenario")
-          }}
+          onClose={handleCloseAddModal}
+          onCancel={handleCloseAddModal}
+          onConfirm={handleAddConfirm}
         />
       )}
 
       {isSendModalOpen && (
         <Web_ScenarioSendModal
-          onClose={() => setIsSendModalOpen(false)}
-          onCancel={() => setIsSendModalOpen(false)}
-          onConfirm={() => {
-            setIsSendModalOpen(false);
-            // 현장 발행 후 현장 전송 이력 또는 다음 페이지 이동
-          }}
+          onClose={handleCloseSendModal}
+          onCancel={handleCloseSendModal}
+          onConfirm={handleSendConfirm}
         />
       )}
     </Web_AppLayout>
