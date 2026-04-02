@@ -22,13 +22,15 @@ export default function Web_ScenarioResultPage() {
   const [isGoBackModalOpen, setIsGoBackModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+  const cachedData = getScenarioLantekCache();
+  const cachedProjectInfo = cachedData?.projectInfo ?? {};
 
   const scenarioSummary = {
     scenarioId: "#00001",
-    projectName: "토네이도 건설",
-    productionPlanName: "토네이도 건설-1",
-    shipmentDate: "2026.03.20",
-    equipmentName: "레이저 절단기 2호기",
+    projectName: cachedProjectInfo.projectName || "-",
+    productionPlanName: cachedProjectInfo.productionPlanName || "-",
+    shipmentDate: cachedProjectInfo.shipmentDate || "-",
+    equipmentName: cachedProjectInfo.equipmentName || "-",
     status: "ACTIVE",
   };
 
