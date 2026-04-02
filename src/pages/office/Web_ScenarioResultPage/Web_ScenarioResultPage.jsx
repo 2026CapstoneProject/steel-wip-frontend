@@ -63,7 +63,7 @@ export default function Web_ScenarioResultPage() {
       type: "피킹 (Picking)",
       subLabel: "(Batch #88)",
       icon: "inventory",
-      colorClass: "bg-secondary ring-surface",
+      colorClass: "bg-red-500 ring-surface",
       iconColorClass: "text-secondary",
       rows: [
         {
