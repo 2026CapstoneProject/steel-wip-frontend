@@ -106,6 +106,29 @@ const extractSlotNumber = (value) => {
   return match ? match[1] : "";
 };
 
+const parseDurationMinutes = (value) => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return 0;
+
+  const hourMatches = [...raw.matchAll(/(\d+)\s*h/gi)];
+  const minuteMatches = [...raw.matchAll(/(\d+)\s*m/gi)];
+
+  if (hourMatches.length || minuteMatches.length) {
+    const hours = hourMatches.reduce(
+      (sum, match) => sum + Number(match[1] || 0),
+      0
+    );
+    const minutes = minuteMatches.reduce(
+      (sum, match) => sum + Number(match[1] || 0),
+      0
+    );
+    return hours * 60 + minutes;
+  }
+
+  const plainNumber = raw.match(/(\d+)/);
+  return plainNumber ? Number(plainNumber[1]) : 0;
+};
+
 const SummarySection = ({
   progressPercent,
   remainingTaskCount,
@@ -323,12 +346,18 @@ const App_ReadyPage = () => {
     const highlightedSlot =
       extractSlotNumber(targetPosition) || String(order);
 
+    const expectedDurationText = item?.duration || "";
+    const expectedDurationMinutes = parseDurationMinutes(expectedDurationText);
+
     const commonPickingState = {
       ...item,
       manufacturer: item?.manufacturer || "현대 제철",
       material: item?.materialName || "",
       specText: item?.specText || "22 x 2,438 x 6,096",
       weightText: item?.weightText || "7,698 kg",
+      duration: expectedDurationText,
+      expectedDurationText,
+      expectedDurationMinutes,
       from: {
         ...(item?.from ?? {}),
         zone: item?.currentZone || item?.infoValue || "",
