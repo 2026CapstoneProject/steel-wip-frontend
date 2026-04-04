@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const fallbackRelocation = {
@@ -87,6 +87,7 @@ const StepCircle = ({ type = "inactive" }) => {
 const App_RelocatePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const processedScanKeyRef = useRef("");
 
   const relocation = location.state?.relocation ?? fallbackRelocation;
 
@@ -130,6 +131,34 @@ const App_RelocatePage = () => {
     return () => window.clearTimeout(timer);
   }, [isSavePopupOpen, navigate]);
 
+  useEffect(() => {
+    const returnedState = location.state;
+    if (!returnedState?.type) return;
+
+    const currentKey = `${location.key}-${returnedState.type}-${returnedState.scannedAt || ""}`;
+    if (processedScanKeyRef.current === currentKey) return;
+    processedScanKeyRef.current = currentKey;
+
+    if (returnedState.type === "RELOCATE_WIP_SCAN_SUCCESS") {
+      setScanState((prev) => ({
+        ...prev,
+        wipScanned: true,
+        wipScannedAt:
+          prev.wipScannedAt || returnedState.scannedAt || formatNowTime(),
+      }));
+      return;
+    }
+
+    if (returnedState.type === "RELOCATE_ZONE_SCAN_SUCCESS") {
+      setScanState((prev) => ({
+        ...prev,
+        zoneScanned: true,
+        zoneScannedAt:
+          prev.zoneScannedAt || returnedState.scannedAt || formatNowTime(),
+      }));
+    }
+  }, [location.key, location.state]);
+
   const handlePrevClick = () => {
     navigate(-1);
   };
@@ -137,31 +166,17 @@ const App_RelocatePage = () => {
   const handleWipScanClick = () => {
     if (!isWipScanEnabled) return;
 
-    // 추후 실제 재공품 스캔 화면 연결 시 사용
-    // navigate("/App/ready/relocate/qr/wip", {
-    //   state: { relocation, scanState },
-    // });
-
-    setScanState((prev) => ({
-      ...prev,
-      wipScanned: true,
-      wipScannedAt: prev.wipScannedAt || formatNowTime(),
-    }));
+    navigate("/App/ready/relocate/qr/wip", {
+      state: { relocation, scanState },
+    });
   };
 
   const handleZoneScanClick = () => {
     if (!isZoneScanEnabled) return;
 
-    // 추후 실제 구역 스캔 화면 연결 시 사용
-    // navigate("/App/ready/relocate/qr/zone", {
-    //   state: { relocation, scanState },
-    // });
-
-    setScanState((prev) => ({
-      ...prev,
-      zoneScanned: true,
-      zoneScannedAt: prev.zoneScannedAt || formatNowTime(),
-    }));
+    navigate("/App/ready/relocate/qr/zone", {
+      state: { relocation, scanState },
+    });
   };
 
   const handleSaveClick = () => {
