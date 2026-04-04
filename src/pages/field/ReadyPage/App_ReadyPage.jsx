@@ -31,7 +31,12 @@ const readyMockData = {
           id: "picking-01",
           title: "Picking 1",
           type: "재공품",
+          manufacturer: "현대 제철",
           materialName: "SM355A",
+          specText: "22 x 2,438 x 6,096",
+          weightText: "7,698 kg",
+          currentZone: "Zone C-4",
+          targetPositionLabel: "Position 1",
           infoLabel: "현재 위치",
           infoValue: "Zone C-4",
           duration: "4m",
@@ -40,7 +45,11 @@ const readyMockData = {
           id: "picking-02",
           title: "Picking 2",
           type: "원자재",
+          manufacturer: "현대 제철",
           materialName: "SS275",
+          specText: "22 x 2,438 x 6,096",
+          weightText: "7,698 kg",
+          targetPositionLabel: "Position 2",
           infoLabel: "두께×폭",
           infoValue: "16 × 715",
           duration: "6m",
@@ -49,7 +58,12 @@ const readyMockData = {
           id: "picking-03",
           title: "Picking 3",
           type: "재공품",
+          manufacturer: "현대 제철",
           materialName: "GS400",
+          specText: "22 x 2,438 x 6,096",
+          weightText: "7,698 kg",
+          currentZone: "Zone A-3",
+          targetPositionLabel: "Position 3",
           infoLabel: "현재 위치",
           infoValue: "Zone A-3",
           duration: "7m",
@@ -58,7 +72,12 @@ const readyMockData = {
           id: "picking-04",
           title: "Picking 4",
           type: "재공품",
+          manufacturer: "현대 제철",
           materialName: "GS400",
+          specText: "22 x 2,438 x 6,096",
+          weightText: "7,698 kg",
+          currentZone: "Zone B-1",
+          targetPositionLabel: "Position 4",
           infoLabel: "현재 위치",
           infoValue: "Zone B-1",
           duration: "4m",
@@ -80,6 +99,11 @@ const readyMockData = {
       pickings: [],
     },
   ],
+};
+
+const extractSlotNumber = (value) => {
+  const match = String(value ?? "").match(/(\d+)/);
+  return match ? match[1] : "";
 };
 
 const SummarySection = ({
@@ -202,7 +226,7 @@ const PickingCard = ({ item, onQrClick, onWorkOrderClick }) => {
 
           <button
             type="button"
-            onClick={() => onQrClick(item)}
+            onClick={onQrClick}
             className="rounded-lg border border-indigo-200 bg-white p-2 shadow-sm transition active:scale-95"
           >
             <span className="material-symbols-outlined block text-4xl text-indigo-700">
@@ -247,11 +271,11 @@ const TaskSection = ({
 
       {task.pickings?.length > 0 && (
         <div className="mt-4 space-y-3">
-          {task.pickings.map((item) => (
+          {task.pickings.map((item, index) => (
             <PickingCard
               key={item.id}
               item={item}
-              onQrClick={onPickingQrClick}
+              onQrClick={() => onPickingQrClick(item, index, task.pickings)}
               onWorkOrderClick={onWorkOrderClick}
             />
           ))}
@@ -266,32 +290,82 @@ const App_ReadyPage = () => {
   const data = readyMockData;
 
   const handleRelocateQrClick = (item) => {
-  navigate("/App/ready/relocate", {
-    state: {
-      relocation: {
-        id: item.id,
-        manufacturer: item.manufacturer ?? "유성 철주",
-        material: item.materialName,
-        specText: item.specText ?? "18 x 2,438 x 6,096",
-        weightText: item.weightText ?? "6,300 kg",
-        from: {
-          zone: item.fromZone,
-        },
-        to: {
-          zone: item.toZone,
+    navigate("/App/ready/relocate", {
+      state: {
+        relocation: {
+          id: item.id,
+          manufacturer: item.manufacturer ?? "유성 철주",
+          material: item.materialName,
+          specText: item.specText ?? "18 x 2,438 x 6,096",
+          weightText: item.weightText ?? "6,300 kg",
+          from: {
+            zone: item.fromZone,
+          },
+          to: {
+            zone: item.toZone,
+          },
         },
       },
-    },
-  });
-};
+    });
+  };
 
-  const handlePickingQrClick = (item) => {
+  const handlePickingQrClick = (item, index, pickingList) => {
+    const order = index + 1;
+    const totalCount = pickingList.length;
+
+    const targetPosition =
+      item?.targetPositionLabel ||
+      item?.targetPosition ||
+      item?.positionLabel ||
+      item?.position ||
+      "Position 2";
+
+    const highlightedSlot =
+      extractSlotNumber(targetPosition) || String(order);
+
+    const commonPickingState = {
+      ...item,
+      manufacturer: item?.manufacturer || "현대 제철",
+      material: item?.materialName || "",
+      specText: item?.specText || "22 x 2,438 x 6,096",
+      weightText: item?.weightText || "7,698 kg",
+      from: {
+        ...(item?.from ?? {}),
+        zone: item?.currentZone || item?.infoValue || "",
+        time: item?.from?.time || "",
+      },
+      to: {
+        ...(item?.to ?? {}),
+        zone: targetPosition,
+        time: item?.to?.time || "",
+      },
+      layout: {
+        ...(item?.layout ?? {}),
+        highlightedSlot,
+      },
+      pickingOrder: order,
+      totalPickingCount: totalCount,
+      isLastPicking: order === totalCount,
+    };
+
     if (item.type === "재공품") {
-      navigate("/App/ready/picking/wip");
+      navigate("/App/ready/picking/wip", {
+        state: {
+          picking: commonPickingState,
+          pickingOrder: order,
+          totalPickingCount: totalCount,
+        },
+      });
       return;
     }
 
-    navigate("/App/ready/picking/raw");
+    navigate("/App/ready/picking/raw", {
+      state: {
+        picking: commonPickingState,
+        pickingOrder: order,
+        totalPickingCount: totalCount,
+      },
+    });
   };
 
   const handleWorkOrderClick = (item) => {
