@@ -4,7 +4,7 @@ import App_StartPage from "../pages/field/StartPage/App_StartPage";
 import App_ReadyPage from "../pages/field/ReadyPage/App_ReadyPage";
 import App_RelocatePage from "../pages/field/RelocatePage/App_RelocatePage";
 import App_RelocateQrWipPage from "../pages/field/RelocateQrWipPage/App_RelocateQrWipPage";
-// import App_RelocateQrZonePage from "../pages/field/RelocateQrZonePage/App_RelocateQrZonePage";
+import App_RelocateQrZonePage from "../pages/field/RelocateQrZonePage/App_RelocateQrZonePage";
 // import App_PickingWipPage from "../pages/field/PickingWipPage/App_PickingWipPage";
 // import App_PickingWipQrPage from "../pages/field/PickingWipQrPage/App_PickingWipQrPage";
 // import App_PickingRawPage from "../pages/field/PickingRawPage/App_PickingRawPage";
@@ -24,7 +24,7 @@ const appRoutes = [
 
       { path: "ready/relocate", element: <App_RelocatePage /> },
       { path: "ready/relocate/qr/wip", element: <App_RelocateQrWipPage /> },
-      // { path: "ready/relocate/qr/zone", element: <App_RelocateQrZonePage /> },
+      { path: "ready/relocate/qr/zone", element: <App_RelocateQrZonePage /> },
 
       // { path: "ready/picking/wip", element: <App_PickingWipPage /> },
       // { path: "ready/picking/wip/qr", element: <App_PickingWipQrPage /> },
