@@ -7,7 +7,7 @@ import App_RelocateQrWipPage from "../pages/field/RelocateQrWipPage/App_Relocate
 import App_RelocateQrZonePage from "../pages/field/RelocateQrZonePage/App_RelocateQrZonePage";
 import App_PickingWipPage from "../pages/field/PickingWipPage/App_PickingWipPage";
 import App_PickingWipQrPage from "../pages/field/PickingWipQrPage/App_PickingWipQrPage";
-// import App_PickingRawPage from "../pages/field/PickingRawPage/App_PickingRawPage";
+import App_PickingRawPage from "../pages/field/PickingRawPage/App_PickingRawPage";
 // import App_PickingRawQrPage from "../pages/field/PickingRawQrPage/App_PickingRawQrPage";
 // import App_ProcessingPage from "../pages/field/ProcessingPage/App_ProcessingPage";
 // import App_ProcessingQrPage from "../pages/field/ProcessingQrPage/App_ProcessingQrPage";
@@ -29,7 +29,7 @@ const appRoutes = [
       { path: "ready/picking/wip", element: <App_PickingWipPage /> },
       { path: "ready/picking/wip/qr", element: <App_PickingWipQrPage /> },
 
-      // { path: "ready/picking/raw", element: <App_PickingRawPage /> },
+      { path: "ready/picking/raw", element: <App_PickingRawPage /> },
       // { path: "ready/picking/raw/qr", element: <App_PickingRawQrPage /> },
 
       // { path: "processing", element: <App_ProcessingPage /> },

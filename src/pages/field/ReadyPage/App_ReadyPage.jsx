@@ -51,7 +51,7 @@ const readyMockData = {
           weightText: "7,698 kg",
           targetPositionLabel: "Position 2",
           infoLabel: "두께×폭",
-          infoValue: "16 × 715",
+          infoValue: "22 × 2,438",
           duration: "6m",
         },
         {
@@ -129,6 +129,24 @@ const parseDurationMinutes = (value) => {
   return plainNumber ? Number(plainNumber[1]) : 0;
 };
 
+const getThicknessWidthTextFromSpec = (specText, fallbackValue = "") => {
+  const raw = String(specText ?? "").trim();
+  if (!raw) return fallbackValue;
+
+  const parts = raw.split(/\s*x\s*/i).map((part) => part.trim());
+  if (parts.length < 2) return fallbackValue;
+
+  return `${parts[0]} × ${parts[1]}`;
+};
+
+const getPickingInfoValue = (item) => {
+  if (item?.type === "원자재" && item?.infoLabel === "두께×폭") {
+    return getThicknessWidthTextFromSpec(item?.specText, item?.infoValue ?? "");
+  }
+
+  return item?.infoValue ?? "";
+};
+
 const SummarySection = ({
   progressPercent,
   remainingTaskCount,
@@ -182,7 +200,7 @@ const RelocateCard = ({ item, onQrClick }) => {
             {item.materialName}
           </h3>
 
-          <div className="mt-1 flex items-center gap-1 text-xs font-medium text-slate-400">
+          <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-slate-500">
             <span>{item.fromZone}</span>
             <span>→</span>
             <span>{item.toZone}</span>
@@ -200,8 +218,10 @@ const RelocateCard = ({ item, onQrClick }) => {
         </button>
       </div>
 
-      <div className="flex items-center gap-1 text-[11px] text-slate-400">
-        <span className="material-symbols-outlined text-xs">schedule</span>
+      <div className="flex items-center gap-1.5 text-[12px] text-slate-400">
+        <span className="material-symbols-outlined text-[18px] leading-none">
+          schedule
+        </span>
         <span>{item.duration}</span>
       </div>
     </div>
@@ -209,6 +229,8 @@ const RelocateCard = ({ item, onQrClick }) => {
 };
 
 const PickingCard = ({ item, onQrClick, onWorkOrderClick }) => {
+  const displayInfoValue = getPickingInfoValue(item);
+
   return (
     <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 shadow-sm">
       <div className="mb-2 flex items-start justify-between">
@@ -231,7 +253,7 @@ const PickingCard = ({ item, onQrClick, onWorkOrderClick }) => {
               {item.infoLabel}
             </span>
             <span className="text-[12px] font-bold text-indigo-700">
-              {item.infoValue}
+              {displayInfoValue}
             </span>
           </div>
         </div>
@@ -259,8 +281,10 @@ const PickingCard = ({ item, onQrClick, onWorkOrderClick }) => {
         </div>
       </div>
 
-      <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
-        <span className="material-symbols-outlined text-xs">schedule</span>
+      <div className="mt-1 flex items-center gap-1.5 text-[12px] text-slate-400">
+        <span className="material-symbols-outlined text-[18px] leading-none">
+          schedule
+        </span>
         <span>{item.duration}</span>
       </div>
     </div>
