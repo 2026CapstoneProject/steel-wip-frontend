@@ -308,8 +308,7 @@ export default function App_PickingWipQrPage() {
               재공품 QR 코드를 중앙에 맞춰주세요
             </p>
             <p className="text-sm leading-relaxed text-[#505F76]">
-              현재는 실제 카메라 연동 전 단계이므로, 검정 스캔 박스를 누르면
-              인식 완료 처리 후 이전 화면으로 돌아갑니다.
+              인식이 완료되면 자동으로 다음 단계로 넘어갑니다.
             </p>
           </div>
         </div>
