@@ -7,9 +7,12 @@ const fallbackPicking = {
   material: "SS275",
   specText: "22 x 2,438 x 6,096",
   weightText: "7,698 kg",
+  duration: "6m",
+  expectedDurationText: "6m",
+  expectedDurationMinutes: 6,
   from: {
     zone: "Zone C-3",
-    time: "10:00",
+    time: "",
   },
   to: {
     zone: "Position 2",
@@ -36,6 +39,29 @@ const formatNowTime = () => {
 const extractSlotNumber = (value) => {
   const match = String(value ?? "").match(/(\d+)/);
   return match ? match[1] : "";
+};
+
+const parseDurationMinutes = (value) => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return 0;
+
+  const hourMatches = [...raw.matchAll(/(\d+)\s*h/gi)];
+  const minuteMatches = [...raw.matchAll(/(\d+)\s*m/gi)];
+
+  if (hourMatches.length || minuteMatches.length) {
+    const hours = hourMatches.reduce(
+      (sum, match) => sum + Number(match[1] || 0),
+      0
+    );
+    const minutes = minuteMatches.reduce(
+      (sum, match) => sum + Number(match[1] || 0),
+      0
+    );
+    return hours * 60 + minutes;
+  }
+
+  const plainNumber = raw.match(/(\d+)/);
+  return plainNumber ? Number(plainNumber[1]) : 0;
 };
 
 const formatPositionLabel = (value) => {
@@ -69,12 +95,6 @@ const normalizePickingData = (source = {}) => {
     source?.zone ||
     fallbackPicking.from.zone;
 
-  const fromTime =
-    source?.from?.time ||
-    source?.currentTime ||
-    source?.fromTime ||
-    fallbackPicking.from.time;
-
   const rawPosition =
     source?.to?.zone ||
     source?.toZone ||
@@ -92,7 +112,16 @@ const normalizePickingData = (source = {}) => {
       fallbackPicking.layout.highlightedSlot
   );
 
-  const toZone = formatPositionLabel(rawPosition) || `Position ${highlightedSlot}`;
+  const toZone =
+    formatPositionLabel(rawPosition) || `Position ${highlightedSlot}`;
+
+  const expectedDurationText =
+    source?.expectedDurationText || source?.duration || fallbackPicking.duration;
+
+  const expectedDurationMinutes =
+    typeof source?.expectedDurationMinutes === "number"
+      ? source.expectedDurationMinutes
+      : parseDurationMinutes(expectedDurationText);
 
   return {
     ...fallbackPicking,
@@ -109,11 +138,14 @@ const normalizePickingData = (source = {}) => {
       source?.weight ||
       source?.weightKg ||
       fallbackPicking.weightText,
+    duration: source?.duration || expectedDurationText,
+    expectedDurationText,
+    expectedDurationMinutes,
     from: {
       ...fallbackPicking.from,
       ...(source?.from ?? {}),
       zone: currentZone,
-      time: fromTime,
+      time: source?.from?.time || "",
     },
     to: {
       ...fallbackPicking.to,
@@ -285,7 +317,8 @@ const App_PickingWipPage = () => {
 
   const [scanState, setScanState] = useState({
     qrScanned: location.state?.scanState?.qrScanned ?? false,
-    qrScannedAt: location.state?.scanState?.qrScannedAt ?? "",
+    fromTime: location.state?.scanState?.fromTime ?? "",
+    toTime: location.state?.scanState?.toTime ?? "",
   });
 
   const [isDoubleCheckOpen, setIsDoubleCheckOpen] = useState(false);
@@ -307,7 +340,22 @@ const App_PickingWipPage = () => {
     );
   }, [picking.layout?.highlightedSlot, picking.to?.zone]);
 
-  const toDisplayTime = scanState.qrScannedAt || picking.to?.time || "";
+  const fromDisplayTime = scanState.fromTime || "";
+  const toDisplayTime = scanState.toTime || "";
+
+  const completedPicking = useMemo(() => {
+    return {
+      ...picking,
+      from: {
+        ...picking.from,
+        time: fromDisplayTime,
+      },
+      to: {
+        ...picking.to,
+        time: toDisplayTime,
+      },
+    };
+  }, [picking, fromDisplayTime, toDisplayTime]);
 
   useEffect(() => {
     const returnedState = location.state;
@@ -318,11 +366,23 @@ const App_PickingWipPage = () => {
     processedScanKeyRef.current = currentKey;
 
     if (returnedState.type === "PICKING_WIP_QR_SUCCESS") {
-      setScanState((prev) => ({
-        ...prev,
+      const nextFromTime =
+        returnedState?.scanState?.fromTime ||
+        returnedState?.scannedAt ||
+        returnedState?.picking?.from?.time ||
+        formatNowTime();
+
+      const nextToTime =
+        returnedState?.scanState?.toTime ||
+        returnedState?.estimatedToTime ||
+        returnedState?.picking?.to?.time ||
+        "";
+
+      setScanState({
         qrScanned: true,
-        qrScannedAt: prev.qrScannedAt || returnedState.scannedAt || formatNowTime(),
-      }));
+        fromTime: nextFromTime,
+        toTime: nextToTime,
+      });
     }
   }, [location.key, location.state]);
 
@@ -335,8 +395,8 @@ const App_PickingWipPage = () => {
       navigate(nextPath, {
         replace: true,
         state: {
-          completedPickingId: picking.id,
-          picking,
+          completedPickingId: completedPicking.id,
+          picking: completedPicking,
           pickingOrder: currentPickingOrder,
           totalPickingCount,
         },
@@ -349,11 +409,11 @@ const App_PickingWipPage = () => {
       }
     };
   }, [
+    completedPicking,
+    currentPickingOrder,
     isCompletePopupOpen,
     isLastPicking,
     navigate,
-    picking,
-    currentPickingOrder,
     totalPickingCount,
   ]);
 
@@ -361,13 +421,19 @@ const App_PickingWipPage = () => {
     navigate(-1);
   };
 
-  // 재공품 스캔 화면 연결 전 임시 흐름
   const handleScanClick = () => {
-    setScanState((prev) => ({
-      ...prev,
-      qrScanned: true,
-      qrScannedAt: prev.qrScannedAt || formatNowTime(),
-    }));
+    navigate("qr", {
+      relative: "path",
+      state: {
+        ...location.state,
+        returnPath: location.pathname,
+        picking: completedPicking,
+        item: completedPicking,
+        pickingOrder: currentPickingOrder,
+        totalPickingCount,
+        scanState,
+      },
+    });
   };
 
   const handleSaveClick = () => {
@@ -411,7 +477,9 @@ const App_PickingWipPage = () => {
         </div>
       </header>
 
-      <main className={`mx-auto w-full max-w-md space-y-6 px-6 pb-6 pt-24 ${blurClass}`}>
+      <main
+        className={`mx-auto w-full max-w-md space-y-6 px-6 pb-6 pt-24 ${blurClass}`}
+      >
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-bold text-[#191C1E]">재공품 상세 정보</h2>
@@ -456,7 +524,7 @@ const App_PickingWipPage = () => {
           <InfoCard
             label="FROM"
             zone={picking.from?.zone}
-            time={picking.from?.time}
+            time={fromDisplayTime}
           />
           <InfoCard
             label="TO"
@@ -504,7 +572,12 @@ const App_PickingWipPage = () => {
               <button
                 type="button"
                 onClick={handleScanClick}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#24389c] to-[#3f51b5] py-4 font-bold text-white shadow-lg shadow-[#24389C]/20 transition active:scale-95"
+                disabled={isCompleted}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-bold transition ${
+                  isCompleted
+                    ? "cursor-not-allowed bg-[#E6E8EA] text-[#757684]"
+                    : "bg-gradient-to-br from-[#24389c] to-[#3f51b5] text-white shadow-lg shadow-[#24389C]/20 active:scale-95"
+                }`}
               >
                 <span className="material-symbols-outlined">
                   center_focus_weak
