@@ -2,7 +2,7 @@ import React from "react";
 
 import App_StartPage from "../pages/field/StartPage/App_StartPage";
 import App_ReadyPage from "../pages/field/ReadyPage/App_ReadyPage";
-// import App_RelocatePage from "../pages/field/RelocatePage/App_RelocatePage";
+import App_RelocatePage from "../pages/field/RelocatePage/App_RelocatePage";
 // import App_RelocateQrWipPage from "../pages/field/RelocateQrWipPage/App_RelocateQrWipPage";
 // import App_RelocateQrZonePage from "../pages/field/RelocateQrZonePage/App_RelocateQrZonePage";
 // import App_PickingWipPage from "../pages/field/PickingWipPage/App_PickingWipPage";
@@ -22,7 +22,7 @@ const appRoutes = [
       { path: "start", element: <App_StartPage /> },
       { path: "ready", element: <App_ReadyPage /> },
 
-      // { path: "ready/relocate", element: <App_RelocatePage /> },
+      { path: "ready/relocate", element: <App_RelocatePage /> },
       // { path: "ready/relocate/qr/wip", element: <App_RelocateQrWipPage /> },
       // { path: "ready/relocate/qr/zone", element: <App_RelocateQrZonePage /> },
 

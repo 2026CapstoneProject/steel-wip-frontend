@@ -1,0 +1,381 @@
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+
+const fallbackRelocation = {
+  id: "relocate-01",
+  manufacturer: "유성 철주",
+  material: "GS400",
+  specText: "18 x 2,438 x 6,096",
+  weightText: "6,300 kg",
+  from: {
+    zone: "Zone A-2",
+  },
+  to: {
+    zone: "Zone B-1",
+  },
+};
+
+const formatNowTime = () => {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+};
+
+const InfoCard = ({ label, zone, time }) => {
+  return (
+    <div className="flex items-center gap-4 rounded-xl bg-slate-100 p-4">
+      <div className="rounded-full bg-indigo-100 p-3">
+        <span className="material-symbols-outlined text-[#24389c]">
+          location_on
+        </span>
+      </div>
+
+      <div>
+        <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+          {label}
+        </p>
+        <p className="text-base font-bold text-slate-900">
+          {zone}
+          {time ? (
+            <span className="ml-3 text-xs font-normal text-slate-500">
+              {time}
+            </span>
+          ) : null}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+const StepCircle = ({ type = "inactive" }) => {
+  if (type === "done") {
+    return (
+      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#24389c]">
+        <span
+          className="material-symbols-outlined text-[14px] text-white"
+          style={{ fontVariationSettings: '"FILL" 1' }}
+        >
+          check
+        </span>
+      </div>
+    );
+  }
+
+  if (type === "active") {
+    return (
+      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#24389c] ring-4 ring-indigo-100">
+        <span
+          className="material-symbols-outlined text-[14px] text-white"
+          style={{ fontVariationSettings: '"FILL" 1' }}
+        >
+          check
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-slate-200 bg-slate-100">
+      <span className="material-symbols-outlined text-[14px] text-slate-500">
+        inventory_2
+      </span>
+    </div>
+  );
+};
+
+const App_RelocatePage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const relocation = location.state?.relocation ?? fallbackRelocation;
+
+  const [scanState, setScanState] = useState({
+    wipScanned: location.state?.scanState?.wipScanned ?? false,
+    zoneScanned: location.state?.scanState?.zoneScanned ?? false,
+    wipScannedAt: location.state?.scanState?.wipScannedAt ?? "",
+    zoneScannedAt: location.state?.scanState?.zoneScannedAt ?? "",
+  });
+
+  const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
+
+  const isStarted = scanState.wipScanned;
+  const isCompleted = scanState.wipScanned && scanState.zoneScanned;
+
+  const isWipScanEnabled = !scanState.wipScanned;
+  const isZoneScanEnabled = scanState.wipScanned && !scanState.zoneScanned;
+  const isSaveEnabled = isCompleted;
+
+  const statusText = isCompleted
+    ? "이동 완료"
+    : isStarted
+    ? "이동 중"
+    : "이동 전";
+
+  const statusClassName = isCompleted
+    ? "bg-indigo-100 text-[#24389c]"
+    : isStarted
+    ? "bg-indigo-100 text-[#24389c]"
+    : "bg-slate-200 text-slate-500";
+
+  const progressWidth = isCompleted ? "100%" : isStarted ? "66.6667%" : "0%";
+
+  useEffect(() => {
+    if (!isSavePopupOpen) return;
+
+    const timer = window.setTimeout(() => {
+      navigate("/App/ready");
+    }, 1200);
+
+    return () => window.clearTimeout(timer);
+  }, [isSavePopupOpen, navigate]);
+
+  const handlePrevClick = () => {
+    navigate(-1);
+  };
+
+  const handleWipScanClick = () => {
+    if (!isWipScanEnabled) return;
+
+    // 추후 실제 재공품 스캔 화면 연결 시 사용
+    // navigate("/App/ready/relocate/qr/wip", {
+    //   state: { relocation, scanState },
+    // });
+
+    setScanState((prev) => ({
+      ...prev,
+      wipScanned: true,
+      wipScannedAt: prev.wipScannedAt || formatNowTime(),
+    }));
+  };
+
+  const handleZoneScanClick = () => {
+    if (!isZoneScanEnabled) return;
+
+    // 추후 실제 구역 스캔 화면 연결 시 사용
+    // navigate("/App/ready/relocate/qr/zone", {
+    //   state: { relocation, scanState },
+    // });
+
+    setScanState((prev) => ({
+      ...prev,
+      zoneScanned: true,
+      zoneScannedAt: prev.zoneScannedAt || formatNowTime(),
+    }));
+  };
+
+  const handleSaveClick = () => {
+    if (!isSaveEnabled) return;
+    setIsSavePopupOpen(true);
+  };
+
+  return (
+    <div className="relative min-h-screen bg-[#f7f9fb] pb-28 text-slate-900">
+      <header
+        className={`sticky top-0 z-40 border-b border-slate-100 bg-white/80 backdrop-blur-xl ${
+          isSavePopupOpen ? "blur-sm" : ""
+        }`}
+      >
+        <div className="mx-auto flex h-16 w-full max-w-md items-center justify-between px-6">
+          <div className="flex items-center">
+            <span className="material-symbols-outlined text-2xl text-[#24389c]">
+              factory
+            </span>
+          </div>
+
+          <div className="flex items-center gap-5 text-slate-600">
+            <button type="button">
+              <span className="material-symbols-outlined text-2xl">
+                notifications
+              </span>
+            </button>
+            <button type="button">
+              <span className="material-symbols-outlined text-2xl">
+                account_circle
+              </span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main
+        className={`mx-auto flex w-full max-w-md flex-col gap-6 px-6 pb-6 pt-10 ${
+          isSavePopupOpen ? "blur-sm" : ""
+        }`}
+      >
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-900">재공품 상세 정보</h2>
+          </div>
+
+          <div className="rounded-xl bg-white p-5 shadow-[0_4px_20px_rgba(25,28,30,0.04)]">
+            <div className="grid grid-cols-2 gap-y-4">
+              <div>
+                <p className="mb-1 text-xs font-medium text-slate-500">제조사</p>
+                <p className="font-semibold text-slate-900">
+                  {relocation.manufacturer}
+                </p>
+              </div>
+
+              <div>
+                <p className="mb-1 text-xs font-medium text-slate-500">재질</p>
+                <p className="font-semibold text-slate-900">{relocation.material}</p>
+              </div>
+
+              <div className="col-span-2 pt-2">
+                <p className="mb-1 text-xs font-medium text-slate-500">
+                  규격 (두께 x 폭 x 길이)
+                </p>
+                <p className="text-lg font-bold text-[#24389c]">
+                  {relocation.specText}
+                </p>
+              </div>
+
+              <div>
+                <p className="mb-1 text-xs font-medium text-slate-500">중량</p>
+                <p className="font-semibold text-slate-900">
+                  {relocation.weightText}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <InfoCard
+            label="FROM"
+            zone={relocation.from?.zone}
+            time={scanState.wipScannedAt}
+          />
+          <InfoCard
+            label="TO"
+            zone={relocation.to?.zone}
+            time={scanState.zoneScannedAt}
+          />
+        </section>
+
+        <section className="flex flex-col items-center py-2">
+          <div className="relative mb-6 flex h-1 w-full max-w-xs items-center rounded-full bg-slate-200">
+            <div
+              className="absolute left-0 top-0 h-full rounded-full bg-[#24389c] transition-all"
+              style={{ width: progressWidth }}
+            />
+            <div className="absolute inset-0 flex items-center justify-between">
+              <StepCircle type="done" />
+              <StepCircle
+                type={isCompleted ? "done" : isStarted ? "active" : "inactive"}
+              />
+              <StepCircle type={isCompleted ? "done" : "inactive"} />
+            </div>
+          </div>
+
+          <p className={`rounded-full px-4 py-1 text-sm font-bold ${statusClassName}`}>
+            {statusText}
+          </p>
+        </section>
+
+        <section className="space-y-4">
+          <div className="rounded-2xl bg-white p-8 text-center shadow-[0_20px_40px_rgba(25,28,30,0.06)]">
+            <div className="relative mx-auto mb-6 flex h-48 w-48 items-center justify-center overflow-hidden rounded-2xl bg-slate-100">
+              <span className="material-symbols-outlined text-5xl text-[#24389c]/30">
+                qr_code_2
+              </span>
+
+              <div className="absolute left-6 top-6 h-8 w-8 rounded-tl-sm border-l-2 border-t-2 border-[#24389c]/40" />
+              <div className="absolute right-6 top-6 h-8 w-8 rounded-tr-sm border-r-2 border-t-2 border-[#24389c]/40" />
+              <div className="absolute bottom-6 left-6 h-8 w-8 rounded-bl-sm border-b-2 border-l-2 border-[#24389c]/40" />
+              <div className="absolute bottom-6 right-6 h-8 w-8 rounded-br-sm border-b-2 border-r-2 border-[#24389c]/40" />
+              <div className="absolute inset-x-10 top-1/2 h-px bg-[#24389c]/20" />
+            </div>
+
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={handleWipScanClick}
+                disabled={!isWipScanEnabled}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-bold transition ${
+                  isWipScanEnabled
+                    ? "bg-gradient-to-br from-[#24389c] to-[#3f51b5] text-white shadow-lg shadow-indigo-200 active:scale-95"
+                    : "cursor-not-allowed bg-slate-200 text-slate-400"
+                }`}
+              >
+                <span className="material-symbols-outlined">
+                  center_focus_weak
+                </span>
+                재공품 scan
+              </button>
+
+              <button
+                type="button"
+                onClick={handleZoneScanClick}
+                disabled={!isZoneScanEnabled}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-bold transition ${
+                  isZoneScanEnabled
+                    ? "bg-gradient-to-br from-[#24389c] to-[#3f51b5] text-white shadow-lg shadow-indigo-200 active:scale-95"
+                    : "cursor-not-allowed bg-slate-200 text-slate-400"
+                }`}
+              >
+                <span className="material-symbols-outlined">
+                  center_focus_weak
+                </span>
+                구역 scan
+              </button>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleSaveClick}
+              disabled={!isSaveEnabled}
+              className={`flex items-center gap-2 rounded-xl px-10 py-4 font-bold transition ${
+                isSaveEnabled
+                  ? "bg-[#1a237e] text-white shadow-lg active:scale-95"
+                  : "cursor-not-allowed bg-slate-200 text-slate-400"
+              }`}
+            >
+              <span className="material-symbols-outlined">save</span>
+              저장
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <nav
+        className={`fixed bottom-0 left-0 z-40 flex w-full flex-col items-center rounded-t-xl bg-white shadow-[0_-4px_20px_rgba(25,28,30,0.06)] ${
+          isSavePopupOpen ? "blur-sm" : ""
+        }`}
+      >
+        <button
+          type="button"
+          onClick={handlePrevClick}
+          className="mx-6 my-4 flex w-[calc(100%-3rem)] items-center justify-center gap-2 rounded-xl bg-indigo-100 py-4 text-sm font-semibold uppercase tracking-wider text-[#24389c] transition active:translate-y-0.5"
+        >
+          <span className="material-symbols-outlined">arrow_back</span>
+          Previous
+        </button>
+      </nav>
+
+      {isSavePopupOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6 backdrop-blur-sm">
+          <div className="flex w-full max-w-sm flex-col items-center rounded-[2rem] bg-white p-8 shadow-2xl">
+            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#3F51B5]/10">
+              <span
+                className="material-symbols-outlined text-4xl text-[#3F51B5]"
+                style={{ fontVariationSettings: '"FILL" 1' }}
+              >
+                check_circle
+              </span>
+            </div>
+
+            <h2 className="text-center text-2xl font-extrabold leading-tight text-slate-900">
+              이동이 완료되었습니다
+            </h2>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App_RelocatePage;

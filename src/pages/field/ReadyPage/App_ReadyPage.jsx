@@ -265,9 +265,25 @@ const App_ReadyPage = () => {
   const navigate = useNavigate();
   const data = readyMockData;
 
-  const handleRelocateQrClick = () => {
-    navigate("/App/ready/relocate");
-  };
+  const handleRelocateQrClick = (item) => {
+  navigate("/App/ready/relocate", {
+    state: {
+      relocation: {
+        id: item.id,
+        manufacturer: item.manufacturer ?? "유성 철주",
+        material: item.materialName,
+        specText: item.specText ?? "18 x 2,438 x 6,096",
+        weightText: item.weightText ?? "6,300 kg",
+        from: {
+          zone: item.fromZone,
+        },
+        to: {
+          zone: item.toZone,
+        },
+      },
+    },
+  });
+};
 
   const handlePickingQrClick = (item) => {
     if (item.type === "재공품") {
