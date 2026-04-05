@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
 import {
@@ -187,7 +187,12 @@ function DateRangeInput({
   );
 }
 
-function ScenarioReleaseProjectAccordion({ project, isOpen, onToggle }) {
+function ScenarioReleaseProjectAccordion({
+  project,
+  isOpen,
+  onToggle,
+  onViewScenario,
+}) {
   return (
     <div className="overflow-hidden rounded-xl bg-surface-container-lowest shadow-sm">
       <button
@@ -266,7 +271,7 @@ function ScenarioReleaseProjectAccordion({ project, isOpen, onToggle }) {
               </thead>
 
               <tbody className="divide-y divide-surface-container">
-                {project.rows.map((row, index) => (
+                {(project.rows ?? []).map((row, index) => (
                   <tr
                     key={row.id}
                     className="transition-colors hover:bg-surface-container-low/30"
@@ -289,6 +294,7 @@ function ScenarioReleaseProjectAccordion({ project, isOpen, onToggle }) {
                     <td className="px-6 py-4 text-center">
                       <button
                         type="button"
+                        onClick={() => onViewScenario(project, row)}
                         className="inline-flex items-center gap-1 rounded-xl border border-primary/20 bg-surface-container-lowest px-4 py-2 text-sm font-bold text-primary transition-all duration-300 hover:bg-surface-container-low hover:shadow-sm"
                       >
                         <span className="material-symbols-outlined text-[18px]">
@@ -310,6 +316,7 @@ function ScenarioReleaseProjectAccordion({ project, isOpen, onToggle }) {
 
 export default function Web_ScenarioReleaseHistoryPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const releasedScenario = location.state?.releasedScenario ?? null;
 
   const [filters, setFilters] = useState(() => ({
@@ -413,6 +420,22 @@ export default function Web_ScenarioReleaseHistoryPage() {
     clearScenarioReleaseHistoryFilters();
   };
 
+  const handleViewScenario = (project, row) => {
+    navigate("/office/scenario/releasehistory/detail", {
+      state: {
+        projectInfo: {
+          scenarioId: row.id || "-",
+          projectName: project.projectName || "-",
+          productionPlanName: row.productionPlanName || "-",
+          shipmentDate: row.shipmentDate || "-",
+          equipmentName: "-",
+          statusLabel: project.statusLabel || "-",
+          status: project.status || "-",
+        },
+      },
+    });
+  };
+
   return (
     <Web_AppLayout pageTitle="현장 전송 이력">
       <div className="px-8 pb-12 pt-8">
@@ -497,6 +520,7 @@ export default function Web_ScenarioReleaseHistoryPage() {
                 project={project}
                 isOpen={Boolean(openProjectMap[project.id])}
                 onToggle={handleToggleProject}
+                onViewScenario={handleViewScenario}
               />
             ))
           ) : (

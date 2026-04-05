@@ -9,6 +9,7 @@ import ScenarioPage from "../pages/office/ScenarioPage/ScenarioPage";
 import Web_ScenarioResultPage from "../pages/office/Web_ScenarioResultPage/Web_ScenarioResultPage";
 import Web_ScenarioCreationHistoryPage from "../pages/office/Web_ScenarioCreationHistoryPage/Web_ScenarioCreationHistoryPage";
 import Web_ScenarioReleaseHistoryPage from "../pages/office/Web_ScenarioReleaseHistoryPage/Web_ScenarioReleaseHistoryPage";
+import Web_ScenarioDetailHisotryPage from "../pages/office/Web_ScenarioReleaseHistoryPage/Web_ScenarioDetailHistoryPage";
 
 const webRoutes = [
   {
@@ -25,6 +26,10 @@ const webRoutes = [
       {
         path: "scenario/releasehistory",
         element: <Web_ScenarioReleaseHistoryPage />,
+      },
+      {
+        path: "scenario/releasehistory/detail",
+        element: <Web_ScenarioDetailHisotryPage />,
       },
       { path: "work-order", element: <WorkOrderPage /> },
       { path: "scenario", element: <ScenarioPage /> },
