@@ -180,47 +180,8 @@ export default function Web_ScenarioResultPage() {
   };
 
   return (
-    <Web_AppLayout pageTitle="시나리오 결과 확인">
+    <Web_AppLayout pageTitle="발행된 시나리오 결과 확인">
       <div className="px-8 pt-8 pb-12">
-        <div className="mb-8 flex items-end justify-between">
-          <div>
-            <p className="font-headline text-lg font-bold tracking-tight text-on-surface">
-              LANTEK 결과 입력 &gt; 시나리오 결과 확인
-            </p>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-xl border border-outline-variant/10 bg-surface-container-lowest px-5 py-2.5 text-sm font-semibold text-on-surface transition-all hover:bg-surface-container active:scale-95"
-              onClick={() => setIsGoBackModalOpen(true)}
-            >
-              <span className="material-symbols-outlined text-lg">
-                arrow_back
-              </span>
-              뒤로 가기
-            </button>
-
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-xl border border-outline-variant/10 bg-surface-container px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition-all hover:bg-surface-container-high active:scale-95"
-              onClick={() => setIsAddModalOpen(true)}
-            >
-              <span className="material-symbols-outlined text-lg">add_box</span>
-              이력 추가
-            </button>
-
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dim px-6 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-95"
-              onClick={() => setIsSendModalOpen(true)}
-            >
-              <span className="material-symbols-outlined text-lg">publish</span>
-              발행
-            </button>
-          </div>
-        </div>
-
         <div className="mb-10 grid grid-cols-12 gap-6">
           <Web_ScenarioSummaryPanel summary={scenarioSummary} />
           <Web_ScenarioMetricCards
