@@ -110,8 +110,8 @@ const parseDurationMinutes = (value) => {
   const raw = String(value ?? "").trim();
   if (!raw) return 0;
 
-  const hourMatches = [...raw.matchAll(/(\d+)\s*h/gi)];
-  const minuteMatches = [...raw.matchAll(/(\d+)\s*m/gi)];
+  const hourMatches = [...raw.matchAll(/(\d+)\s*(h|시간)/gi)];
+  const minuteMatches = [...raw.matchAll(/(\d+)\s*(m|분)/gi)];
 
   if (hourMatches.length || minuteMatches.length) {
     const hours = hourMatches.reduce(
@@ -151,28 +151,33 @@ const SummarySection = ({
   progressPercent,
   remainingTaskCount,
   remainingWorkTime,
+  className = "",
 }) => {
   return (
-    <section className="mb-8 rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm">
-      <div className="mb-4">
-        <div className="mb-2 flex items-end justify-between">
-          <span className="text-sm font-bold text-slate-900">전체 진행도</span>
-          <span className="text-lg font-extrabold text-indigo-700">
-            {progressPercent}%
-          </span>
-        </div>
+    <section
+      className={`rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm ${className}`}
+    >
+      <div className="mb-4 flex gap-4">
+        <div className="flex-1">
+          <div className="mb-3 flex items-end justify-between">
+            <span className="text-sm font-bold text-slate-900">전체 진행도</span>
+            <span className="text-lg font-extrabold text-indigo-700">
+              {progressPercent}%
+            </span>
+          </div>
 
-        <div className="h-3 w-full overflow-hidden rounded-full bg-indigo-100">
-          <div
-            className="h-full rounded-full bg-[#3F51B5]"
-            style={{ width: `${progressPercent}%` }}
-          />
+          <div className="h-3 w-full overflow-hidden rounded-full bg-indigo-100">
+            <div
+              className="h-full rounded-full bg-[#3F51B5]"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-xl bg-slate-50 p-3">
-          <p className="mb-1 text-[11px] font-medium text-slate-500">남은 task</p>
+          <p className="mb-1 text-[11px] font-medium text-slate-500">남은 작업</p>
           <p className="text-lg font-bold text-slate-900">
             {remainingTaskCount}개
           </p>
@@ -426,8 +431,8 @@ const App_ReadyPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f9fb] text-slate-900">
-      <header className="sticky top-0 z-40 border-b border-slate-100 bg-white">
+    <div className="h-[100dvh] overflow-hidden bg-[#f7f9fb] text-slate-900">
+      <header className="shrink-0 border-b border-slate-100 bg-white">
         <div className="mx-auto flex h-[72px] w-full max-w-md items-center justify-between px-6">
           <div className="flex items-center">
             <span className="material-symbols-outlined text-3xl text-indigo-900">
@@ -451,25 +456,30 @@ const App_ReadyPage = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-md px-4 pb-8 pt-3">
-        <App_ProcessTabs activeKey="ready" />
+      <main className="mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col px-4">
+        <div className="shrink-0 bg-[#f7f9fb] pt-3">
+          <App_ProcessTabs activeKey="ready" className="mb-0" />
 
-        <SummarySection
-          progressPercent={data.progressPercent}
-          remainingTaskCount={data.remainingTaskCount}
-          remainingWorkTime={data.remainingWorkTime}
-        />
+          <SummarySection
+            className="mt-4 mb-4"
+            progressPercent={data.progressPercent}
+            remainingTaskCount={data.remainingTaskCount}
+            remainingWorkTime={data.remainingWorkTime}
+          />
+        </div>
 
-        <div className="space-y-8">
-          {data.tasks.map((task) => (
-            <TaskSection
-              key={task.id}
-              task={task}
-              onRelocateQrClick={handleRelocateQrClick}
-              onPickingQrClick={handlePickingQrClick}
-              onWorkOrderClick={handleWorkOrderClick}
-            />
-          ))}
+        <div className="min-h-0 flex-1 overflow-y-auto pb-8">
+          <div className="space-y-8 pb-2">
+            {data.tasks.map((task) => (
+              <TaskSection
+                key={task.id}
+                task={task}
+                onRelocateQrClick={handleRelocateQrClick}
+                onPickingQrClick={handlePickingQrClick}
+                onWorkOrderClick={handleWorkOrderClick}
+              />
+            ))}
+          </div>
         </div>
       </main>
     </div>
