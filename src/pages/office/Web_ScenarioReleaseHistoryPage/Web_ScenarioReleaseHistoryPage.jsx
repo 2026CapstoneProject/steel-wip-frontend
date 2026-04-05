@@ -295,7 +295,7 @@ function ScenarioReleaseProjectAccordion({ project, isOpen, onToggle }) {
                     <td className="px-6 py-4 text-center">
                       <button
                         type="button"
-                        className="inline-flex items-center gap-1 rounded-xl border border-primary/20 bg-surface-container-lowest px-4 py-2 text-sm font-bold text-primary transition-all duration-300 hover:bg-primary hover:text-on-primary"
+                        className="inline-flex items-center gap-1 rounded-xl border border-primary/20 bg-surface-container-lowest px-4 py-2 text-sm font-bold text-primary transition-all duration-300 hover:bg-surface-container-low hover:shadow-sm"
                       >
                         <span className="material-symbols-outlined text-[18px]">
                           visibility
@@ -477,7 +477,7 @@ export default function Web_ScenarioReleaseHistoryPage() {
             <button
               type="button"
               onClick={handleSearch}
-              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary-dim px-8 py-3 font-bold text-on-primary shadow-md transition-all active:scale-95 hover:shadow-lg"
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary-dim px-8 py-3 font-bold text-white shadow-md transition-all active:scale-95 hover:shadow-lg"
             >
               <span className="material-symbols-outlined text-sm">search</span>
               조회
