@@ -10,6 +10,7 @@ import Web_ScenarioResultPage from "../pages/office/Web_ScenarioResultPage/Web_S
 import Web_ScenarioCreationHistoryPage from "../pages/office/Web_ScenarioCreationHistoryPage/Web_ScenarioCreationHistoryPage";
 import Web_ScenarioReleaseHistoryPage from "../pages/office/Web_ScenarioReleaseHistoryPage/Web_ScenarioReleaseHistoryPage";
 import Web_ScenarioDetailHisotryPage from "../pages/office/Web_ScenarioReleaseHistoryPage/Web_ScenarioDetailHistoryPage";
+import Web_ScenarioCreationDetailHistoryPage from "../pages/office/Web_ScenarioCreationHistoryPage/Web_ScenarioCreationDetailHistoryPage";
 
 const webRoutes = [
   {
@@ -22,6 +23,10 @@ const webRoutes = [
       {
         path: "scenario/creationhistory",
         element: <Web_ScenarioCreationHistoryPage />,
+      },
+      {
+        path: "scenario/creationhistory/detail",
+        element: <Web_ScenarioCreationDetailHistoryPage />,
       },
       {
         path: "scenario/releasehistory",
