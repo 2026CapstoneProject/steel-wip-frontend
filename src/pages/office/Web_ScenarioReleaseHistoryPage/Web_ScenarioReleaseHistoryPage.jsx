@@ -130,7 +130,7 @@ function isWithinDateRange(targetDate, fromDate, toDate) {
 function getStatusBadgeClass(status) {
   switch (status) {
     case "urgent":
-      return "bg-error-container text-on-error-container";
+      return "bg-red-100 text-red-700";
     case "completed":
       return "bg-emerald-100 text-emerald-700";
     case "in-progress":
@@ -207,7 +207,7 @@ function ScenarioReleaseProjectAccordion({ project, isOpen, onToggle }) {
           <div
             className={`flex h-12 w-12 items-center justify-center rounded-xl ${project.iconWrapperClass}`}
           >
-            <span className="material-symbols-outlined">{project.icon}</span>
+            <span className="material-symbols-outlined">apartment</span>
           </div>
 
           <div>
