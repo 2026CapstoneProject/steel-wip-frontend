@@ -11,7 +11,8 @@ import App_PickingRawPage from "../pages/field/PickingRawPage/App_PickingRawPage
 import App_PickingRawQrPage from "../pages/field/PickingRawQrPage/App_PickingRawQrPage";
 import App_ProcessingPage from "../pages/field/ProcessingPage/App_ProcessingPage";
 import App_ProcessingQrPage from "../pages/field/ProcessingQrPage/App_ProcessingQrPage";
-// import App_ProcessingQrWipPage from "../pages/field/ProcessingQrWipPage/App_ProcessingQrWipPage";
+import App_ProcessingQrWipPage from "../pages/field/ProcessingQrWipPage/App_ProcessingQrWipPage";
+// import App_ProcessingQrWipZonePage from "../pages/field/ProcessingQrWipZonePage/App_ProcessingQrWipZonePage";
 // import App_EndPage from "../pages/field/EndPage/App_EndPage";
 // import App_NextPage from "../pages/field/NextPage/App_NextPage";
 // import App_NextSelectPage from "../pages/field/NextSelectPage/App_NextSelectPage";
@@ -35,7 +36,8 @@ const appRoutes = [
 
       { path: "processing", element: <App_ProcessingPage /> },
       { path: "processing/qr", element: <App_ProcessingQrPage /> },
-      // { path: "processing/qr/wip", element: <App_ProcessingQrWipPage /> },
+      { path: "processing/qr/wip", element: <App_ProcessingQrWipPage /> },
+      // { path: "processing/qr/wip/zone", element: <App_ProcessingQrWipZonePage /> },
 
       // { path: "next", element: <App_NextPage /> },
       // { path: "next/select", element: <App_NextSelectPage /> },
