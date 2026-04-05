@@ -74,6 +74,19 @@ const DEFAULT_SCENARIO_HISTORY = [
     totalMinutes: 435,
     isReleased: false,
   },
+  {
+    id: "scenario-000006",
+    scenarioId: "#000006",
+    projectName: "SK하이닉스",
+    productionPlanName: "SK하이닉스-1",
+    projectDeadline: "2026-04-30",
+    shipmentDate: "2026-04-15",
+    createdAt: "2026-04-01 9:10:15",
+    scrapCount: 12,
+    moveCount: 10,
+    totalMinutes: 40,
+    isReleased: false,
+  },
 ];
 
 const DEFAULT_FILTERS = {
@@ -249,11 +262,13 @@ export default function Web_ScenarioCreationHistoryPage() {
 
   const handleSearch = () => {
     setAppliedFilters(filters);
+    setCurrentPage(1);
   };
 
   const handleReset = () => {
     setFilters(DEFAULT_FILTERS);
     setAppliedFilters(DEFAULT_FILTERS);
+    setCurrentPage(1);
     setScenarioHistoryList(buildScenarioHistorySource());
   };
 
@@ -311,8 +326,25 @@ export default function Web_ScenarioCreationHistoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
-  const visibleStart = filteredList.length > 0 ? 1 : 0;
-  const visibleEnd = filteredList.length;
+  const visibleStart =
+    filteredList.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0;
+
+  const visibleEnd = Math.min(
+    currentPage * ITEMS_PER_PAGE,
+    filteredList.length,
+  );
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredList.length / ITEMS_PER_PAGE),
+  );
+
+  const paginatedList = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+
+    return filteredList.slice(startIndex, endIndex);
+  }, [filteredList, currentPage]);
 
   return (
     <Web_AppLayout pageTitle="시나리오 생성 이력">
@@ -436,8 +468,8 @@ export default function Web_ScenarioCreationHistoryPage() {
               </thead>
 
               <tbody className="divide-y divide-outline-variant/5">
-                {filteredList.length > 0 ? (
-                  filteredList.map((scenario) => (
+                {paginatedList.length > 0 ? (
+                  paginatedList.map((scenario) => (
                     <tr
                       key={scenario.id}
                       className="group transition-colors hover:bg-surface-container-low/30"
@@ -523,25 +555,42 @@ export default function Web_ScenarioCreationHistoryPage() {
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                disabled
-                className="rounded-lg p-2 text-on-surface-variant transition-colors disabled:opacity-30"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high disabled:opacity-30"
               >
                 <span className="material-symbols-outlined text-sm">
                   chevron_left
                 </span>
               </button>
 
-              <button
-                type="button"
-                className="h-8 w-8 rounded-lg bg-primary text-xs font-bold text-white"
-              >
-                1
-              </button>
+              {Array.from({ length: totalPages }, (_, index) => {
+                const pageNumber = index + 1;
+                const isActive = pageNumber === currentPage;
+
+                return (
+                  <button
+                    key={pageNumber}
+                    type="button"
+                    onClick={() => setCurrentPage(pageNumber)}
+                    className={`h-8 w-8 rounded-lg text-xs font-bold transition-colors ${
+                      isActive
+                        ? "bg-primary text-white"
+                        : "text-on-surface hover:bg-surface-container-high"
+                    }`}
+                  >
+                    {pageNumber}
+                  </button>
+                );
+              })}
 
               <button
                 type="button"
-                disabled
-                className="rounded-lg p-2 text-on-surface-variant transition-colors disabled:opacity-30"
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages}
+                className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high disabled:opacity-30"
               >
                 <span className="material-symbols-outlined text-sm">
                   chevron_right
