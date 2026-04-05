@@ -10,8 +10,6 @@ import Web_ScenarioGoBackModal from "../../../components/modal/Web_ScenarioGoBac
 import Web_ScenarioAddModal from "../../../components/modal/Web_ScenarioAddModal/Web_ScenarioAddModal";
 import Web_ScenarioSendModal from "../../../components/modal/Web_ScenarioSendModal/Web_ScenarioSendModal";
 
-import { addScenarioReleaseHistoryItem } from "../../../utils/Web/scenarioReleaseHistoryCache";
-
 import {
   clearScenarioLantekCache,
   getScenarioLantekCache,
@@ -154,15 +152,13 @@ export default function Web_ScenarioResultPage() {
   };
 
   const handleSendConfirm = () => {
-    addScenarioReleaseHistoryItem({
+    const releaseHistoryItem = {
       id: `release-${Date.now()}`,
       projectName: scenarioSummary.projectName,
       projectDeadline: scenarioSummary.shipmentDate,
       status: "in-progress",
       statusLabel: "In Progress",
       statusDescription: "진행 중",
-      icon: "construction",
-      iconWrapperClass: "bg-surface-container text-on-surface-variant",
       rows: [
         {
           id: `row-${Date.now()}`,
@@ -172,10 +168,15 @@ export default function Web_ScenarioResultPage() {
           materialCount: Number(metrics[0]?.value || 0),
         },
       ],
-    });
+    };
 
     setIsSendModalOpen(false);
-    navigate("/office/scenario/releasehistory");
+
+    navigate("/office/scenario/releasehistory", {
+      state: {
+        releasedScenario: releaseHistoryItem,
+      },
+    });
   };
 
   return (

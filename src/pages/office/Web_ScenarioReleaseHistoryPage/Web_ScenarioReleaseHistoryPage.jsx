@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
 import {
-  getScenarioReleaseHistoryList,
   getScenarioReleaseHistoryFilters,
   setScenarioReleaseHistoryFilters,
   clearScenarioReleaseHistoryFilters,
@@ -15,8 +16,6 @@ const DEFAULT_PROJECTS = [
     status: "urgent",
     statusLabel: "Urgent",
     statusDescription: "긴급 현황",
-    icon: "apartment",
-    iconWrapperClass: "bg-secondary-container text-primary",
     rows: [
       {
         id: "1-1",
@@ -48,8 +47,6 @@ const DEFAULT_PROJECTS = [
     status: "completed",
     statusLabel: "Completed",
     statusDescription: "완료됨",
-    icon: "factory",
-    iconWrapperClass: "bg-surface-container text-on-surface-variant",
     rows: [
       {
         id: "2-1",
@@ -67,8 +64,6 @@ const DEFAULT_PROJECTS = [
     status: "in-progress",
     statusLabel: "In Progress",
     statusDescription: "진행 중",
-    icon: "construction",
-    iconWrapperClass: "bg-surface-container text-on-surface-variant",
     rows: [
       {
         id: "3-1",
@@ -86,8 +81,6 @@ const DEFAULT_PROJECTS = [
     status: "before-progress",
     statusLabel: "Before Progress",
     statusDescription: "진행 예정",
-    icon: "pending",
-    iconWrapperClass: "bg-surface-container-low text-outline-variant",
     rows: [
       {
         id: "4-1",
@@ -144,7 +137,7 @@ function getStatusBadgeClass(status) {
 function FilterInput({ label, name, value, onChange, placeholder }) {
   return (
     <div className="space-y-2">
-      <label className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant font-label">
+      <label className="font-label text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
         {label}
       </label>
       <input
@@ -169,9 +162,10 @@ function DateRangeInput({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant font-label">
+      <label className="font-label text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
         {label}
       </label>
+
       <div className="flex items-center gap-2">
         <input
           type="date"
@@ -204,9 +198,7 @@ function ScenarioReleaseProjectAccordion({ project, isOpen, onToggle }) {
         }`}
       >
         <div className="flex items-center gap-6">
-          <div
-            className={`flex h-12 w-12 items-center justify-center rounded-xl ${project.iconWrapperClass}`}
-          >
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
             <span className="material-symbols-outlined">apartment</span>
           </div>
 
@@ -225,7 +217,9 @@ function ScenarioReleaseProjectAccordion({ project, isOpen, onToggle }) {
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
             <span
-              className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-tighter ${getStatusBadgeClass(project.status)}`}
+              className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-tighter ${getStatusBadgeClass(
+                project.status,
+              )}`}
             >
               {project.statusLabel}
             </span>
@@ -315,6 +309,9 @@ function ScenarioReleaseProjectAccordion({ project, isOpen, onToggle }) {
 }
 
 export default function Web_ScenarioReleaseHistoryPage() {
+  const location = useLocation();
+  const releasedScenario = location.state?.releasedScenario ?? null;
+
   const [filters, setFilters] = useState(() => ({
     ...DEFAULT_FILTERS,
     ...getScenarioReleaseHistoryFilters(),
@@ -325,14 +322,21 @@ export default function Web_ScenarioReleaseHistoryPage() {
     ...getScenarioReleaseHistoryFilters(),
   }));
 
-  const [openProjectMap, setOpenProjectMap] = useState(() => ({
-    "project-1": true,
-  }));
+  const [openProjectMap, setOpenProjectMap] = useState(() => {
+    if (releasedScenario?.id) {
+      return { [releasedScenario.id]: true };
+    }
+
+    return { "project-1": true };
+  });
 
   const releaseHistoryProjects = useMemo(() => {
-    const cacheList = getScenarioReleaseHistoryList();
-    return [...cacheList, ...DEFAULT_PROJECTS];
-  }, []);
+    if (!releasedScenario) {
+      return DEFAULT_PROJECTS;
+    }
+
+    return [releasedScenario, ...DEFAULT_PROJECTS];
+  }, [releasedScenario]);
 
   const filteredProjects = useMemo(() => {
     return releaseHistoryProjects
@@ -347,7 +351,7 @@ export default function Web_ScenarioReleaseHistoryPage() {
           appliedFilters.projectDeadlineTo,
         );
 
-        const filteredRows = project.rows.filter((row) => {
+        const filteredRows = (project.rows ?? []).filter((row) => {
           const productionPlanMatched = row.productionPlanName
             .toLowerCase()
             .includes(appliedFilters.productionPlanName.trim().toLowerCase());
