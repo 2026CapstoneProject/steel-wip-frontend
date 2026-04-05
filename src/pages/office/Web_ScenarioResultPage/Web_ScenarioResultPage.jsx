@@ -16,6 +16,8 @@ import {
   setScenarioLantekCache,
 } from "../../../utils/Web/lantekCache";
 
+import { addScenarioCreationHistoryItem } from "../../../utils/Web/scenarioCreationHistoryCache";
+
 export default function Web_ScenarioResultPage() {
   const navigate = useNavigate();
 
@@ -147,12 +149,25 @@ export default function Web_ScenarioResultPage() {
   };
 
   const handleAddConfirm = () => {
+    const createdHistoryItem = addScenarioCreationHistoryItem({
+      id: `scenario-history-${Date.now()}`,
+      scenarioId: scenarioSummary.scenarioId,
+      projectName: scenarioSummary.projectName,
+      productionPlanName: scenarioSummary.productionPlanName,
+      shipmentDate: scenarioSummary.shipmentDate,
+      createdAt: new Date().toISOString().slice(0, 19).replace("T", " "),
+      scrapCount: Number(metrics[0]?.value || 0),
+      moveCount: Number(metrics[2]?.value || 0),
+      totalMinutes: 165, // 임시값. 아래 설명 참고
+      isReleased: false,
+    });
+
     setIsAddModalOpen(false);
 
     navigate("/office/scenario/creationhistory", {
       state: {
-        entrySource: "result-page",
         productionPlanName: scenarioSummary.productionPlanName,
+        createdScenarioId: createdHistoryItem.id,
       },
     });
   };

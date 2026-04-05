@@ -1,8 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
 import { clearScenarioLantekCache } from "../../../utils/Web/lantekCache";
+import {
+  getScenarioCreationHistoryList,
+  markScenarioCreationHistoryAsReleased,
+} from "../../../utils/Web/scenarioCreationHistoryCache";
 
 const DEFAULT_SCENARIO_HISTORY = [
   {
@@ -105,6 +109,15 @@ function sortByCreatedAtDesc(list) {
   );
 }
 
+function buildScenarioHistorySource() {
+  const cachedList = getScenarioCreationHistoryList();
+
+  return sortByCreatedAtDesc([
+    ...cachedList.filter((item) => !item.isReleased),
+    ...DEFAULT_SCENARIO_HISTORY.filter((item) => !item.isReleased),
+  ]);
+}
+
 function FilterInput({ label, name, value, onChange, placeholder }) {
   return (
     <div className="space-y-2">
@@ -175,11 +188,13 @@ export default function Web_ScenarioCreationHistoryPage() {
     productionPlanName: initialProductionPlanName,
   }));
 
-  const [scenarioHistoryList, setScenarioHistoryList] = useState(() =>
-    sortByCreatedAtDesc(
-      DEFAULT_SCENARIO_HISTORY.filter((item) => !item.isReleased),
-    ),
-  );
+  const [scenarioHistoryList, setScenarioHistoryList] = useState(() => {
+    const cachedList = getScenarioCreationHistoryList();
+    return sortByCreatedAtDesc([
+      ...cachedList,
+      ...DEFAULT_SCENARIO_HISTORY.filter((item) => !item.isReleased),
+    ]);
+  });
 
   const baseVisibleList = useMemo(() => {
     return scenarioHistoryList.filter((item) => !item.isReleased);
@@ -239,6 +254,7 @@ export default function Web_ScenarioCreationHistoryPage() {
   const handleReset = () => {
     setFilters(DEFAULT_FILTERS);
     setAppliedFilters(DEFAULT_FILTERS);
+    setScenarioHistoryList(buildScenarioHistorySource());
   };
 
   const handleCreateScenario = () => {
@@ -263,6 +279,8 @@ export default function Web_ScenarioCreationHistoryPage() {
   };
 
   const handleReleaseScenario = (scenario) => {
+    markScenarioCreationHistoryAsReleased(scenario.id);
+
     setScenarioHistoryList((prev) =>
       prev.filter((item) => item.id !== scenario.id),
     );
@@ -289,6 +307,9 @@ export default function Web_ScenarioCreationHistoryPage() {
       },
     });
   };
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const visibleStart = filteredList.length > 0 ? 1 : 0;
   const visibleEnd = filteredList.length;
