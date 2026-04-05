@@ -278,16 +278,15 @@ export default function Web_ScenarioCreationHistoryPage() {
   };
 
   const handleViewScenario = (scenario) => {
-    navigate("/office/scenario/releasehistory/detail", {
+    navigate("/office/scenario/creationhistory/detail", {
       state: {
         projectInfo: {
-          scenarioId: scenario.scenarioId,
-          projectName: scenario.projectName,
-          productionPlanName: scenario.productionPlanName,
-          shipmentDate: scenario.shipmentDate,
+          scenarioId: scenario.scenarioId || "-",
+          projectName: scenario.projectName || "-",
+          productionPlanName: scenario.productionPlanName || "-",
+          shipmentDate: scenario.shipmentDate || "-",
           equipmentName: "-",
           statusLabel: "미발행",
-          status: "planned",
         },
       },
     });
