@@ -396,6 +396,9 @@ export default function Web_ScenarioCreationHistoryPage() {
                   <th className="border-b border-outline-variant/10 px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
                     생산계획 출하일
                   </th>
+                  <th className="border-b border-outline-variant/10 px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+                    시나리오 생성일
+                  </th>
                   <th className="border-b border-outline-variant/10 px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-on-surface-variant">
                     잔재 수
                   </th>
@@ -434,6 +437,10 @@ export default function Web_ScenarioCreationHistoryPage() {
 
                       <td className="px-6 py-5 text-sm text-on-surface-variant">
                         {scenario.shipmentDate}
+                      </td>
+
+                      <td className="px-6 py-5 text-sm text-on-surface-variant">
+                        {scenario.createdAt}
                       </td>
 
                       <td className="px-6 py-5 text-center">
