@@ -148,7 +148,13 @@ export default function Web_ScenarioResultPage() {
 
   const handleAddConfirm = () => {
     setIsAddModalOpen(false);
-    navigate("/office/scenario/creationhistory");
+
+    navigate("/office/scenario/creationhistory", {
+      state: {
+        entrySource: "result-page",
+        productionPlanName: scenarioSummary.productionPlanName,
+      },
+    });
   };
 
   const handleSendConfirm = () => {
