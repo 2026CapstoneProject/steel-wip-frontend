@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
-import Web_ScenarioTimelineSection from "../../../components/office/Web_ScenarioTimelineSection/Web_ScenarioTimelineSection";
+import Web_ScenarioTimelineSection from "../../../components/office/Web_ScenarioTimelineSection/Web_ScenarioTimelineSection.jsx";
 
 const EQUIPMENT_TABS = [
   { id: "laser-1", label: "레이저 설비 1" },
   { id: "laser-2", label: "레이저 설비 2" },
+  { id: "laser-3", label: "레이저 설비 3" },
   { id: "all", label: "전체 보기" },
 ];
 
@@ -15,6 +16,72 @@ const INITIAL_FILTERS = {
   actionType: "",
   minMinutes: "",
   maxMinutes: "",
+};
+
+const CURRENT_SCENARIO_BY_EQUIPMENT = {
+  "laser-1": {
+    id: "scenario-000005",
+    scenarioId: "#000005",
+    projectName: "토네이도",
+    productionPlanName: "토네이도-2",
+    projectDeadline: "2026-03-30",
+    shipmentDate: "2026-03-20",
+    createdAt: "2026-03-02 11:30:45",
+    scrapCount: 132,
+    moveCount: 1310,
+    totalMinutes: 435,
+    isReleased: false,
+  },
+  "laser-2": {
+    id: "scenario-000006",
+    scenarioId: "#000006",
+    projectName: "태풍",
+    productionPlanName: "태풍-1",
+    projectDeadline: "2026-04-05",
+    shipmentDate: "2026-03-25",
+    createdAt: "2026-03-03 09:10:20",
+    scrapCount: 98,
+    moveCount: 860,
+    totalMinutes: 320,
+    isReleased: true,
+  },
+  "laser-3": {
+    id: "scenario-000007",
+    scenarioId: "#000007",
+    projectName: "허리케인",
+    productionPlanName: "허리케인-1",
+    projectDeadline: "2026-04-10",
+    shipmentDate: "2026-03-30",
+    createdAt: "2026-03-03 09:10:20",
+    scrapCount: 98,
+    moveCount: 860,
+    totalMinutes: 320,
+    isReleased: true,
+  },
+};
+
+const NEXT_SCENARIO_BY_EQUIPMENT = {
+  "laser-1": {
+    id: "scenario-000006",
+    scenarioId: "#000006",
+    projectName: "토네이도",
+    productionPlanName: "토마토-1",
+    shipmentDate: "2026-03-29",
+  },
+  "laser-2": {
+    id: "scenario-000007",
+    scenarioId: "#000007",
+    projectName: "태풍",
+    productionPlanName: "태풍-2",
+    shipmentDate: "2026-04-06",
+  },
+  "laser-3": {
+    id: "scenario-000008",
+    scenarioId: "#000008",
+    projectName: "허리케인",
+    productionPlanName: "허리케인-2",
+    shipmentDate: "2026-05-11",
+  },
 };
 
 const TIMELINE_ITEMS = [
@@ -49,7 +116,7 @@ const TIMELINE_ITEMS = [
     type: "피킹 (Picking)",
     subLabel: "(Batch #88)",
     icon: "inventory",
-    colorClass: "bg-secondary ring-surface",
+    colorClass: "bg-red-500 ring-surface",
     iconColorClass: "text-secondary",
     rows: [
       {
@@ -110,6 +177,29 @@ const TIMELINE_ITEMS = [
       },
     ],
   },
+  {
+    id: 3,
+    equipmentId: "laser-3",
+    projectName: "C동 절단 프로젝트",
+    productionPlanName: "절단 생산계획 3차",
+    type: "적재 (Loading)",
+    icon: "layers",
+    colorClass: "bg-emerald-500 ring-surface",
+    iconColorClass: "text-emerald-500",
+    rows: [
+      {
+        qrNumber: "QR-LD-5004",
+        thickness: "8.0",
+        width: "2000",
+        length: "3000",
+        from: "Loading Bay 3",
+        to: "Storage D-02",
+        estimatedTime: "20",
+        status: "완료",
+        statusClass: "bg-emerald-100 text-emerald-700",
+      },
+    ],
+  },
 ];
 
 export default function Web_FieldLiveStatusPage() {
@@ -133,6 +223,16 @@ export default function Web_FieldLiveStatusPage() {
   const handleSearch = () => {
     setSearchFilters(filters);
   };
+
+  const currentScenario =
+    selectedEquipment === "all"
+      ? null
+      : (CURRENT_SCENARIO_BY_EQUIPMENT[selectedEquipment] ?? null);
+
+  const nextScenario =
+    selectedEquipment === "all"
+      ? null
+      : (NEXT_SCENARIO_BY_EQUIPMENT[selectedEquipment] ?? null);
 
   const filteredTimelineItems = useMemo(() => {
     return TIMELINE_ITEMS.filter((item) => {
@@ -305,7 +405,7 @@ export default function Web_FieldLiveStatusPage() {
             <button
               type="button"
               onClick={handleSearch}
-              className="px-8 py-3 bg-gradient-to-r from-primary to-primary-dim text-on-primary rounded-lg font-bold shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-2"
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary-dim px-8 py-3 font-bold text-white shadow-md transition-all active:scale-95 hover:shadow-lg"
             >
               <span className="material-symbols-outlined text-sm">search</span>
               조회
@@ -325,8 +425,8 @@ export default function Web_FieldLiveStatusPage() {
                   onClick={() => setSelectedEquipment(tab.id)}
                   className={
                     isActive
-                      ? "px-6 py-2.5 rounded-full bg-primary text-on-primary font-bold text-sm shadow-md transition-all"
-                      : "px-6 py-2.5 rounded-full bg-surface-container-high text-on-surface-variant font-medium text-sm hover:bg-surface-container-highest transition-all"
+                      ? "px-6 py-2.5 rounded-full bg-primary text-white font-bold text-sm shadow-md"
+                      : "px-6 py-2.5 rounded-full bg-surface-container-high text-white font-medium text-sm hover:bg-surface-container-highest"
                   }
                 >
                   {tab.label}
@@ -335,12 +435,48 @@ export default function Web_FieldLiveStatusPage() {
             })}
           </div>
 
+          {selectedEquipment !== "all" && currentScenario && (
+            <section className="mb-6 rounded-[1.5rem] border border-outline bg-surface-container-lowest px-12 py-5">
+              <div className="mb-4">
+                <h3 className="text-lg font-bold text-on-surface font-headline">
+                  진행 중인 시나리오
+                </h3>
+              </div>
+
+              <div className="text-base text-on-surface font-medium">
+                프로젝트 명: {currentScenario.projectName}
+                <span className="mx-3">|</span>
+                생산계획명: {currentScenario.productionPlanName}
+                <span className="mx-3">|</span>
+                생산 계획 출하일: {currentScenario.shipmentDate}
+              </div>
+            </section>
+          )}
+
           {filteredTimelineItems.length > 0 ? (
             <Web_ScenarioTimelineSection items={filteredTimelineItems} />
           ) : (
             <div className="bg-surface-container-lowest rounded-xl p-10 text-center text-sm text-on-surface-variant shadow-sm">
               조회 조건에 해당하는 현장 작업이 없습니다.
             </div>
+          )}
+
+          {selectedEquipment !== "all" && nextScenario && (
+            <section className="mt-8 opacity-60 rounded-[1.5rem] border border-outline bg-surface-container-lowest px-10 py-5">
+              <div className="mb-2">
+                <h3 className="text-lg font-bold text-on-surface font-headline">
+                  이후 진행 예정 시나리오
+                </h3>
+              </div>
+
+              <div className="text-base text-on-surface font-medium">
+                프로젝트 명: {nextScenario.projectName}
+                <span className="mx-2 text-on-surface-variant">|</span>
+                생산계획명: {nextScenario.productionPlanName}
+                <span className="mx-2 text-on-surface-variant">|</span>
+                생산 계획 출하일: {nextScenario.shipmentDate}
+              </div>
+            </section>
           )}
         </div>
       </div>
