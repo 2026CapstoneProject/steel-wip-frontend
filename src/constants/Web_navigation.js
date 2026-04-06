@@ -31,9 +31,9 @@ export const WEB_OFFICE_NAV_ITEMS = [
     ],
   },
   {
-    key: "field-lookup",
+    key: "field-status",
     label: "현장 조회",
     icon: "location_on",
-    path: "/office/field-lookup",
+    path: "/office/scenario/fieldstatus",
   },
 ];

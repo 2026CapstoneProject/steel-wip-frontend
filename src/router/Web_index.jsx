@@ -4,13 +4,12 @@ import React from "react";
 import DashboardPage from "../pages/office/DashboardPage/DashboardPage";
 import Web_WipListPage from "../pages/office/Web_WipListPage/Web_WipListPage";
 import Web_LantekInputPage from "../pages/office/Web_LantekInputPage/Web_LantekInputPage";
-import WorkOrderPage from "../pages/office/WorkOrderPage/WorkOrderPage";
-import ScenarioPage from "../pages/office/ScenarioPage/ScenarioPage";
 import Web_ScenarioResultPage from "../pages/office/Web_ScenarioResultPage/Web_ScenarioResultPage";
 import Web_ScenarioCreationHistoryPage from "../pages/office/Web_ScenarioCreationHistoryPage/Web_ScenarioCreationHistoryPage";
 import Web_ScenarioReleaseHistoryPage from "../pages/office/Web_ScenarioReleaseHistoryPage/Web_ScenarioReleaseHistoryPage";
 import Web_ScenarioDetailHisotryPage from "../pages/office/Web_ScenarioReleaseHistoryPage/Web_ScenarioDetailHistoryPage";
 import Web_ScenarioCreationDetailHistoryPage from "../pages/office/Web_ScenarioCreationHistoryPage/Web_ScenarioCreationDetailHistoryPage";
+import Web_FieldLiveStatusPage from "../pages/office/Web_FieldLiveStatusPage/Web_FieldLiveStatusPage";
 
 const webRoutes = [
   {
@@ -36,8 +35,10 @@ const webRoutes = [
         path: "scenario/releasehistory/detail",
         element: <Web_ScenarioDetailHisotryPage />,
       },
-      { path: "work-order", element: <WorkOrderPage /> },
-      { path: "scenario", element: <ScenarioPage /> },
+      {
+        path: "scenario/fieldstatus",
+        element: <Web_FieldLiveStatusPage />,
+      },
     ],
   },
 ];
