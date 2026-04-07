@@ -458,7 +458,19 @@ const App_ReadyPage = () => {
 
       <main className="mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col px-4">
         <div className="shrink-0 bg-[#f7f9fb] pt-3">
-          <App_ProcessTabs activeKey="ready" className="mb-0" />
+          <App_ProcessTabs
+            activeKey="ready"
+            className="mb-0"
+            stateByKey={{
+              end: {
+                tasks: data.tasks,
+                summary: {
+                  date: new Date().toISOString(),
+                  progressPercent: data.progressPercent,
+                },
+              },
+            }}
+          />
 
           <SummarySection
             className="mt-4 mb-4"

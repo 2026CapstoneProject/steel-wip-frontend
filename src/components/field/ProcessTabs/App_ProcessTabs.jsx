@@ -1,4 +1,3 @@
-// TODO: StepIndicator 컴포넌트 구현
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -8,7 +7,11 @@ const TAB_LIST = [
   { key: "end", label: "작업 완료", path: "/App/end" },
 ];
 
-const App_ProcessTabs = ({ activeKey = "ready", className = "" }) => {
+const App_ProcessTabs = ({
+  activeKey = "ready",
+  className = "",
+  stateByKey = {},
+}) => {
   const navigate = useNavigate();
 
   return (
@@ -23,7 +26,15 @@ const App_ProcessTabs = ({ activeKey = "ready", className = "" }) => {
               type="button"
               aria-current={isActive ? "page" : undefined}
               onClick={() => {
-                if (!isActive) navigate(tab.path);
+                if (isActive) return;
+
+                const nextState = stateByKey?.[tab.key];
+                if (nextState) {
+                  navigate(tab.path, { state: nextState });
+                  return;
+                }
+
+                navigate(tab.path);
               }}
               className={`relative flex-1 py-3 text-center text-[15px] ${
                 isActive
