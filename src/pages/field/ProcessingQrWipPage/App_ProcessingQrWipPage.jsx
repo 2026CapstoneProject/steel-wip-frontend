@@ -78,6 +78,8 @@ const App_ProcessingQrWipPage = () => {
   }, [isSavePopupOpen, navigate, generatedWip.id, zoneScannedAt]);
 
   const handleZoneScanClick = () => {
+    if (zoneScanCompleted) return;
+
     navigate("/App/processing/qr/wip/zone", {
       state: {
         generatedWip,
@@ -269,7 +271,12 @@ const App_ProcessingQrWipPage = () => {
               <button
                 type="button"
                 onClick={handleZoneScanClick}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#24389c] to-[#3f51b5] py-4 font-bold text-white shadow-lg shadow-[#24389c]/20 transition-all active:scale-95"
+                disabled={zoneScanCompleted}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-bold transition-all ${
+                  zoneScanCompleted
+                    ? "cursor-not-allowed bg-[#e6e8ea] text-slate-500 shadow-sm"
+                    : "bg-gradient-to-br from-[#24389c] to-[#3f51b5] text-white shadow-lg shadow-[#24389c]/20 active:scale-95"
+                }`}
               >
                 <span className="material-symbols-outlined">
                   center_focus_weak
