@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const fallbackPicking = {
@@ -29,30 +29,6 @@ const formatNowTime = () => {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, "0");
   const mm = String(now.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-};
-
-const parseTimeStringToMinutes = (timeText) => {
-  const match = String(timeText ?? "").match(/^(\d{1,2}):(\d{2})$/);
-  if (!match) return null;
-
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-  return hours * 60 + minutes;
-};
-
-const addMinutesToTime = (timeText, minutesToAdd = 0) => {
-  const baseMinutes = parseTimeStringToMinutes(timeText);
-  if (baseMinutes === null) return "";
-
-  const normalized =
-    (((baseMinutes + Number(minutesToAdd || 0)) % (24 * 60)) + 24 * 60) %
-    (24 * 60);
-
-  const hh = String(Math.floor(normalized / 60)).padStart(2, "0");
-  const mm = String(normalized % 60).padStart(2, "0");
   return `${hh}:${mm}`;
 };
 
@@ -246,47 +222,45 @@ const LayoutCard = ({ layout, highlightedSlot }) => {
   const equipmentLabel = layout?.equipmentLabel ?? "설비";
 
   return (
-    <section>
-      <div className="mb-3 flex items-center justify-between">
+    <section className="rounded-2xl bg-white p-6 shadow-[0_20px_40px_rgba(25,28,30,0.06)]">
+      <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-bold text-[#191C1E]">레이아웃</h2>
       </div>
 
-      <div className="rounded-xl bg-white p-6">
-        <div className="flex justify-center">
-          <div className="relative inline-block min-w-[280px] rounded-lg bg-[#E0E0E0] p-6 pb-12 pr-16">
-            <div className="absolute left-0 right-16 top-0 flex h-12 items-center justify-center rounded-t-lg bg-[#9E9E9E] text-base font-bold text-white">
-              {equipmentLabel}
-            </div>
+      <div className="flex justify-center">
+        <div className="relative inline-block min-w-[280px] rounded-lg bg-[#E0E0E0] p-6 pb-12 pr-16">
+          <div className="absolute left-0 right-16 top-0 flex h-12 items-center justify-center rounded-t-lg bg-[#9E9E9E] text-base font-bold text-white">
+            {equipmentLabel}
+          </div>
 
-            <div className="mt-12 grid grid-cols-2 gap-6">
-              {slots.map((slot) => {
-                const isHighlighted = String(slot) === String(highlightedSlot);
+          <div className="mt-12 grid grid-cols-2 gap-6">
+            {slots.map((slot) => {
+              const isHighlighted = String(slot) === String(highlightedSlot);
 
-                return (
-                  <div
-                    key={slot}
-                    className={`flex h-32 w-24 items-center justify-center border text-2xl font-extrabold shadow-sm ${
-                      isHighlighted
-                        ? "border-transparent text-white shadow-md"
-                        : "border-[#BDBDBD] bg-white text-[#191C1E]"
-                    }`}
-                    style={
-                      isHighlighted
-                        ? { backgroundColor: "rgba(54, 73, 172, 0.86)" }
-                        : undefined
-                    }
-                  >
-                    {slot}
-                  </div>
-                );
-              })}
-            </div>
+              return (
+                <div
+                  key={slot}
+                  className={`flex h-32 w-24 items-center justify-center border text-2xl font-extrabold shadow-sm ${
+                    isHighlighted
+                      ? "border-transparent text-white shadow-md"
+                      : "border-[#BDBDBD] bg-white text-[#191C1E]"
+                  }`}
+                  style={
+                    isHighlighted
+                      ? { backgroundColor: "rgba(54, 73, 172, 0.86)" }
+                      : undefined
+                  }
+                >
+                  {slot}
+                </div>
+              );
+            })}
+          </div>
 
-            <div className="absolute bottom-0 right-0 top-0 flex w-16 flex-col items-center justify-center">
-              <div className="h-full w-4 bg-[#191C1E]" />
-              <div className="absolute rounded bg-[#424242] px-2 py-3 text-xs font-bold text-white shadow-sm">
-                {wallLabel}
-              </div>
+          <div className="absolute bottom-0 right-0 top-0 flex w-16 flex-col items-center justify-center">
+            <div className="h-full w-4 bg-[#191C1E]" />
+            <div className="absolute rounded bg-[#424242] px-2 py-3 text-xs font-bold text-white shadow-sm">
+              {wallLabel}
             </div>
           </div>
         </div>
@@ -349,8 +323,6 @@ const CompleteModal = () => {
 const App_PickingRawPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const processedScanKeyRef = useRef("");
-  const completeTimerRef = useRef(null);
 
   const picking = useMemo(() => {
     const source =
@@ -373,20 +345,15 @@ const App_PickingRawPage = () => {
       ? true
       : currentPickingOrder >= totalPickingCount;
 
-  const [scanState, setScanState] = useState({
-    qrScanned: location.state?.scanState?.qrScanned ?? false,
-    scannedAt: location.state?.scanState?.scannedAt ?? "",
-    toTime: location.state?.scanState?.toTime ?? picking.to?.time ?? "",
+  const [movementState, setMovementState] = useState({
+    isCompleted: false,
+    toTime: "",
   });
-
   const [isDoubleCheckOpen, setIsDoubleCheckOpen] = useState(false);
   const [isCompletePopupOpen, setIsCompletePopupOpen] = useState(false);
 
-  const isCompleted = scanState.qrScanned;
-  const isSaveEnabled = isCompleted;
-
-  const statusText = isCompleted ? "이동 완료" : "이동 중";
-  const progressWidth = isCompleted ? "100%" : "66.6667%";
+  const statusText = movementState.isCompleted ? "이동 완료" : "이동 중";
+  const progressWidth = movementState.isCompleted ? "100%" : "66.6667%";
   const blurClass =
     isDoubleCheckOpen || isCompletePopupOpen ? "blur-sm" : "";
 
@@ -398,7 +365,7 @@ const App_PickingRawPage = () => {
     );
   }, [picking.layout?.highlightedSlot, picking.to?.zone]);
 
-  const toDisplayTime = scanState.toTime || "";
+  const toDisplayTime = movementState.toTime || "";
 
   const completedPicking = useMemo(() => {
     return {
@@ -411,46 +378,11 @@ const App_PickingRawPage = () => {
   }, [picking, toDisplayTime]);
 
   useEffect(() => {
-    const returnedState = location.state;
-    if (!returnedState?.type) return;
-
-    const currentKey = `${location.key}-${returnedState.type}-${returnedState.scannedAt || returnedState?.scanState?.scannedAt || ""}`;
-    if (processedScanKeyRef.current === currentKey) return;
-    processedScanKeyRef.current = currentKey;
-
-    if (returnedState.type === "PICKING_RAW_QR_SUCCESS") {
-      const scannedAt =
-        returnedState?.scanState?.scannedAt ||
-        returnedState?.scannedAt ||
-        formatNowTime();
-
-      const durationMinutes =
-        typeof returnedState?.expectedDurationMinutes === "number"
-          ? returnedState.expectedDurationMinutes
-          : typeof returnedState?.picking?.expectedDurationMinutes === "number"
-            ? returnedState.picking.expectedDurationMinutes
-            : picking.expectedDurationMinutes;
-
-      const nextToTime =
-        returnedState?.scanState?.toTime ||
-        returnedState?.estimatedToTime ||
-        returnedState?.picking?.to?.time ||
-        addMinutesToTime(scannedAt, durationMinutes);
-
-      setScanState({
-        qrScanned: true,
-        scannedAt,
-        toTime: nextToTime,
-      });
-    }
-  }, [location.key, location.state, picking.expectedDurationMinutes]);
-
-  useEffect(() => {
     if (!isCompletePopupOpen) return;
 
     const nextPath = isLastPicking ? "/App/processing" : "/App/ready";
 
-    completeTimerRef.current = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       navigate(nextPath, {
         replace: true,
         state: {
@@ -463,9 +395,7 @@ const App_PickingRawPage = () => {
     }, 1200);
 
     return () => {
-      if (completeTimerRef.current) {
-        window.clearTimeout(completeTimerRef.current);
-      }
+      window.clearTimeout(timer);
     };
   }, [
     completedPicking,
@@ -476,40 +406,25 @@ const App_PickingRawPage = () => {
     totalPickingCount,
   ]);
 
-  useEffect(() => {
-    return () => {
-      if (completeTimerRef.current) {
-        window.clearTimeout(completeTimerRef.current);
-      }
-    };
-  }, []);
-
   const handlePrevClick = () => {
     navigate(-1);
   };
 
-  const handleScanClick = () => {
-    navigate("qr", {
-      relative: "path",
-      state: {
-        ...location.state,
-        returnPath: location.pathname,
-        picking: completedPicking,
-        item: completedPicking,
-        pickingOrder: currentPickingOrder,
-        totalPickingCount,
-        scanState,
-      },
-    });
-  };
-
   const handleSaveClick = () => {
-    if (!isSaveEnabled) return;
+    const savedAt = formatNowTime();
+    setMovementState({
+      isCompleted: true,
+      toTime: savedAt,
+    });
     setIsDoubleCheckOpen(true);
   };
 
   const handleDoubleCheckNo = () => {
     setIsDoubleCheckOpen(false);
+    setMovementState({
+      isCompleted: false,
+      toTime: "",
+    });
   };
 
   const handleDoubleCheckYes = () => {
@@ -604,8 +519,8 @@ const App_PickingRawPage = () => {
 
             <div className="absolute inset-0 flex items-center justify-between">
               <StepCircle type="done" />
-              <StepCircle type={isCompleted ? "done" : "active"} />
-              <StepCircle type={isCompleted ? "done" : "inactive"} />
+              <StepCircle type={movementState.isCompleted ? "done" : "active"} />
+              <StepCircle type={movementState.isCompleted ? "done" : "inactive"} />
             </div>
           </div>
 
@@ -614,61 +529,22 @@ const App_PickingRawPage = () => {
           </p>
         </section>
 
-        <section className="relative space-y-4">
-          <div className="flex flex-col items-center rounded-2xl bg-white p-8 text-center shadow-[0_20px_40px_rgba(25,28,30,0.06)]">
-            <div className="relative mb-6 flex h-48 w-48 items-center justify-center overflow-hidden rounded-2xl bg-[#ECEEF0]">
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="material-symbols-outlined text-5xl text-[#24389C]/30">
-                  qr_code_2
-                </span>
-              </div>
-
-              <div className="absolute left-6 top-6 h-8 w-8 rounded-tl-sm border-l-2 border-t-2 border-[#24389C]/40" />
-              <div className="absolute right-6 top-6 h-8 w-8 rounded-tr-sm border-r-2 border-t-2 border-[#24389C]/40" />
-              <div className="absolute bottom-6 left-6 h-8 w-8 rounded-bl-sm border-b-2 border-l-2 border-[#24389C]/40" />
-              <div className="absolute bottom-6 right-6 h-8 w-8 rounded-br-sm border-b-2 border-r-2 border-[#24389C]/40" />
-              <div className="absolute inset-x-10 top-1/2 h-px bg-[#24389C]/20" />
-            </div>
-
-            <div className="w-full">
-              <button
-                type="button"
-                onClick={handleScanClick}
-                disabled={isCompleted}
-                className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-bold transition ${
-                  isCompleted
-                    ? "cursor-not-allowed bg-[#E6E8EA] text-[#757684]"
-                    : "bg-gradient-to-br from-[#24389C] to-[#3F51B5] text-white shadow-lg shadow-[#24389C]/20 active:scale-95"
-                }`}
-              >
-                <span className="material-symbols-outlined">
-                  center_focus_weak
-                </span>
-                원자재 scan
-              </button>
-            </div>
-          </div>
+        <section className="space-y-4">
+          <LayoutCard
+            layout={picking.layout}
+            highlightedSlot={highlightedSlot}
+          />
 
           <div className="flex justify-end">
             <button
               type="button"
               onClick={handleSaveClick}
-              disabled={!isSaveEnabled}
-              className={`flex items-center gap-2 rounded-xl px-10 py-4 font-bold transition ${
-                isSaveEnabled
-                  ? "bg-[#1A237E] text-white shadow-lg active:scale-95"
-                  : "cursor-not-allowed bg-[#E6E8EA] text-[#757684]"
-              }`}
+              className="flex items-center gap-2 rounded-xl px-10 py-4 font-bold transition bg-[#1A237E] text-white shadow-lg active:scale-95"
             >
               <span className="material-symbols-outlined">save</span>
               저장
             </button>
           </div>
-
-          <LayoutCard
-            layout={picking.layout}
-            highlightedSlot={highlightedSlot}
-          />
         </section>
       </main>
 
