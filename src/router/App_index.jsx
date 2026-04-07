@@ -14,8 +14,8 @@ import App_ProcessingQrPage from "../pages/field/ProcessingQrPage/App_Processing
 import App_ProcessingQrWipPage from "../pages/field/ProcessingQrWipPage/App_ProcessingQrWipPage";
 import App_ProcessingQrWipZonePage from "../pages/field/ProcessingQrWipZonePage/App_ProcessingQrWipZonePage";
 import App_EndPage from "../pages/field/EndPage/App_EndPage";
-// import App_NextPage from "../pages/field/NextPage/App_NextPage";
-// import App_NextSelectPage from "../pages/field/NextSelectPage/App_NextSelectPage";
+import App_EndNextPage from "../pages/field/EndNextPage/App_EndNextPage";
+// import App_EndNextSelectPage from "../pages/field/EndNextSelectPage/App_EndNextSelectPage";
 
 const appRoutes = [
   {
@@ -41,8 +41,8 @@ const appRoutes = [
 
       { path: "end", element: <App_EndPage /> },
 
-      // { path: "next", element: <App_NextPage /> },
-      // { path: "next/select", element: <App_NextSelectPage /> },
+      { path: "end/next", element: <App_EndNextPage /> },
+      // { path: "end/next/select", element: <App_EndNextSelectPage /> },
 
     ],
   },
