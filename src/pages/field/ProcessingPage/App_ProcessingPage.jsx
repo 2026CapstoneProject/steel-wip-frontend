@@ -1,5 +1,5 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import App_ProcessTabs from "../../../components/field/ProcessTabs/App_ProcessTabs";
 
 const PROCESS_STATUS_META = {
@@ -13,8 +13,10 @@ const PROCESS_STATUS_META = {
   },
 };
 
+let processingRuntimeData = null;
+
 const processingMockData = {
-  summaryCountLabel: "남은 잔재",
+  summaryCountLabel: "남은 재공품",
   batches: [
     {
       id: "batch-01",
@@ -165,8 +167,59 @@ const getProgressPercent = (data) => {
 
   return Math.max(
     0,
-    Math.min(100, Math.round((completedWeightedMinutes / totalEstimatedMinutes) * 100))
+    Math.min(
+      100,
+      Math.round((completedWeightedMinutes / totalEstimatedMinutes) * 100)
+    )
   );
+};
+
+const loadProcessingData = () => {
+  return processingRuntimeData ?? processingMockData;
+};
+
+const saveProcessingData = (data) => {
+  processingRuntimeData = data;
+};
+
+const applySavedProcessingResult = (baseData, savedState) => {
+  const { savedGeneratedWipId, savedStatus, zoneScannedAt } = savedState ?? {};
+
+  if (!savedGeneratedWipId || !savedStatus) {
+    return baseData;
+  }
+
+  let hasMatched = false;
+
+  const nextBatches = (baseData.batches ?? []).map((batch) => {
+    const nextGeneratedItems = (batch.generatedItems ?? []).map((item) => {
+      if (item.id !== savedGeneratedWipId) {
+        return item;
+      }
+
+      hasMatched = true;
+
+      return {
+        ...item,
+        status: savedStatus,
+        zoneScannedAt: zoneScannedAt ?? item.zoneScannedAt ?? "",
+      };
+    });
+
+    return {
+      ...batch,
+      generatedItems: nextGeneratedItems,
+    };
+  });
+
+  if (!hasMatched) {
+    return baseData;
+  }
+
+  return {
+    ...baseData,
+    batches: nextBatches,
+  };
 };
 
 const SummarySection = ({
@@ -237,7 +290,11 @@ const GeneratedItemRow = ({ item, isLast }) => {
     PROCESS_STATUS_META[item.status] ?? PROCESS_STATUS_META.pending;
 
   return (
-    <div className={`${isLast ? "" : "border-b border-slate-50 pb-4"} ${isLast ? "" : "mb-4"}`}>
+    <div
+      className={`${isLast ? "" : "border-b border-slate-50 pb-4"} ${
+        isLast ? "" : "mb-4"
+      }`}
+    >
       <div className="flex items-center justify-between gap-4">
         <span className="text-[15px] font-extrabold text-slate-900">
           {item.title}
@@ -302,22 +359,45 @@ const ProcessingBatchCard = ({ batch, onWorkOrderClick }) => {
 
 const App_ProcessingPage = () => {
   const navigate = useNavigate();
-  const data = processingMockData;
+  const location = useLocation();
 
-  const totalEstimatedMinutes = getTotalEstimatedMinutes(data.batches);
+  const [data, setData] = useState(() => loadProcessingData());
+
+  useEffect(() => {
+    setData((prev) => applySavedProcessingResult(prev, location.state));
+  }, [location.state]);
+
+  useEffect(() => {
+    saveProcessingData(data);
+  }, [data]);
+
+  const totalEstimatedMinutes = useMemo(
+    () => getTotalEstimatedMinutes(data.batches),
+    [data.batches]
+  );
+
   const totalEstimatedTimeText =
     data.totalEstimatedTimeText ?? formatDurationText(totalEstimatedMinutes);
-  const remainingCount = getRemainingGeneratedCount(data.batches);
-  const progressPercent = getProgressPercent(data);
 
-  const generatedItemsForQr = data.batches.flatMap((batch) =>
-    (batch.generatedItems ?? []).map((item) => ({
-      ...item,
-      inputMaterialName: batch.materialName,
-      manufacturer: batch.manufacturer ?? "",
-      expectedDurationText: batch.duration,
-      expectedDurationMinutes: getBatchDurationMinutes(batch),
-    }))
+  const remainingCount = useMemo(
+    () => getRemainingGeneratedCount(data.batches),
+    [data.batches]
+  );
+
+  const progressPercent = useMemo(() => getProgressPercent(data), [data]);
+
+  const generatedItemsForQr = useMemo(
+    () =>
+      data.batches.flatMap((batch) =>
+        (batch.generatedItems ?? []).map((item) => ({
+          ...item,
+          inputMaterialName: batch.materialName,
+          manufacturer: batch.manufacturer ?? "",
+          expectedDurationText: batch.duration,
+          expectedDurationMinutes: getBatchDurationMinutes(batch),
+        }))
+      ),
+    [data.batches]
   );
 
   const handleQrClick = () => {
@@ -330,7 +410,7 @@ const App_ProcessingPage = () => {
           remainingCount,
           totalEstimatedMinutes,
           totalEstimatedTimeText,
-          countLabel: data.summaryCountLabel ?? "남은 잔재",
+          countLabel: data.summaryCountLabel ?? "남은 재공품",
         },
       },
     });
@@ -375,7 +455,7 @@ const App_ProcessingPage = () => {
             progressPercent={progressPercent}
             remainingCount={remainingCount}
             totalEstimatedTimeText={totalEstimatedTimeText}
-            countLabel={data.summaryCountLabel ?? "남은 잔재"}
+            countLabel={data.summaryCountLabel ?? "남은 재공품"}
             onQrClick={handleQrClick}
           />
         </div>
