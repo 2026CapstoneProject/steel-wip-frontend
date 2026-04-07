@@ -233,8 +233,10 @@ const RelocateCard = ({ item, onQrClick }) => {
   );
 };
 
-const PickingCard = ({ item, onQrClick, onWorkOrderClick }) => {
+const PickingCard = ({ item, onActionClick, onWorkOrderClick }) => {
   const displayInfoValue = getPickingInfoValue(item);
+  const isRawMaterial = item?.type === "원자재";
+  const actionIcon = isRawMaterial ? "inventory_2" : "qr_code_2";
 
   return (
     <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 shadow-sm">
@@ -276,11 +278,12 @@ const PickingCard = ({ item, onQrClick, onWorkOrderClick }) => {
 
           <button
             type="button"
-            onClick={onQrClick}
+            onClick={onActionClick}
             className="rounded-lg border border-indigo-200 bg-white p-2 shadow-sm transition active:scale-95"
+            aria-label={isRawMaterial ? "원자재 상세 보기" : "QR 이동"}
           >
             <span className="material-symbols-outlined block text-4xl text-indigo-700">
-              qr_code_2
+              {actionIcon}
             </span>
           </button>
         </div>
@@ -299,7 +302,7 @@ const PickingCard = ({ item, onQrClick, onWorkOrderClick }) => {
 const TaskSection = ({
   task,
   onRelocateQrClick,
-  onPickingQrClick,
+  onPickingActionClick,
   onWorkOrderClick,
 }) => {
   return (
@@ -327,7 +330,9 @@ const TaskSection = ({
             <PickingCard
               key={item.id}
               item={item}
-              onQrClick={() => onPickingQrClick(item, index, task.pickings)}
+              onActionClick={() =>
+                onPickingActionClick(item, index, task.pickings)
+              }
               onWorkOrderClick={onWorkOrderClick}
             />
           ))}
@@ -361,7 +366,7 @@ const App_ReadyPage = () => {
     });
   };
 
-  const handlePickingQrClick = (item, index, pickingList) => {
+  const handlePickingActionClick = (item, index, pickingList) => {
     const order = index + 1;
     const totalCount = pickingList.length;
 
@@ -487,7 +492,7 @@ const App_ReadyPage = () => {
                 key={task.id}
                 task={task}
                 onRelocateQrClick={handleRelocateQrClick}
-                onPickingQrClick={handlePickingQrClick}
+                onPickingActionClick={handlePickingActionClick}
                 onWorkOrderClick={handleWorkOrderClick}
               />
             ))}
