@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { WEB_OFFICE_NAV_ITEMS } from "../../../constants/Web_navigation";
+import logoImage from "../../../assets/Steel_all_CI_align_1st.png";
 
 export default function Web_Sidebar() {
   const location = useLocation();
@@ -30,9 +31,11 @@ export default function Web_Sidebar() {
   return (
     <aside className="fixed left-0 top-0 z-50 flex h-screen w-64 flex-col bg-slate-100 px-4 py-6">
       <div className="mb-10 px-2">
-        <h1 className="font-headline text-xl font-bold tracking-tight text-slate-900">
-          Digital Architect
-        </h1>
+        <img
+          src={logoImage}
+          alt="Steel-All-CI"
+          className="h-12 w-auto object-contain"
+        />
         <p className="text-[0.75rem] font-medium text-on-surface-variant opacity-70">
           Inventory ERP
         </p>
