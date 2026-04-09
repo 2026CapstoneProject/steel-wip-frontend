@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import App_Header from "../../../components/field/Header/App_Header";
 
 const fallbackPicking = {
   id: "picking-raw-01",
@@ -433,120 +434,101 @@ const App_PickingRawPage = () => {
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#F7F9FB] pb-24 text-[#191C1E]">
-      <header
-        className={`fixed left-0 top-0 z-50 w-full bg-white/80 backdrop-blur-xl ${blurClass}`}
-      >
-        <div className="mx-auto flex h-16 w-full max-w-md items-center justify-between px-6">
-          <div className="flex items-center">
-            <span className="material-symbols-outlined text-2xl text-[#24389C]">
-              factory
-            </span>
-          </div>
-
-          <div className="flex items-center gap-5 text-[#454652]">
-            <button type="button">
-              <span className="material-symbols-outlined text-2xl">
-                notifications
-              </span>
-            </button>
-            <button type="button">
-              <span className="material-symbols-outlined text-2xl">
-                account_circle
-              </span>
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="h-[100dvh] overflow-hidden bg-[#F7F9FB] text-[#191C1E]">
+      <App_Header />
 
       <main
-        className={`mx-auto w-full max-w-md space-y-6 px-6 pb-6 pt-24 ${blurClass}`}
-      >
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-[#191C1E]">원자재 상세 정보</h2>
-          </div>
+  className={`mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col ${blurClass}`}
+>
+  <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-28 pt-24">
+    <div className="space-y-6 pb-6">
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[#191C1E]">원자재 상세 정보</h2>
+        </div>
 
-          <div className="rounded-xl bg-white p-5 shadow-[0_4px_20px_rgba(25,28,30,0.04)]">
-            <div className="grid grid-cols-2 gap-y-4">
-              <div>
-                <p className="mb-1 text-xs font-medium text-[#505F76]">제조사</p>
-                <p className="font-semibold text-[#191C1E]">
-                  {picking.manufacturer}
-                </p>
-              </div>
+        <div className="rounded-xl bg-white p-5 shadow-[0_4px_20px_rgba(25,28,30,0.04)]">
+          <div className="grid grid-cols-2 gap-y-4">
+            <div>
+              <p className="mb-1 text-xs font-medium text-[#505F76]">제조사</p>
+              <p className="font-semibold text-[#191C1E]">
+                {picking.manufacturer}
+              </p>
+            </div>
 
-              <div>
-                <p className="mb-1 text-xs font-medium text-[#505F76]">재질</p>
-                <p className="font-semibold text-[#191C1E]">
-                  {picking.material}
-                </p>
-              </div>
+            <div>
+              <p className="mb-1 text-xs font-medium text-[#505F76]">재질</p>
+              <p className="font-semibold text-[#191C1E]">
+                {picking.material}
+              </p>
+            </div>
 
-              <div className="col-span-2 pt-2">
-                <p className="mb-1 text-xs font-medium text-[#505F76]">
-                  규격 (두께 x 폭 x 길이)
-                </p>
-                <p className="text-lg font-bold text-[#24389C]">
-                  {picking.specText}
-                </p>
-              </div>
+            <div className="col-span-2 pt-2">
+              <p className="mb-1 text-xs font-medium text-[#505F76]">
+                규격 (두께 x 폭 x 길이)
+              </p>
+              <p className="text-lg font-bold text-[#24389C]">
+                {picking.specText}
+              </p>
+            </div>
 
-              <div>
-                <p className="mb-1 text-xs font-medium text-[#505F76]">중량</p>
-                <p className="font-semibold text-[#191C1E]">
-                  {picking.weightText}
-                </p>
-              </div>
+            <div>
+              <p className="mb-1 text-xs font-medium text-[#505F76]">중량</p>
+              <p className="font-semibold text-[#191C1E]">
+                {picking.weightText}
+              </p>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="grid grid-cols-1 gap-4">
-          <InfoCard
-            label="TO"
-            zone={picking.to?.zone}
-            time={toDisplayTime}
-          />
-        </section>
+      <section className="grid grid-cols-1 gap-4">
+        <InfoCard
+          label="TO"
+          zone={picking.to?.zone}
+          time={toDisplayTime}
+        />
+      </section>
 
-        <section className="flex flex-col items-center py-4">
-          <div className="relative mb-6 flex h-1 w-full max-w-xs items-center rounded-full bg-[#E6E8EA]">
-            <div
-              className="absolute left-0 top-0 h-full rounded-full bg-[#24389C] transition-all"
-              style={{ width: progressWidth }}
-            />
-
-            <div className="absolute inset-0 flex items-center justify-between">
-              <StepCircle type="done" />
-              <StepCircle type={movementState.isCompleted ? "done" : "active"} />
-              <StepCircle type={movementState.isCompleted ? "done" : "inactive"} />
-            </div>
-          </div>
-
-          <p className="rounded-full bg-[#24389C]/10 px-4 py-1 text-sm font-bold text-[#24389C]">
-            {statusText}
-          </p>
-        </section>
-
-        <section className="space-y-4">
-          <LayoutCard
-            layout={picking.layout}
-            highlightedSlot={highlightedSlot}
+      <section className="flex flex-col items-center py-4">
+        <div className="relative mb-6 flex h-1 w-full max-w-xs items-center rounded-full bg-[#E6E8EA]">
+          <div
+            className="absolute left-0 top-0 h-full rounded-full bg-[#24389C] transition-all"
+            style={{ width: progressWidth }}
           />
 
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={handleSaveClick}
-              className="flex items-center gap-2 rounded-xl px-10 py-4 font-bold transition bg-[#1A237E] text-white shadow-lg active:scale-95"
-            >
-              <span className="material-symbols-outlined">save</span>
-              저장
-            </button>
+          <div className="absolute inset-0 flex items-center justify-between">
+            <StepCircle type="done" />
+            <StepCircle type={movementState.isCompleted ? "done" : "active"} />
+            <StepCircle type={movementState.isCompleted ? "done" : "inactive"} />
           </div>
-        </section>
-      </main>
+        </div>
+
+        <p className="rounded-full bg-[#24389C]/10 px-4 py-1 text-sm font-bold text-[#24389C]">
+          {statusText}
+        </p>
+      </section>
+
+      <section className="space-y-4">
+        <LayoutCard
+          layout={picking.layout}
+          highlightedSlot={highlightedSlot}
+        />
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handleSaveClick}
+            className="flex items-center gap-2 rounded-xl px-10 py-4 font-bold transition bg-[#1A237E] text-white shadow-lg active:scale-95"
+          >
+            <span className="material-symbols-outlined">save</span>
+            저장
+          </button>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
 
       <nav
         className={`fixed bottom-0 left-0 z-50 flex w-full flex-col items-center rounded-t-xl bg-white shadow-[0_-4px_20px_rgba(25,28,30,0.06)] ${blurClass}`}

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_ProcessTabs from "../../../components/field/ProcessTabs/App_ProcessTabs";
+import App_Header from "../../../components/field/Header/App_Header";
 
 const SHARED_PROCESS_TABS_STATE_KEY = "__FIELD_PROCESS_TABS_SHARED_STATE__";
 
@@ -475,29 +476,7 @@ const App_EndNextSelectPage = () => {
   return (
     <div className="relative h-[100dvh] overflow-hidden bg-[#f7f9fb] text-slate-900">
       <div className="pointer-events-none select-none blur-[2px]">
-        <header className="relative shrink-0 border-b border-slate-100 bg-white">
-          <div className="mx-auto flex h-[72px] w-full max-w-md items-center justify-between px-6">
-            <div className="flex items-center">
-              <span className="material-symbols-outlined text-3xl text-indigo-900">
-                factory
-              </span>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <button type="button" className="relative p-1" aria-label="알림">
-                <span className="material-symbols-outlined text-2xl text-slate-700">
-                  notifications
-                </span>
-              </button>
-
-              <button type="button">
-                <span className="material-symbols-outlined text-3xl text-slate-700">
-                  account_circle
-                </span>
-              </button>
-            </div>
-          </div>
-        </header>
+        <App_Header />
 
         <main className="mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col px-4">
           <div className="shrink-0 bg-[#f7f9fb] pt-3">
