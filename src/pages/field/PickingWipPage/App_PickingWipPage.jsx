@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import App_Header from "../../../components/field/Header/App_Header";
 
 const fallbackPicking = {
   id: "picking-wip-01",
@@ -451,163 +452,152 @@ const App_PickingWipPage = () => {
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#F7F9FB] pb-24 text-[#191C1E]">
-      <header
-        className={`fixed left-0 top-0 z-50 w-full bg-white/80 backdrop-blur-xl ${blurClass}`}
-      >
-        <div className="mx-auto flex h-16 w-full max-w-md items-center justify-between px-6">
-          <div className="flex items-center">
-            <span className="material-symbols-outlined text-2xl text-[#24389C]">
-              factory
-            </span>
-          </div>
-
-          <div className="flex items-center gap-5 text-[#454652]">
-            <button type="button">
-              <span className="material-symbols-outlined text-2xl">
-                notifications
-              </span>
-            </button>
-            <button type="button">
-              <span className="material-symbols-outlined text-2xl">
-                account_circle
-              </span>
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="h-[100dvh] overflow-hidden bg-[#F7F9FB] text-[#191C1E]">
+      <App_Header />
 
       <main
-        className={`mx-auto w-full max-w-md space-y-6 px-6 pb-6 pt-24 ${blurClass}`}
+        className={`mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col ${blurClass}`}
       >
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-[#191C1E]">재공품 상세 정보</h2>
-          </div>
-
-          <div className="rounded-xl bg-white p-5 shadow-[0_4px_20px_rgba(25,28,30,0.04)]">
-            <div className="grid grid-cols-2 gap-y-4">
-              <div>
-                <p className="mb-1 text-xs font-medium text-[#505F76]">제조사</p>
-                <p className="font-semibold text-[#191C1E]">
-                  {picking.manufacturer}
-                </p>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-28 pt-24">
+          <div className="space-y-6 pb-6">
+            <section>
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-[#191C1E]">
+                  재공품 상세 정보
+                </h2>
               </div>
 
-              <div>
-                <p className="mb-1 text-xs font-medium text-[#505F76]">재질</p>
-                <p className="font-semibold text-[#191C1E]">
-                  {picking.material}
-                </p>
+              <div className="rounded-xl bg-white p-5 shadow-[0_4px_20px_rgba(25,28,30,0.04)]">
+                <div className="grid grid-cols-2 gap-y-4">
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-[#505F76]">
+                      제조사
+                    </p>
+                    <p className="font-semibold text-[#191C1E]">
+                      {picking.manufacturer}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-[#505F76]">
+                      재질
+                    </p>
+                    <p className="font-semibold text-[#191C1E]">
+                      {picking.material}
+                    </p>
+                  </div>
+
+                  <div className="col-span-2 pt-2">
+                    <p className="mb-1 text-xs font-medium text-[#505F76]">
+                      규격 (두께 x 폭 x 길이)
+                    </p>
+                    <p className="text-lg font-bold text-[#24389C]">
+                      {picking.specText}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-[#505F76]">
+                      중량
+                    </p>
+                    <p className="font-semibold text-[#191C1E]">
+                      {picking.weightText}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="grid grid-cols-1 gap-4">
+              <InfoCard
+                label="FROM"
+                zone={picking.from?.zone}
+                time={fromDisplayTime}
+              />
+              <InfoCard
+                label="TO"
+                zone={picking.to?.zone}
+                time={toDisplayTime}
+              />
+            </section>
+
+            <section className="flex flex-col items-center py-4">
+              <div className="relative mb-6 flex h-1 w-full max-w-xs items-center rounded-full bg-[#E6E8EA]">
+                <div
+                  className="absolute left-0 top-0 h-full rounded-full bg-[#24389C] transition-all"
+                  style={{ width: progressWidth }}
+                />
+
+                <div className="absolute inset-0 flex items-center justify-between">
+                  <StepCircle type="done" />
+                  <StepCircle type={isCompleted ? "done" : "active"} />
+                  <StepCircle type={isCompleted ? "done" : "inactive"} />
+                </div>
               </div>
 
-              <div className="col-span-2 pt-2">
-                <p className="mb-1 text-xs font-medium text-[#505F76]">
-                  규격 (두께 x 폭 x 길이)
-                </p>
-                <p className="text-lg font-bold text-[#24389C]">
-                  {picking.specText}
-                </p>
+              <p className="rounded-full bg-[#24389C]/10 px-4 py-1 text-sm font-bold text-[#24389C]">
+                {statusText}
+              </p>
+            </section>
+
+            <section className="relative space-y-4">
+              <div className="flex flex-col items-center rounded-2xl bg-white p-8 text-center shadow-[0_20px_40px_rgba(25,28,30,0.06)]">
+                <div className="relative mb-6 flex h-48 w-48 items-center justify-center overflow-hidden rounded-2xl bg-[#ECEEF0]">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="material-symbols-outlined text-5xl text-[#24389C]/30">
+                      qr_code_2
+                    </span>
+                  </div>
+
+                  <div className="absolute left-6 top-6 h-8 w-8 rounded-tl-sm border-l-2 border-t-2 border-[#24389C]/40" />
+                  <div className="absolute right-6 top-6 h-8 w-8 rounded-tr-sm border-r-2 border-t-2 border-[#24389C]/40" />
+                  <div className="absolute bottom-6 left-6 h-8 w-8 rounded-bl-sm border-b-2 border-l-2 border-[#24389C]/40" />
+                  <div className="absolute bottom-6 right-6 h-8 w-8 rounded-br-sm border-b-2 border-r-2 border-[#24389C]/40" />
+                  <div className="absolute inset-x-10 top-1/2 h-px bg-[#24389C]/20" />
+                </div>
+
+                <div className="w-full">
+                  <button
+                    type="button"
+                    onClick={handleScanClick}
+                    disabled={isCompleted}
+                    className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-bold transition ${
+                      isCompleted
+                        ? "cursor-not-allowed bg-[#E6E8EA] text-[#757684]"
+                        : "bg-gradient-to-br from-[#24389c] to-[#3f51b5] text-white shadow-lg shadow-[#24389C]/20 active:scale-95"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined">
+                      center_focus_weak
+                    </span>
+                    재공품 scan
+                  </button>
+                </div>
               </div>
 
-              <div>
-                <p className="mb-1 text-xs font-medium text-[#505F76]">중량</p>
-                <p className="font-semibold text-[#191C1E]">
-                  {picking.weightText}
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="grid grid-cols-1 gap-4">
-          <InfoCard
-            label="FROM"
-            zone={picking.from?.zone}
-            time={fromDisplayTime}
-          />
-          <InfoCard
-            label="TO"
-            zone={picking.to?.zone}
-            time={toDisplayTime}
-          />
-        </section>
-
-        <section className="flex flex-col items-center py-4">
-          <div className="relative mb-6 flex h-1 w-full max-w-xs items-center rounded-full bg-[#E6E8EA]">
-            <div
-              className="absolute left-0 top-0 h-full rounded-full bg-[#24389C] transition-all"
-              style={{ width: progressWidth }}
-            />
-
-            <div className="absolute inset-0 flex items-center justify-between">
-              <StepCircle type="done" />
-              <StepCircle type={isCompleted ? "done" : "active"} />
-              <StepCircle type={isCompleted ? "done" : "inactive"} />
-            </div>
-          </div>
-
-          <p className="rounded-full bg-[#24389C]/10 px-4 py-1 text-sm font-bold text-[#24389C]">
-            {statusText}
-          </p>
-        </section>
-
-        <section className="relative space-y-4">
-          <div className="flex flex-col items-center rounded-2xl bg-white p-8 text-center shadow-[0_20px_40px_rgba(25,28,30,0.06)]">
-            <div className="relative mb-6 flex h-48 w-48 items-center justify-center overflow-hidden rounded-2xl bg-[#ECEEF0]">
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="material-symbols-outlined text-5xl text-[#24389C]/30">
-                  qr_code_2
-                </span>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSaveClick}
+                  disabled={!isSaveEnabled}
+                  className={`flex items-center gap-2 rounded-xl px-10 py-4 font-bold transition ${
+                    isSaveEnabled
+                      ? "bg-[#1A237E] text-white shadow-lg active:scale-95"
+                      : "cursor-not-allowed bg-[#E6E8EA] text-[#757684]"
+                  }`}
+                >
+                  <span className="material-symbols-outlined">save</span>
+                  저장
+                </button>
               </div>
 
-              <div className="absolute left-6 top-6 h-8 w-8 rounded-tl-sm border-l-2 border-t-2 border-[#24389C]/40" />
-              <div className="absolute right-6 top-6 h-8 w-8 rounded-tr-sm border-r-2 border-t-2 border-[#24389C]/40" />
-              <div className="absolute bottom-6 left-6 h-8 w-8 rounded-bl-sm border-b-2 border-l-2 border-[#24389C]/40" />
-              <div className="absolute bottom-6 right-6 h-8 w-8 rounded-br-sm border-b-2 border-r-2 border-[#24389C]/40" />
-              <div className="absolute inset-x-10 top-1/2 h-px bg-[#24389C]/20" />
-            </div>
-
-            <div className="w-full">
-              <button
-                type="button"
-                onClick={handleScanClick}
-                disabled={isCompleted}
-                className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-bold transition ${
-                  isCompleted
-                    ? "cursor-not-allowed bg-[#E6E8EA] text-[#757684]"
-                    : "bg-gradient-to-br from-[#24389c] to-[#3f51b5] text-white shadow-lg shadow-[#24389C]/20 active:scale-95"
-                }`}
-              >
-                <span className="material-symbols-outlined">
-                  center_focus_weak
-                </span>
-                재공품 scan
-              </button>
-            </div>
+              <LayoutCard
+                layout={picking.layout}
+                highlightedSlot={highlightedSlot}
+              />
+            </section>
           </div>
-
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={handleSaveClick}
-              disabled={!isSaveEnabled}
-              className={`flex items-center gap-2 rounded-xl px-10 py-4 font-bold transition ${
-                isSaveEnabled
-                  ? "bg-[#1A237E] text-white shadow-lg active:scale-95"
-                  : "cursor-not-allowed bg-[#E6E8EA] text-[#757684]"
-              }`}
-            >
-              <span className="material-symbols-outlined">save</span>
-              저장
-            </button>
-          </div>
-
-          <LayoutCard
-            layout={picking.layout}
-            highlightedSlot={highlightedSlot}
-          />
-        </section>
+        </div>
       </main>
 
       <nav

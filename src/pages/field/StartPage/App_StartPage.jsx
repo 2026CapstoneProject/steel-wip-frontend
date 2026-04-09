@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import App_Header from "../../../components/field/Header/App_Header";
 
 // 임시 mock 데이터
 const mockEquipmentList = [
@@ -140,123 +141,114 @@ function App_StartPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F9FB] font-['Inter'] text-[#191C1E]">
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-lg items-center justify-between px-6">
-          <span className="material-symbols-outlined text-2xl text-[#24389C]">
-            factory
-          </span>
+    <div className="h-[100dvh] overflow-hidden bg-[#F7F9FB] font-['Inter'] text-[#191C1E]">
+      <div className="shrink-0">
+        <App_Header />
+      </div>
 
-          <div className="flex items-center gap-5 text-[#454652]">
-            <span className="material-symbols-outlined text-2xl">
-              notifications
-            </span>
-            <span className="material-symbols-outlined text-2xl">
-              account_circle
-            </span>
+      <main className="mx-auto h-[calc(100dvh-72px)] w-full max-w-lg">
+        <div className="h-full overflow-y-auto px-4 py-6">
+          <div className="space-y-8">
+            {!hasData && (
+              <div className="rounded-2xl bg-white p-6 text-center text-sm text-[#757684] shadow-sm">
+                표시할 시나리오가 없습니다.
+              </div>
+            )}
+
+            {hasData &&
+              equipmentList.map((equipment) => {
+                const scenarios = equipment.scenarios || [];
+                const isSelected = selectedEquipmentId === equipment.equipmentId;
+
+                return (
+                  <section key={equipment.equipmentId} className="space-y-4">
+                    <div className="flex items-center justify-between px-2">
+                      <div className="flex items-center gap-3">
+                        <div className="h-6 w-1 rounded-full bg-[#3F51B5]" />
+                        <h2 className="text-xl font-bold text-[#3F51B5]">
+                          {equipment.equipmentName}
+                        </h2>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSelectEquipment(equipment)}
+                        disabled={scenarios.length === 0}
+                        className={`rounded-xl px-8 py-2.5 text-sm font-bold transition-transform active:scale-95 ${
+                          isSelected
+                            ? "bg-[#5C6BC0] text-white shadow-md"
+                            : "bg-[#E8EAF6] text-[#5C6BC0]"
+                        } ${
+                          scenarios.length === 0
+                            ? "cursor-not-allowed opacity-50"
+                            : ""
+                        }`}
+                      >
+                        선택
+                      </button>
+                    </div>
+
+                    {scenarios.length === 0 && (
+                      <div className="rounded-[2rem] bg-white p-6 text-sm text-[#757684] shadow-sm">
+                        진행 중인 시나리오가 없습니다.
+                      </div>
+                    )}
+
+                    {scenarios.map((scenario) => (
+                      <div
+                        key={scenario.scenarioId}
+                        className="rounded-[2rem] bg-white p-6 shadow-sm"
+                      >
+                        <div className="mb-4 flex items-start justify-between">
+                          <h3 className="text-lg font-bold text-[#191C1E]">
+                            {scenario.scenarioName}
+                          </h3>
+
+                          {scenario.urgent && (
+                            <span className="rounded-full bg-[#FFEBEE] px-2.5 py-1 text-[10px] font-bold text-[#D32F2F]">
+                              긴급 발주
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mb-6 flex items-center gap-4 text-xs font-medium text-[#505F76]">
+                          <div className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-sm">
+                              assignment
+                            </span>
+                            <span>{scenario.remainingTaskCount}개 남은 작업</span>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-sm">
+                              schedule
+                            </span>
+                            <span>{scenario.estimatedTime}</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-[10px] font-bold tracking-wider text-[#505F76]">
+                            <span>진행도</span>
+                            <span className="text-[#191C1E]">
+                              {scenario.progress}%
+                            </span>
+                          </div>
+
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#E0E3E5]">
+                            <div
+                              className="h-full bg-[#5C6BC0]"
+                              style={{ width: `${scenario.progress || 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                );
+              })}
           </div>
         </div>
-      </header>
-
-      <main className="mx-auto max-w-lg space-y-8 px-4 py-6">
-        {!hasData && (
-          <div className="rounded-2xl bg-white p-6 text-center text-sm text-[#757684] shadow-sm">
-            표시할 시나리오가 없습니다.
-          </div>
-        )}
-
-        {hasData &&
-          equipmentList.map((equipment) => {
-            const scenarios = equipment.scenarios || [];
-            const isSelected = selectedEquipmentId === equipment.equipmentId;
-
-            return (
-              <section key={equipment.equipmentId} className="space-y-4">
-                <div className="flex items-center justify-between px-2">
-                  <div className="flex items-center gap-3">
-                    <div className="h-6 w-1 rounded-full bg-[#3F51B5]" />
-                    <h2 className="text-xl font-bold text-[#3F51B5]">
-                      {equipment.equipmentName}
-                    </h2>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleSelectEquipment(equipment)}
-                    disabled={scenarios.length === 0}
-                    className={`rounded-xl px-8 py-2.5 text-sm font-bold transition-transform active:scale-95 ${
-                      isSelected
-                        ? "bg-[#5C6BC0] text-white shadow-md"
-                        : "bg-[#E8EAF6] text-[#5C6BC0]"
-                    } ${
-                      scenarios.length === 0
-                        ? "cursor-not-allowed opacity-50"
-                        : ""
-                    }`}
-                  >
-                    선택
-                  </button>
-                </div>
-
-                {scenarios.length === 0 && (
-                  <div className="rounded-[2rem] bg-white p-6 text-sm text-[#757684] shadow-sm">
-                    진행 중인 시나리오가 없습니다.
-                  </div>
-                )}
-
-                {scenarios.map((scenario) => (
-                  <div
-                    key={scenario.scenarioId}
-                    className="rounded-[2rem] bg-white p-6 shadow-sm"
-                  >
-                    <div className="mb-4 flex items-start justify-between">
-                      <h3 className="text-lg font-bold text-[#191C1E]">
-                        {scenario.scenarioName}
-                      </h3>
-
-                      {scenario.urgent && (
-                        <span className="rounded-full bg-[#FFEBEE] px-2.5 py-1 text-[10px] font-bold text-[#D32F2F]">
-                          긴급 발주
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="mb-6 flex items-center gap-4 text-xs font-medium text-[#505F76]">
-                      <div className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-sm">
-                          assignment
-                        </span>
-                        <span>{scenario.remainingTaskCount}개 남은 작업</span>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-sm">
-                          schedule
-                        </span>
-                        <span>{scenario.estimatedTime}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-[10px] font-bold tracking-wider text-[#505F76]">
-                        <span>진행도</span>
-                        <span className="text-[#191C1E]">
-                          {scenario.progress}%
-                        </span>
-                      </div>
-
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#E0E3E5]">
-                        <div
-                          className="h-full bg-[#5C6BC0]"
-                          style={{ width: `${scenario.progress || 0}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </section>
-            );
-          })}
       </main>
 
       {isModalOpen && selectedScenario && (

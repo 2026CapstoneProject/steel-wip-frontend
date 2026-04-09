@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_ProcessTabs from "../../../components/field/ProcessTabs/App_ProcessTabs";
+import App_Header from "../../../components/field/Header/App_Header";
 
 const SHARED_PROCESS_TABS_STATE_KEY = "__FIELD_PROCESS_TABS_SHARED_STATE__";
 
@@ -250,7 +251,11 @@ const EndPickingCard = ({ item, onWorkOrderClick }) => {
             </div>
           ) : null}
 
-          <button type="button" onClick={() => onWorkOrderClick(item)} className="p-1">
+          <button
+            type="button"
+            onClick={() => onWorkOrderClick(item)}
+            className="p-1"
+          >
             <span className="material-symbols-outlined text-2xl text-slate-500">
               description
             </span>
@@ -492,38 +497,10 @@ const App_EndNextPage = () => {
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-[#f7f9fb] text-slate-900">
-      <header className="relative shrink-0 border-b border-slate-100 bg-white">
-        <div className="mx-auto flex h-[72px] w-full max-w-md items-center justify-between px-6">
-          <div className="flex items-center">
-            <span className="material-symbols-outlined text-3xl text-indigo-900">
-              factory
-            </span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={handleNotificationBellClick}
-              className="relative p-1"
-              aria-label="알림"
-            >
-              <span className="material-symbols-outlined text-2xl text-slate-700">
-                notifications
-              </span>
-
-              {hasUnreadAlert ? (
-                <span className="absolute right-[2px] top-[2px] h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
-              ) : null}
-            </button>
-
-            <button type="button">
-              <span className="material-symbols-outlined text-3xl text-slate-700">
-                account_circle
-              </span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <App_Header
+        hasUnreadAlert={hasUnreadAlert}
+        onNotificationClick={handleNotificationBellClick}
+      />
 
       <NextScenarioToast
         visible={showToast && progressPercent >= 95}

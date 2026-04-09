@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import App_Header from "../../../components/field/Header/App_Header";
 
 const fallbackRelocation = {
   id: "relocate-01",
@@ -185,176 +186,155 @@ const App_RelocatePage = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#f7f9fb] pb-28 text-slate-900">
-      <header
-        className={`sticky top-0 z-40 border-b border-slate-100 bg-white/80 backdrop-blur-xl ${
-          isSavePopupOpen ? "blur-sm" : ""
-        }`}
-      >
-        <div className="mx-auto flex h-16 w-full max-w-md items-center justify-between px-6">
-          <div className="flex items-center">
-            <span className="material-symbols-outlined text-2xl text-[#24389c]">
-              factory
-            </span>
-          </div>
-
-          <div className="flex items-center gap-5 text-slate-600">
-            <button type="button">
-              <span className="material-symbols-outlined text-2xl">
-                notifications
-              </span>
-            </button>
-            <button type="button">
-              <span className="material-symbols-outlined text-2xl">
-                account_circle
-              </span>
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="relative h-[100dvh] overflow-hidden bg-[#f7f9fb] text-slate-900">
+      <App_Header />
 
       <main
-        className={`mx-auto flex w-full max-w-md flex-col gap-6 px-6 pb-6 pt-10 ${
-          isSavePopupOpen ? "blur-sm" : ""
-        }`}
-      >
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900">재공품 상세 정보</h2>
-          </div>
+  className={`mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col ${
+    isSavePopupOpen ? "blur-sm" : ""
+  }`}
+>
+  <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-28 pt-10">
+    <div className="flex flex-col gap-6 pb-6">
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-900">재공품 상세 정보</h2>
+        </div>
 
-          <div className="rounded-xl bg-white p-5 shadow-[0_4px_20px_rgba(25,28,30,0.04)]">
-            <div className="grid grid-cols-2 gap-y-4">
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-500">제조사</p>
-                <p className="font-semibold text-slate-900">
-                  {relocation.manufacturer}
-                </p>
-              </div>
+        <div className="rounded-xl bg-white p-5 shadow-[0_4px_20px_rgba(25,28,30,0.04)]">
+          <div className="grid grid-cols-2 gap-y-4">
+            <div>
+              <p className="mb-1 text-xs font-medium text-slate-500">제조사</p>
+              <p className="font-semibold text-slate-900">
+                {relocation.manufacturer}
+              </p>
+            </div>
 
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-500">재질</p>
-                <p className="font-semibold text-slate-900">{relocation.material}</p>
-              </div>
+            <div>
+              <p className="mb-1 text-xs font-medium text-slate-500">재질</p>
+              <p className="font-semibold text-slate-900">{relocation.material}</p>
+            </div>
 
-              <div className="col-span-2 pt-2">
-                <p className="mb-1 text-xs font-medium text-slate-500">
-                  규격 (두께 x 폭 x 길이)
-                </p>
-                <p className="text-lg font-bold text-[#24389c]">
-                  {relocation.specText}
-                </p>
-              </div>
+            <div className="col-span-2 pt-2">
+              <p className="mb-1 text-xs font-medium text-slate-500">
+                규격 (두께 x 폭 x 길이)
+              </p>
+              <p className="text-lg font-bold text-[#24389c]">
+                {relocation.specText}
+              </p>
+            </div>
 
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-500">중량</p>
-                <p className="font-semibold text-slate-900">
-                  {relocation.weightText}
-                </p>
-              </div>
+            <div>
+              <p className="mb-1 text-xs font-medium text-slate-500">중량</p>
+              <p className="font-semibold text-slate-900">
+                {relocation.weightText}
+              </p>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="space-y-3">
-          <InfoCard
-            label="FROM"
-            zone={relocation.from?.zone}
-            time={scanState.wipScannedAt}
-          />
-          <InfoCard
-            label="TO"
-            zone={relocation.to?.zone}
-            time={scanState.zoneScannedAt}
-          />
-        </section>
+      <section className="space-y-3">
+        <InfoCard
+          label="FROM"
+          zone={relocation.from?.zone}
+          time={scanState.wipScannedAt}
+        />
+        <InfoCard
+          label="TO"
+          zone={relocation.to?.zone}
+          time={scanState.zoneScannedAt}
+        />
+      </section>
 
-        <section className="flex flex-col items-center py-2">
-          <div className="relative mb-6 flex h-1 w-full max-w-xs items-center rounded-full bg-slate-200">
-            <div
-              className="absolute left-0 top-0 h-full rounded-full bg-[#24389c] transition-all"
-              style={{ width: progressWidth }}
+      <section className="flex flex-col items-center py-2">
+        <div className="relative mb-6 flex h-1 w-full max-w-xs items-center rounded-full bg-slate-200">
+          <div
+            className="absolute left-0 top-0 h-full rounded-full bg-[#24389c] transition-all"
+            style={{ width: progressWidth }}
+          />
+          <div className="absolute inset-0 flex items-center justify-between">
+            <StepCircle type="done" />
+            <StepCircle
+              type={isCompleted ? "done" : isStarted ? "active" : "inactive"}
             />
-            <div className="absolute inset-0 flex items-center justify-between">
-              <StepCircle type="done" />
-              <StepCircle
-                type={isCompleted ? "done" : isStarted ? "active" : "inactive"}
-              />
-              <StepCircle type={isCompleted ? "done" : "inactive"} />
-            </div>
+            <StepCircle type={isCompleted ? "done" : "inactive"} />
+          </div>
+        </div>
+
+        <p className={`rounded-full px-4 py-1 text-sm font-bold ${statusClassName}`}>
+          {statusText}
+        </p>
+      </section>
+
+      <section className="space-y-4">
+        <div className="rounded-2xl bg-white p-8 text-center shadow-[0_20px_40px_rgba(25,28,30,0.06)]">
+          <div className="relative mx-auto mb-6 flex h-48 w-48 items-center justify-center overflow-hidden rounded-2xl bg-slate-100">
+            <span className="material-symbols-outlined text-5xl text-[#24389c]/30">
+              qr_code_2
+            </span>
+
+            <div className="absolute left-6 top-6 h-8 w-8 rounded-tl-sm border-l-2 border-t-2 border-[#24389c]/40" />
+            <div className="absolute right-6 top-6 h-8 w-8 rounded-tr-sm border-r-2 border-t-2 border-[#24389c]/40" />
+            <div className="absolute bottom-6 left-6 h-8 w-8 rounded-bl-sm border-b-2 border-l-2 border-[#24389c]/40" />
+            <div className="absolute bottom-6 right-6 h-8 w-8 rounded-br-sm border-b-2 border-r-2 border-[#24389c]/40" />
+            <div className="absolute inset-x-10 top-1/2 h-px bg-[#24389c]/20" />
           </div>
 
-          <p className={`rounded-full px-4 py-1 text-sm font-bold ${statusClassName}`}>
-            {statusText}
-          </p>
-        </section>
-
-        <section className="space-y-4">
-          <div className="rounded-2xl bg-white p-8 text-center shadow-[0_20px_40px_rgba(25,28,30,0.06)]">
-            <div className="relative mx-auto mb-6 flex h-48 w-48 items-center justify-center overflow-hidden rounded-2xl bg-slate-100">
-              <span className="material-symbols-outlined text-5xl text-[#24389c]/30">
-                qr_code_2
-              </span>
-
-              <div className="absolute left-6 top-6 h-8 w-8 rounded-tl-sm border-l-2 border-t-2 border-[#24389c]/40" />
-              <div className="absolute right-6 top-6 h-8 w-8 rounded-tr-sm border-r-2 border-t-2 border-[#24389c]/40" />
-              <div className="absolute bottom-6 left-6 h-8 w-8 rounded-bl-sm border-b-2 border-l-2 border-[#24389c]/40" />
-              <div className="absolute bottom-6 right-6 h-8 w-8 rounded-br-sm border-b-2 border-r-2 border-[#24389c]/40" />
-              <div className="absolute inset-x-10 top-1/2 h-px bg-[#24389c]/20" />
-            </div>
-
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={handleWipScanClick}
-                disabled={!isWipScanEnabled}
-                className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-bold transition ${
-                  isWipScanEnabled
-                    ? "bg-gradient-to-br from-[#24389c] to-[#3f51b5] text-white shadow-lg shadow-indigo-200 active:scale-95"
-                    : "cursor-not-allowed bg-slate-200 text-slate-400"
-                }`}
-              >
-                <span className="material-symbols-outlined">
-                  center_focus_weak
-                </span>
-                재공품 scan
-              </button>
-
-              <button
-                type="button"
-                onClick={handleZoneScanClick}
-                disabled={!isZoneScanEnabled}
-                className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-bold transition ${
-                  isZoneScanEnabled
-                    ? "bg-gradient-to-br from-[#24389c] to-[#3f51b5] text-white shadow-lg shadow-indigo-200 active:scale-95"
-                    : "cursor-not-allowed bg-slate-200 text-slate-400"
-                }`}
-              >
-                <span className="material-symbols-outlined">
-                  center_focus_weak
-                </span>
-                구역 scan
-              </button>
-            </div>
-          </div>
-
-          <div className="flex justify-end">
+          <div className="space-y-3">
             <button
               type="button"
-              onClick={handleSaveClick}
-              disabled={!isSaveEnabled}
-              className={`flex items-center gap-2 rounded-xl px-10 py-4 font-bold transition ${
-                isSaveEnabled
-                  ? "bg-[#1a237e] text-white shadow-lg active:scale-95"
+              onClick={handleWipScanClick}
+              disabled={!isWipScanEnabled}
+              className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-bold transition ${
+                isWipScanEnabled
+                  ? "bg-gradient-to-br from-[#24389c] to-[#3f51b5] text-white shadow-lg shadow-indigo-200 active:scale-95"
                   : "cursor-not-allowed bg-slate-200 text-slate-400"
               }`}
             >
-              <span className="material-symbols-outlined">save</span>
-              저장
+              <span className="material-symbols-outlined">
+                center_focus_weak
+              </span>
+              재공품 scan
+            </button>
+
+            <button
+              type="button"
+              onClick={handleZoneScanClick}
+              disabled={!isZoneScanEnabled}
+              className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-bold transition ${
+                isZoneScanEnabled
+                  ? "bg-gradient-to-br from-[#24389c] to-[#3f51b5] text-white shadow-lg shadow-indigo-200 active:scale-95"
+                  : "cursor-not-allowed bg-slate-200 text-slate-400"
+              }`}
+            >
+              <span className="material-symbols-outlined">
+                center_focus_weak
+              </span>
+              구역 scan
             </button>
           </div>
-        </section>
-      </main>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handleSaveClick}
+            disabled={!isSaveEnabled}
+            className={`flex items-center gap-2 rounded-xl px-10 py-4 font-bold transition ${
+              isSaveEnabled
+                ? "bg-[#1a237e] text-white shadow-lg active:scale-95"
+                : "cursor-not-allowed bg-slate-200 text-slate-400"
+            }`}
+          >
+            <span className="material-symbols-outlined">save</span>
+            저장
+          </button>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
 
       <nav
         className={`fixed bottom-0 left-0 z-40 flex w-full flex-col items-center rounded-t-xl bg-white shadow-[0_-4px_20px_rgba(25,28,30,0.06)] ${
