@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import App_ProcessTabs from "../../../components/field/ProcessTabs/App_ProcessTabs";
 import App_Header from "../../../components/field/Header/App_Header";
+import workOrderPdf from "../../../assets/Steel_all_Work_instruction.pdf";
 
 const readyMockData = {
   progressPercent: 50,
@@ -432,9 +433,9 @@ const App_ReadyPage = () => {
     });
   };
 
-  const handleWorkOrderClick = (item) => {
-    console.log("작업지시서 클릭", item);
-  };
+  const handleWorkOrderClick = () => {
+  window.open(workOrderPdf, "_self");
+};
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-[#f7f9fb] text-slate-900">
