@@ -15,6 +15,7 @@ function mapBatchItemsToTimeline(batchItems) {
   const INBOUND = [];
 
   (batchItems ?? []).forEach((item) => {
+    const action = String(item.batchItemAction ?? "").trim();
     const row = {
       qrNumber: `WIP-${item.steelWipId}`,
       thickness: String(item.thickness ?? ""),
@@ -24,9 +25,9 @@ function mapBatchItemsToTimeline(batchItems) {
       to: item.toLocation || "-",
       estimatedTime: String(item.expectedStartTime ?? ""),
     };
-    if (item.batchItemAction === "RELOCATION") RELOCATION.push(row);
-    else if (item.batchItemAction === "PICKING") PICKING.push(row);
-    else if (item.batchItemAction === "INBOUND") INBOUND.push(row);
+    if (action === "RELOCATION" || action === "RELOCATE" || action === "재배치") RELOCATION.push(row);
+    else if (action === "PICKING" || action === "피킹") PICKING.push(row);
+    else if (action === "INBOUND" || action === "적재") INBOUND.push(row);
   });
 
   const items = [];
