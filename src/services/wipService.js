@@ -1,20 +1,9 @@
 import api from './api';
 
-// 잔재 재고 관련 API 호출 함수
-
+// GET /api/steelWip — 잔재 재고 목록 조회 (필터 파라미터 포함)
 export const wipService = {
-  // 전체 잔재 목록 조회
-  getAll: () => api.get('/wips'),
-
-  // 특정 잔재 조회
-  getById: (id) => api.get(`/wips/${id}`),
-
-  // 잔재 등록
-  create: (data) => api.post('/wips', data),
-
-  // 잔재 정보 수정
-  update: (id, data) => api.patch(`/wips/${id}`, data),
-
-  // 잔재 삭제
-  delete: (id) => api.delete(`/wips/${id}`),
+  getAll: (params = {}) => {
+    // params 예: { qr, manufacturer, material, thickness, minWidth, maxWidth, minLength, maxLength }
+    return api.get('/steelWip', { params });
+  },
 };

@@ -18,14 +18,20 @@ import {
   clearScenarioLantekCache,
 } from "../../../utils/Web/lantekCache";
 
+import { createScenario } from "../../../services/scenarioService";
+import { deleteLantekData } from "../../../services/lantekService";
+import { runScheduler } from "../../../services/schedulerService";
+
 export default function Web_LantekInputPage() {
   const navigate = useNavigate();
 
   const [projectInfo, setProjectInfo] = useState({
+    projectId: null,       // 선택된 프로젝트 ID (백엔드 연동)
+    scenarioId: null,      // 생성된 시나리오 ID (백엔드 연동)
     projectName: "",
     productionPlanName: "",
     projectDueDate: "",
-    shipmentDate: "",
+    shipmentDate: "",       // 시나리오 납기일 (scenario_due 역할)
     equipmentName: "레이저 1호기",
     processPriority: "low",
   });
@@ -38,48 +44,38 @@ export default function Web_LantekInputPage() {
 
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [isScenarioCheckModalOpen, setIsScenarioCheckModalOpen] =
-    useState(false);
+  const [isScenarioCheckModalOpen, setIsScenarioCheckModalOpen] = useState(false);
   const [isLoadingModalOpen, setIsLoadingModalOpen] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isCacheReady, setIsCacheReady] = useState(false);
 
+  // 캐시에서 복원
   useEffect(() => {
     const cachedData = getScenarioLantekCache();
-
     if (cachedData?.projectInfo) {
-      setProjectInfo((prev) => ({
-        ...prev,
-        ...cachedData.projectInfo,
-      }));
+      setProjectInfo((prev) => ({ ...prev, ...cachedData.projectInfo }));
     }
-
     if (Array.isArray(cachedData?.lantekRows)) {
       setLantekRows(cachedData.lantekRows);
     }
-
     if (cachedData?.tempSavedFile) {
       setTempSavedFile(cachedData.tempSavedFile);
     }
-
     setIsCacheReady(true);
   }, []);
 
+  // 상태 변경 시 캐시 업데이트
   useEffect(() => {
     if (!isCacheReady) return;
-
-    setScenarioLantekCache({
-      projectInfo,
-      lantekRows,
-      tempSavedFile,
-    });
+    setScenarioLantekCache({ projectInfo, lantekRows, tempSavedFile });
   }, [isCacheReady, projectInfo, lantekRows, tempSavedFile]);
 
   const isProjectInfoReady = Boolean(
+    projectInfo.projectId &&
     projectInfo.projectName &&
     projectInfo.projectDueDate &&
     projectInfo.shipmentDate &&
-    projectInfo.productionPlanName,
+    projectInfo.productionPlanName
   );
 
   const isResetDisabled = lantekRows.length === 0;
@@ -87,32 +83,29 @@ export default function Web_LantekInputPage() {
   const isScenarioDisabled = lantekRows.length === 0;
 
   const handleProjectInfoChange = (name, value) => {
-    setProjectInfo((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
-    if (name === "shipmentDate" && value) {
-      setShipmentDateError("");
-      setProductionPlanError("");
-      setProjectInfo((prev) => ({
-        ...prev,
-        shipmentDate: value,
-        productionPlanName: "",
-      }));
-    }
+    setProjectInfo((prev) => {
+      const next = { ...prev, [name]: value };
+      // 출하일 변경 시 생산계획명 및 시나리오 ID 초기화 (새로 생성해야 하므로)
+      if (name === "shipmentDate") {
+        next.productionPlanName = "";
+        next.scenarioId = null;
+        setShipmentDateError("");
+        setProductionPlanError("");
+      }
+      return next;
+    });
   };
 
   const handleOpenHistory = () => {
     setIsHistoryModalOpen(true);
   };
 
+  // 생산계획명 조회 = 시나리오 생성 API 호출
   const handleFetchProductionPlanName = async () => {
-    if (!projectInfo.projectName || !projectInfo.projectDueDate) {
+    if (!projectInfo.projectId || !projectInfo.projectName || !projectInfo.projectDueDate) {
       alert("먼저 프로젝트 이력을 선택해주세요.");
       return;
     }
-
     if (!projectInfo.shipmentDate) {
       setShipmentDateError("필수 입력 사항입니다.");
       return;
@@ -121,39 +114,22 @@ export default function Web_LantekInputPage() {
     setShipmentDateError("");
     setProductionPlanError("");
 
-    const mockExistingPlans = [
-      {
-        shipmentDate: "2026-04-10",
-        productionPlanName: "토네이도 건설-1",
-      },
-      {
-        shipmentDate: "2026-04-12",
-        productionPlanName: "토네이도 건설-2",
-      },
-    ];
-
-    const matchedPlan = mockExistingPlans.find(
-      (item) => item.shipmentDate === projectInfo.shipmentDate,
-    );
-
-    let nextPlanName = "";
-
-    if (matchedPlan) {
-      nextPlanName = matchedPlan.productionPlanName;
-    } else {
-      const latestNumber = mockExistingPlans.reduce((max, item) => {
-        const lastPart = item.productionPlanName.split("-").pop();
-        const parsed = Number(lastPart);
-        return Number.isNaN(parsed) ? max : Math.max(max, parsed);
-      }, 0);
-
-      nextPlanName = `${projectInfo.projectName}-${latestNumber + 1}`;
+    try {
+      const response = await createScenario({
+        project_id: projectInfo.projectId,
+        scenario_due: projectInfo.shipmentDate,
+      });
+      const scenario = response.data?.data;
+      setProjectInfo((prev) => ({
+        ...prev,
+        scenarioId: scenario.id,
+        productionPlanName: scenario.title,
+      }));
+    } catch (err) {
+      console.error("시나리오 생성 실패:", err);
+      const msg = err.response?.data?.message || "시나리오 생성에 실패했습니다.";
+      setProductionPlanError(msg);
     }
-
-    setProjectInfo((prev) => ({
-      ...prev,
-      productionPlanName: nextPlanName,
-    }));
   };
 
   const handleOpenUpload = () => {
@@ -161,14 +137,11 @@ export default function Web_LantekInputPage() {
       setShipmentDateError("필수 입력 사항입니다.");
       return;
     }
-
-    if (!projectInfo.productionPlanName) {
+    if (!projectInfo.productionPlanName || !projectInfo.scenarioId) {
       setProductionPlanError("생산계획명을 먼저 조회해주세요.");
       return;
     }
-
     if (isImportDisabled) return;
-
     setIsUploadModalOpen(true);
   };
 
@@ -177,28 +150,26 @@ export default function Web_LantekInputPage() {
     setIsResetModalOpen(true);
   };
 
-  const handleConfirmReset = () => {
+  const handleConfirmReset = async () => {
+    // LANTEK 데이터 삭제 (시나리오 ID가 있는 경우)
+    if (projectInfo.scenarioId) {
+      try {
+        await deleteLantekData(projectInfo.scenarioId);
+      } catch (err) {
+        console.error("LANTEK 초기화 실패:", err);
+      }
+    }
+
     setLantekRows([]);
     setTempSavedFile(null);
+    setProjectInfo((prev) => ({ ...prev, scenarioId: null, productionPlanName: "" }));
 
     clearScenarioLantekCache();
-    setScenarioLantekCache({
-      projectInfo,
-      lantekRows: [],
-      tempSavedFile: null,
-    });
-
     setIsResetModalOpen(false);
   };
 
   const handleTemporarySave = () => {
-    setScenarioLantekCache({
-      projectInfo,
-      lantekRows,
-      tempSavedFile,
-    });
-
-    console.log("임시저장", { projectInfo, lantekRows });
+    setScenarioLantekCache({ projectInfo, lantekRows, tempSavedFile });
   };
 
   const handleScenarioCheck = () => {
@@ -206,31 +177,32 @@ export default function Web_LantekInputPage() {
       setShipmentDateError("*필수 입력 사항입니다.");
       return;
     }
-
     if (!projectInfo.productionPlanName) {
       setProductionPlanError("생산계획명을 먼저 조회해주세요.");
       return;
     }
-
     setShipmentDateError("");
     setProductionPlanError("");
     setIsScenarioCheckModalOpen(true);
   };
 
-  const handleConfirmScenario = () => {
-    setScenarioLantekCache({
-      projectInfo,
-      lantekRows,
-      tempSavedFile,
-    });
-
+  const handleConfirmScenario = async () => {
+    setScenarioLantekCache({ projectInfo, lantekRows, tempSavedFile });
     setIsScenarioCheckModalOpen(false);
     setIsLoadingModalOpen(true);
 
-    setTimeout(() => {
+    try {
+      // 스케줄러(최적화 알고리즘) 실행
+      await runScheduler(projectInfo.scenarioId);
       setIsLoadingModalOpen(false);
-      navigate("/office/scenario/result");
-    }, 2000);
+      navigate("/office/scenario/result", {
+        state: { scenarioId: projectInfo.scenarioId },
+      });
+    } catch (err) {
+      console.error("스케줄러 실행 실패:", err);
+      setIsLoadingModalOpen(false);
+      alert("알고리즘 실행에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
   return (
@@ -266,9 +238,11 @@ export default function Web_LantekInputPage() {
           onSelectProject={(project) => {
             setProjectInfo((prev) => ({
               ...prev,
+              projectId: project.id,
               projectName: project.projectName,
               projectDueDate: project.projectDueDate,
               productionPlanName: "",
+              scenarioId: null,
             }));
             setIsHistoryModalOpen(false);
           }}
@@ -277,11 +251,19 @@ export default function Web_LantekInputPage() {
 
       {isUploadModalOpen && (
         <Web_LantekUploadModal
+          scenarioId={projectInfo.scenarioId}
           tempSavedFile={tempSavedFile}
           onClose={() => setIsUploadModalOpen(false)}
-          onUpload={(file, parsedRows) => {
+          onUpload={(file, lantekDataList) => {
             setTempSavedFile(file);
-            setLantekRows(parsedRows);
+            // 백엔드 LantekScenarioData[] → lantekRows 형태로 변환
+            const rows = (lantekDataList[0]?.lazerCutting ?? []).map((cut) => ({
+              id: cut.id,
+              estimatedCuttingTime: cut.estimatedCuttingTime,
+              input: cut.input,
+              estimatedWips: cut.estimatedWips,
+            }));
+            setLantekRows(rows);
             setIsUploadModalOpen(false);
           }}
         />

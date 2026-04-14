@@ -1,77 +1,65 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
+import { getFieldReady } from "../../../services/fieldService";
 
-// 임시 mock 데이터
-const mockEquipmentList = [
-  {
-    equipmentId: "eq-1",
-    equipmentName: "설비 1",
-    scenarios: [
-      {
-        scenarioId: "eq1-s1",
-        scenarioName: "시나리오 1",
-        remainingTaskCount: 3,
-        estimatedTime: "1시 20분",
-        progress: 95,
-        urgent: false,
-      },
-      {
-        scenarioId: "eq1-s2",
-        scenarioName: "시나리오 2",
-        remainingTaskCount: 20,
-        estimatedTime: "11시 30분",
-        progress: 0,
-        urgent: false,
-      },
-    ],
-  },
-  {
-    equipmentId: "eq-2",
-    equipmentName: "설비 2",
-    scenarios: [
-      {
-        scenarioId: "eq2-s1",
-        scenarioName: "시나리오 1",
-        remainingTaskCount: 13,
-        estimatedTime: "9시 45분",
-        progress: 0,
-        urgent: true,
-      },
-      {
-        scenarioId: "eq2-s2",
-        scenarioName: "시나리오 2",
-        remainingTaskCount: 10,
-        estimatedTime: "9시 10분",
-        progress: 10,
-        urgent: false,
-      },
-    ],
-  },
-  {
-    equipmentId: "eq-3",
-    equipmentName: "설비 3",
-    scenarios: [
-      {
-        scenarioId: "eq3-s1",
-        scenarioName: "시나리오 1",
-        remainingTaskCount: 18,
-        estimatedTime: "12시 12분",
-        progress: 0,
-        urgent: false,
-      },
-    ],
-  },
-];
+// FieldReadyData → 화면용 scenario 항목으로 변환
+function mapReadyDataToEquipment(readyDataList) {
+  return (readyDataList ?? []).map((item) => {
+    // 배치 전체에서 미완료 작업 수 산출 (relocation + picking 아이템 합산)
+    const incompleteBatchCount = (item.batch ?? []).length;
+    const totalItems = (item.batch ?? []).reduce(
+      (sum, b) => sum + (b.relocation?.length ?? 0) + (b.picking?.length ?? 0),
+      0
+    );
+
+    return {
+      equipmentId: `scenario-${item.scenarioId}`,
+      equipmentName: `시나리오 #${item.scenarioId}`,
+      scenarios: [
+        {
+          scenarioId: item.scenarioId,
+          scenarioName: item.scenarioTitle || `시나리오 ${item.scenarioId}`,
+          remainingTaskCount: totalItems,
+          estimatedTime: "-",
+          progress: Math.round((item.scenarioProgressRate ?? 0) * 100),
+          urgent: false,
+          // 다음 시나리오 정보 포함
+          nextScenarioId: item.nextScenarioId ?? null,
+          nextScenarioTitle: item.nextScenarioTitle ?? null,
+        },
+      ],
+    };
+  });
+}
 
 function App_StartPage() {
   const navigate = useNavigate();
 
-  const [equipmentList] = useState(mockEquipmentList);
+  const [equipmentList, setEquipmentList] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedEquipmentId, setSelectedEquipmentId] = useState(null);
   const [selectedScenario, setSelectedScenario] = useState(null);
   const [workerCount, setWorkerCount] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    fetchReadyData();
+  }, []);
+
+  const fetchReadyData = async () => {
+    setLoading(true);
+    try {
+      const response = await getFieldReady();
+      const data = response.data?.data ?? [];
+      setEquipmentList(mapReadyDataToEquipment(data));
+    } catch (err) {
+      console.error("생산 준비 데이터 조회 실패:", err);
+      setEquipmentList([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const hasData = Array.isArray(equipmentList) && equipmentList.length > 0;
 
@@ -88,25 +76,19 @@ function App_StartPage() {
   const getRepresentativeScenario = (equipment) => {
     const scenarios = equipment?.scenarios || [];
     if (scenarios.length === 0) return null;
-
-    const urgentScenario = scenarios.find((scenario) => scenario.urgent);
+    const urgentScenario = scenarios.find((s) => s.urgent);
     if (urgentScenario) return urgentScenario;
-
-    const recommendedScenario = scenarios.find(
-      (scenario) => Number(scenario.progress) >= 95
-    );
-    if (recommendedScenario) return recommendedScenario;
-
+    const nearlyDone = scenarios.find((s) => Number(s.progress) >= 95);
+    if (nearlyDone) return nearlyDone;
     return scenarios[0];
   };
 
   const handleSelectEquipment = (equipment) => {
-    const representativeScenario = getRepresentativeScenario(equipment);
-    if (!representativeScenario) return;
-
+    const representative = getRepresentativeScenario(equipment);
+    if (!representative) return;
     setSelectedEquipmentId(equipment.equipmentId);
     setSelectedScenario({
-      ...representativeScenario,
+      ...representative,
       equipmentId: equipment.equipmentId,
       equipmentName: equipment.equipmentName,
     });
@@ -114,21 +96,12 @@ function App_StartPage() {
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
-
-  const handleDecreaseWorker = () => {
-    setWorkerCount((prev) => Math.max(0, prev - 1));
-  };
-
-  const handleIncreaseWorker = () => {
-    setWorkerCount((prev) => prev + 1);
-  };
+  const handleCloseModal = () => setIsModalOpen(false);
+  const handleDecreaseWorker = () => setWorkerCount((prev) => Math.max(0, prev - 1));
+  const handleIncreaseWorker = () => setWorkerCount((prev) => prev + 1);
 
   const handleConfirmWorkerCount = () => {
     if (!selectedScenario) return;
-
     navigate("/App/tasks", {
       state: {
         selectedEquipmentId,
@@ -149,13 +122,20 @@ function App_StartPage() {
       <main className="mx-auto h-[calc(100dvh-72px)] w-full max-w-lg">
         <div className="h-full overflow-y-auto px-4 py-6">
           <div className="space-y-8">
-            {!hasData && (
+            {loading && (
+              <div className="rounded-2xl bg-white p-6 text-center text-sm text-[#757684] shadow-sm">
+                데이터를 불러오는 중...
+              </div>
+            )}
+
+            {!loading && !hasData && (
               <div className="rounded-2xl bg-white p-6 text-center text-sm text-[#757684] shadow-sm">
                 표시할 시나리오가 없습니다.
               </div>
             )}
 
-            {hasData &&
+            {!loading &&
+              hasData &&
               equipmentList.map((equipment) => {
                 const scenarios = equipment.scenarios || [];
                 const isSelected = selectedEquipmentId === equipment.equipmentId;
@@ -169,7 +149,6 @@ function App_StartPage() {
                           {equipment.equipmentName}
                         </h2>
                       </div>
-
                       <button
                         type="button"
                         onClick={() => handleSelectEquipment(equipment)}
@@ -178,11 +157,7 @@ function App_StartPage() {
                           isSelected
                             ? "bg-[#5C6BC0] text-white shadow-md"
                             : "bg-[#E8EAF6] text-[#5C6BC0]"
-                        } ${
-                          scenarios.length === 0
-                            ? "cursor-not-allowed opacity-50"
-                            : ""
-                        }`}
+                        } ${scenarios.length === 0 ? "cursor-not-allowed opacity-50" : ""}`}
                       >
                         선택
                       </button>
@@ -203,7 +178,6 @@ function App_StartPage() {
                           <h3 className="text-lg font-bold text-[#191C1E]">
                             {scenario.scenarioName}
                           </h3>
-
                           {scenario.urgent && (
                             <span className="rounded-full bg-[#FFEBEE] px-2.5 py-1 text-[10px] font-bold text-[#D32F2F]">
                               긴급 발주
@@ -213,28 +187,22 @@ function App_StartPage() {
 
                         <div className="mb-6 flex items-center gap-4 text-xs font-medium text-[#505F76]">
                           <div className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-sm">
-                              assignment
-                            </span>
+                            <span className="material-symbols-outlined text-sm">assignment</span>
                             <span>{scenario.remainingTaskCount}개 남은 작업</span>
                           </div>
-
-                          <div className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-sm">
-                              schedule
-                            </span>
-                            <span>{scenario.estimatedTime}</span>
-                          </div>
+                          {scenario.estimatedTime && scenario.estimatedTime !== "-" && (
+                            <div className="flex items-center gap-1">
+                              <span className="material-symbols-outlined text-sm">schedule</span>
+                              <span>{scenario.estimatedTime}</span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-[10px] font-bold tracking-wider text-[#505F76]">
                             <span>진행도</span>
-                            <span className="text-[#191C1E]">
-                              {scenario.progress}%
-                            </span>
+                            <span className="text-[#191C1E]">{scenario.progress}%</span>
                           </div>
-
                           <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#E0E3E5]">
                             <div
                               className="h-full bg-[#5C6BC0]"
@@ -265,32 +233,23 @@ function App_StartPage() {
                 <label className="block text-center text-sm font-semibold text-[#505F76]">
                   작업자 수
                 </label>
-
                 <div className="flex items-center justify-between px-2">
                   <button
                     type="button"
                     onClick={handleDecreaseWorker}
                     className="flex h-12 w-12 items-center justify-center rounded-full bg-[#3F51B5] text-white shadow-lg active:scale-90"
                   >
-                    <span className="material-symbols-outlined text-2xl">
-                      remove
-                    </span>
+                    <span className="material-symbols-outlined text-2xl">remove</span>
                   </button>
-
                   <div className="flex h-16 w-16 items-center justify-center rounded-xl border-2 border-[#D9DCE8]">
-                    <span className="text-4xl font-extrabold text-[#4F59B7]">
-                      {workerCount}
-                    </span>
+                    <span className="text-4xl font-extrabold text-[#4F59B7]">{workerCount}</span>
                   </div>
-
                   <button
                     type="button"
                     onClick={handleIncreaseWorker}
                     className="flex h-12 w-12 items-center justify-center rounded-full bg-[#3F51B5] text-white shadow-lg active:scale-90"
                   >
-                    <span className="material-symbols-outlined text-2xl">
-                      add
-                    </span>
+                    <span className="material-symbols-outlined text-2xl">add</span>
                   </button>
                 </div>
               </div>
@@ -303,7 +262,6 @@ function App_StartPage() {
                 >
                   확인
                 </button>
-
                 <button
                   type="button"
                   onClick={handleCloseModal}

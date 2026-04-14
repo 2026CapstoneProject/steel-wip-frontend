@@ -1,107 +1,11 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import App_ProcessTabs from "../../../components/field/ProcessTabs/App_ProcessTabs";
 import App_Header from "../../../components/field/Header/App_Header";
 import workOrderPdf from "../../../assets/Steel_all_Work_instruction.pdf";
+import { getFieldReady } from "../../../services/fieldService";
 
-const readyMockData = {
-  progressPercent: 50,
-  remainingTaskCount: 10,
-  remainingWorkTime: "5h 45m",
-  tasks: [
-    {
-      id: "task-01",
-      title: "Task 01",
-      relocations: [
-        {
-          id: "relocate-01",
-          materialName: "SM355A",
-          fromZone: "Zone A-1",
-          toZone: "Zone B-2",
-          duration: "11m",
-        },
-        {
-          id: "relocate-02",
-          materialName: "SS275",
-          fromZone: "Zone B-1",
-          toZone: "Zone C-1",
-          duration: "7m",
-        },
-      ],
-      pickings: [
-        {
-          id: "picking-01",
-          title: "Picking 1",
-          type: "재공품",
-          manufacturer: "현대 제철",
-          materialName: "SM355A",
-          specText: "22 x 2,438 x 6,096",
-          weightText: "7,698 kg",
-          currentZone: "Zone C-4",
-          targetPositionLabel: "Position 1",
-          infoLabel: "현재 위치",
-          infoValue: "Zone C-4",
-          duration: "4m",
-        },
-        {
-          id: "picking-02",
-          title: "Picking 2",
-          type: "원자재",
-          manufacturer: "현대 제철",
-          materialName: "SS275",
-          specText: "22 x 2,438 x 6,096",
-          weightText: "7,698 kg",
-          targetPositionLabel: "Position 2",
-          infoLabel: "두께×폭",
-          infoValue: "22 × 2,438",
-          duration: "6m",
-        },
-        {
-          id: "picking-03",
-          title: "Picking 3",
-          type: "재공품",
-          manufacturer: "현대 제철",
-          materialName: "GS400",
-          specText: "22 x 2,438 x 6,096",
-          weightText: "7,698 kg",
-          currentZone: "Zone A-3",
-          targetPositionLabel: "Position 3",
-          infoLabel: "현재 위치",
-          infoValue: "Zone A-3",
-          duration: "7m",
-        },
-        {
-          id: "picking-04",
-          title: "Picking 4",
-          type: "재공품",
-          manufacturer: "현대 제철",
-          materialName: "GS400",
-          specText: "22 x 2,438 x 6,096",
-          weightText: "7,698 kg",
-          currentZone: "Zone B-1",
-          targetPositionLabel: "Position 4",
-          infoLabel: "현재 위치",
-          infoValue: "Zone B-1",
-          duration: "4m",
-        },
-      ],
-    },
-    {
-      id: "task-02",
-      title: "Task 02",
-      relocations: [
-        {
-          id: "relocate-03",
-          materialName: "GS400",
-          fromZone: "Zone C-4",
-          toZone: "Zone A-1",
-          duration: "4m",
-        },
-      ],
-      pickings: [],
-    },
-  ],
-};
+// ─── 헬퍼 함수 ──────────────────────────────────────────────────────
 
 const extractSlotNumber = (value) => {
   const match = String(value ?? "").match(/(\d+)/);
@@ -110,259 +14,229 @@ const extractSlotNumber = (value) => {
 
 const parseDurationMinutes = (value) => {
   const raw = String(value ?? "").trim();
-  if (!raw) return 0;
-
+  if (!raw || raw === "0") return 0;
+  const plainNumber = raw.match(/^(\d+)$/);
+  if (plainNumber) return Number(plainNumber[1]);
   const hourMatches = [...raw.matchAll(/(\d+)\s*(h|시간)/gi)];
   const minuteMatches = [...raw.matchAll(/(\d+)\s*(m|분)/gi)];
-
-  if (hourMatches.length || minuteMatches.length) {
-    const hours = hourMatches.reduce(
-      (sum, match) => sum + Number(match[1] || 0),
-      0
-    );
-    const minutes = minuteMatches.reduce(
-      (sum, match) => sum + Number(match[1] || 0),
-      0
-    );
-    return hours * 60 + minutes;
-  }
-
-  const plainNumber = raw.match(/(\d+)/);
-  return plainNumber ? Number(plainNumber[1]) : 0;
+  const hours = hourMatches.reduce((sum, m) => sum + Number(m[1] || 0), 0);
+  const minutes = minuteMatches.reduce((sum, m) => sum + Number(m[1] || 0), 0);
+  return hours * 60 + minutes;
 };
 
-const getThicknessWidthTextFromSpec = (specText, fallbackValue = "") => {
-  const raw = String(specText ?? "").trim();
-  if (!raw) return fallbackValue;
+// FieldBatchGroup[] → 화면용 tasks 형태로 변환
+function mapBatchesToTasks(batchGroups) {
+  return (batchGroups ?? []).map((group, batchIndex) => ({
+    id: `batch-${batchIndex}`,
+    title: `Task ${String(batchIndex + 1).padStart(2, "0")}`,
+    relocations: (group.relocation ?? []).map((item) => ({
+      id: String(item.batchItemId),
+      batchItemId: item.batchItemId,
+      materialName: item.material || "-",
+      fromZone: item.fromLocationName || "-",
+      toZone: item.toLocationName || "-",
+      duration: `${item.expectedRunningTime ?? 0}m`,
+    })),
+    pickings: (group.picking ?? []).map((item, pickIdx) => {
+      const isRaw = !item.wipId || item.wipId === 0;
+      const specText =
+        item.thickness && item.width && item.height
+          ? `${item.thickness} x ${item.width} x ${item.height}`
+          : "";
+      return {
+        id: String(item.batchItemId),
+        batchItemId: item.batchItemId,
+        title: `Picking ${pickIdx + 1}`,
+        type: isRaw ? "원자재" : "재공품",
+        manufacturer: "-",
+        materialName: item.material || "-",
+        specText,
+        weightText: "-",
+        currentZone: item.fromLocationName || "",
+        targetPositionLabel: item.toLocationName || `Position ${pickIdx + 1}`,
+        infoLabel: isRaw ? "두께×폭" : "현재 위치",
+        infoValue: isRaw
+          ? item.thickness && item.width
+            ? `${item.thickness} × ${item.width}`
+            : specText
+          : item.fromLocationName || "-",
+        duration: `${item.expectedRunningTime ?? 0}m`,
+      };
+    }),
+  }));
+}
 
-  const parts = raw.split(/\s*x\s*/i).map((part) => part.trim());
-  if (parts.length < 2) return fallbackValue;
+// ─── 서브 컴포넌트 ──────────────────────────────────────────────────
 
-  return `${parts[0]} × ${parts[1]}`;
-};
-
-const getPickingInfoValue = (item) => {
-  if (item?.type === "원자재" && item?.infoLabel === "두께×폭") {
-    return getThicknessWidthTextFromSpec(item?.specText, item?.infoValue ?? "");
-  }
-
-  return item?.infoValue ?? "";
-};
-
-const SummarySection = ({
-  progressPercent,
-  remainingTaskCount,
-  remainingWorkTime,
-  className = "",
-}) => {
-  return (
-    <section
-      className={`rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm ${className}`}
-    >
-      <div className="mb-4 flex gap-4">
-        <div className="flex-1">
-          <div className="mb-3 flex items-end justify-between">
-            <span className="text-sm font-bold text-slate-900">전체 진행도</span>
-            <span className="text-lg font-extrabold text-indigo-700">
-              {progressPercent}%
-            </span>
-          </div>
-
-          <div className="h-3 w-full overflow-hidden rounded-full bg-indigo-100">
-            <div
-              className="h-full rounded-full bg-[#3F51B5]"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
+const SummarySection = ({ progressPercent, remainingTaskCount, remainingWorkTime, className = "" }) => (
+  <section className={`rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm ${className}`}>
+    <div className="mb-4 flex gap-4">
+      <div className="flex-1">
+        <div className="mb-3 flex items-end justify-between">
+          <span className="text-sm font-bold text-slate-900">전체 진행도</span>
+          <span className="text-lg font-extrabold text-indigo-700">{progressPercent}%</span>
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-xl bg-slate-50 p-3">
-          <p className="mb-1 text-[11px] font-medium text-slate-500">남은 작업</p>
-          <p className="text-lg font-bold text-slate-900">
-            {remainingTaskCount}개
-          </p>
+        <div className="h-3 w-full overflow-hidden rounded-full bg-indigo-100">
+          <div className="h-full rounded-full bg-[#3F51B5]" style={{ width: `${progressPercent}%` }} />
         </div>
-
-        <div className="rounded-xl bg-slate-50 p-3">
-          <p className="mb-1 text-[11px] font-medium text-slate-500">
-            남은 작업 시간
-          </p>
-          <p className="text-lg font-bold text-slate-900">
-            {remainingWorkTime}
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-const RelocateCard = ({ item, onQrClick }) => {
-  return (
-    <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-start justify-between">
-        <div>
-          <h3 className="text-sm font-bold text-indigo-700">
-            {item.materialName}
-          </h3>
-
-          <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-slate-500">
-            <span>{item.fromZone}</span>
-            <span>→</span>
-            <span>{item.toZone}</span>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onQrClick(item)}
-          className="rounded-lg border border-indigo-200 bg-white p-2 shadow-sm transition active:scale-95"
-        >
-          <span className="material-symbols-outlined block text-4xl text-indigo-700">
-            qr_code_2
-          </span>
-        </button>
-      </div>
-
-      <div className="flex items-center gap-1.5 text-[12px] text-slate-400">
-        <span className="material-symbols-outlined text-[18px] leading-none">
-          schedule
-        </span>
-        <span>{item.duration}</span>
       </div>
     </div>
-  );
-};
+    <div className="grid grid-cols-2 gap-4">
+      <div className="rounded-xl bg-slate-50 p-3">
+        <p className="mb-1 text-[11px] font-medium text-slate-500">남은 작업</p>
+        <p className="text-lg font-bold text-slate-900">{remainingTaskCount}개</p>
+      </div>
+      <div className="rounded-xl bg-slate-50 p-3">
+        <p className="mb-1 text-[11px] font-medium text-slate-500">남은 작업 시간</p>
+        <p className="text-lg font-bold text-slate-900">{remainingWorkTime}</p>
+      </div>
+    </div>
+  </section>
+);
+
+const RelocateCard = ({ item, onQrClick }) => (
+  <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+    <div className="mb-3 flex items-start justify-between">
+      <div>
+        <h3 className="text-sm font-bold text-indigo-700">{item.materialName}</h3>
+        <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-slate-500">
+          <span>{item.fromZone}</span>
+          <span>→</span>
+          <span>{item.toZone}</span>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => onQrClick(item)}
+        className="rounded-lg border border-indigo-200 bg-white p-2 shadow-sm transition active:scale-95"
+      >
+        <span className="material-symbols-outlined block text-4xl text-indigo-700">qr_code_2</span>
+      </button>
+    </div>
+    <div className="flex items-center gap-1.5 text-[12px] text-slate-400">
+      <span className="material-symbols-outlined text-[18px] leading-none">schedule</span>
+      <span>{item.duration}</span>
+    </div>
+  </div>
+);
 
 const PickingCard = ({ item, onActionClick, onWorkOrderClick }) => {
-  const displayInfoValue = getPickingInfoValue(item);
   const isRawMaterial = item?.type === "원자재";
   const actionIcon = isRawMaterial ? "inventory_2" : "qr_code_2";
+  const displayInfoValue = item?.infoValue ?? "";
 
   return (
     <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 shadow-sm">
       <div className="mb-2 flex items-start justify-between">
         <div>
           <div className="mb-2 flex items-center gap-2">
-            <h3 className="text-[15px] font-extrabold text-slate-900">
-              {item.title}
-            </h3>
+            <h3 className="text-[15px] font-extrabold text-slate-900">{item.title}</h3>
             <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
               {item.type}
             </span>
           </div>
-
-          <p className="mb-1 text-sm font-bold text-slate-900">
-            {item.materialName}
-          </p>
-
+          <p className="mb-1 text-sm font-bold text-slate-900">{item.materialName}</p>
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-medium text-slate-500">
-              {item.infoLabel}
-            </span>
-            <span className="text-[12px] font-bold text-indigo-700">
-              {displayInfoValue}
-            </span>
+            <span className="text-[11px] font-medium text-slate-500">{item.infoLabel}</span>
+            <span className="text-[12px] font-bold text-indigo-700">{displayInfoValue}</span>
           </div>
         </div>
-
         <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => onWorkOrderClick(item)}
-            className="p-1"
-          >
-            <span className="material-symbols-outlined text-2xl text-slate-500">
-              description
-            </span>
+          <button type="button" onClick={() => onWorkOrderClick(item)} className="p-1">
+            <span className="material-symbols-outlined text-2xl text-slate-500">description</span>
           </button>
-
           <button
             type="button"
             onClick={onActionClick}
             className="rounded-lg border border-indigo-200 bg-white p-2 shadow-sm transition active:scale-95"
-            aria-label={isRawMaterial ? "원자재 상세 보기" : "QR 이동"}
           >
-            <span className="material-symbols-outlined block text-4xl text-indigo-700">
-              {actionIcon}
-            </span>
+            <span className="material-symbols-outlined block text-4xl text-indigo-700">{actionIcon}</span>
           </button>
         </div>
       </div>
-
       <div className="mt-1 flex items-center gap-1.5 text-[12px] text-slate-400">
-        <span className="material-symbols-outlined text-[18px] leading-none">
-          schedule
-        </span>
+        <span className="material-symbols-outlined text-[18px] leading-none">schedule</span>
         <span>{item.duration}</span>
       </div>
     </div>
   );
 };
 
-const TaskSection = ({
-  task,
-  onRelocateQrClick,
-  onPickingActionClick,
-  onWorkOrderClick,
-}) => {
-  return (
-    <section className="space-y-4">
-      <div className="flex items-center gap-2 px-1">
-        <div className="h-5 w-1.5 rounded-full bg-indigo-700" />
-        <h2 className="text-lg font-bold text-slate-900">{task.title}</h2>
+const TaskSection = ({ task, onRelocateQrClick, onPickingActionClick, onWorkOrderClick }) => (
+  <section className="space-y-4">
+    <div className="flex items-center gap-2 px-1">
+      <div className="h-5 w-1.5 rounded-full bg-indigo-700" />
+      <h2 className="text-lg font-bold text-slate-900">{task.title}</h2>
+    </div>
+    {task.relocations?.length > 0 && (
+      <div className="space-y-3">
+        {task.relocations.map((item) => (
+          <RelocateCard key={item.id} item={item} onQrClick={onRelocateQrClick} />
+        ))}
       </div>
+    )}
+    {task.pickings?.length > 0 && (
+      <div className="mt-4 space-y-3">
+        {task.pickings.map((item, index) => (
+          <PickingCard
+            key={item.id}
+            item={item}
+            onActionClick={() => onPickingActionClick(item, index, task.pickings)}
+            onWorkOrderClick={onWorkOrderClick}
+          />
+        ))}
+      </div>
+    )}
+  </section>
+);
 
-      {task.relocations?.length > 0 && (
-        <div className="space-y-3">
-          {task.relocations.map((item) => (
-            <RelocateCard
-              key={item.id}
-              item={item}
-              onQrClick={onRelocateQrClick}
-            />
-          ))}
-        </div>
-      )}
-
-      {task.pickings?.length > 0 && (
-        <div className="mt-4 space-y-3">
-          {task.pickings.map((item, index) => (
-            <PickingCard
-              key={item.id}
-              item={item}
-              onActionClick={() =>
-                onPickingActionClick(item, index, task.pickings)
-              }
-              onWorkOrderClick={onWorkOrderClick}
-            />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-};
+// ─── 메인 컴포넌트 ──────────────────────────────────────────────────
 
 const App_ReadyPage = () => {
   const navigate = useNavigate();
-  const data = readyMockData;
+  const location = useLocation();
+
+  const [readyData, setReadyData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchReadyData();
+  }, []);
+
+  const fetchReadyData = async () => {
+    setLoading(true);
+    try {
+      const response = await getFieldReady();
+      const dataList = response.data?.data ?? [];
+      if (dataList.length > 0) {
+        setReadyData(dataList[0]);
+      }
+    } catch (err) {
+      console.error("생산 준비 데이터 조회 실패:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const tasks = readyData ? mapBatchesToTasks(readyData.batch) : [];
+  const progressPercent = Math.round((readyData?.scenarioProgressRate ?? 0) * 100);
+  const remainingTaskCount = tasks.reduce(
+    (sum, t) => sum + (t.relocations?.length ?? 0) + (t.pickings?.length ?? 0),
+    0
+  );
 
   const handleRelocateQrClick = (item) => {
     navigate("/App/ready/relocate", {
       state: {
+        batchItemId: item.batchItemId,
         relocation: {
           id: item.id,
-          manufacturer: item.manufacturer ?? "유성 철주",
+          manufacturer: "-",
           material: item.materialName,
-          specText: item.specText ?? "18 x 2,438 x 6,096",
-          weightText: item.weightText ?? "6,300 kg",
-          from: {
-            zone: item.fromZone,
-          },
-          to: {
-            zone: item.toZone,
-          },
+          specText: "",
+          weightText: "-",
+          from: { zone: item.fromZone },
+          to: { zone: item.toZone },
         },
       },
     });
@@ -371,43 +245,24 @@ const App_ReadyPage = () => {
   const handlePickingActionClick = (item, index, pickingList) => {
     const order = index + 1;
     const totalCount = pickingList.length;
-
-    const targetPosition =
-      item?.targetPositionLabel ||
-      item?.targetPosition ||
-      item?.positionLabel ||
-      item?.position ||
-      "Position 2";
-
-    const highlightedSlot =
-      extractSlotNumber(targetPosition) || String(order);
-
+    const targetPosition = item?.targetPositionLabel || `Position ${order}`;
+    const highlightedSlot = extractSlotNumber(targetPosition) || String(order);
     const expectedDurationText = item?.duration || "";
     const expectedDurationMinutes = parseDurationMinutes(expectedDurationText);
 
     const commonPickingState = {
       ...item,
-      manufacturer: item?.manufacturer || "현대 제철",
+      batchItemId: item.batchItemId,
+      manufacturer: item?.manufacturer || "-",
       material: item?.materialName || "",
-      specText: item?.specText || "22 x 2,438 x 6,096",
-      weightText: item?.weightText || "7,698 kg",
+      specText: item?.specText || "",
+      weightText: item?.weightText || "-",
       duration: expectedDurationText,
       expectedDurationText,
       expectedDurationMinutes,
-      from: {
-        ...(item?.from ?? {}),
-        zone: item?.currentZone || item?.infoValue || "",
-        time: item?.from?.time || "",
-      },
-      to: {
-        ...(item?.to ?? {}),
-        zone: targetPosition,
-        time: item?.to?.time || "",
-      },
-      layout: {
-        ...(item?.layout ?? {}),
-        highlightedSlot,
-      },
+      from: { zone: item?.currentZone || item?.infoValue || "" },
+      to: { zone: targetPosition },
+      layout: { highlightedSlot },
       pickingOrder: order,
       totalPickingCount: totalCount,
       isLastPicking: order === totalCount,
@@ -415,27 +270,19 @@ const App_ReadyPage = () => {
 
     if (item.type === "재공품") {
       navigate("/App/ready/picking/wip", {
-        state: {
-          picking: commonPickingState,
-          pickingOrder: order,
-          totalPickingCount: totalCount,
-        },
+        state: { picking: commonPickingState, pickingOrder: order, totalPickingCount: totalCount },
       });
       return;
     }
 
     navigate("/App/ready/picking/raw", {
-      state: {
-        picking: commonPickingState,
-        pickingOrder: order,
-        totalPickingCount: totalCount,
-      },
+      state: { picking: commonPickingState, pickingOrder: order, totalPickingCount: totalCount },
     });
   };
 
   const handleWorkOrderClick = () => {
-  window.open(workOrderPdf, "_self");
-};
+    window.open(workOrderPdf, "_self");
+  };
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-[#f7f9fb] text-slate-900">
@@ -448,10 +295,10 @@ const App_ReadyPage = () => {
             className="mb-0"
             stateByKey={{
               end: {
-                tasks: data.tasks,
+                tasks,
                 summary: {
                   date: new Date().toISOString(),
-                  progressPercent: data.progressPercent,
+                  progressPercent,
                 },
               },
             }}
@@ -459,24 +306,36 @@ const App_ReadyPage = () => {
 
           <SummarySection
             className="mt-4 mb-4"
-            progressPercent={data.progressPercent}
-            remainingTaskCount={data.remainingTaskCount}
-            remainingWorkTime={data.remainingWorkTime}
+            progressPercent={progressPercent}
+            remainingTaskCount={remainingTaskCount}
+            remainingWorkTime="-"
           />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto pb-8">
-          <div className="space-y-8 pb-2">
-            {data.tasks.map((task) => (
-              <TaskSection
-                key={task.id}
-                task={task}
-                onRelocateQrClick={handleRelocateQrClick}
-                onPickingActionClick={handlePickingActionClick}
-                onWorkOrderClick={handleWorkOrderClick}
-              />
-            ))}
-          </div>
+          {loading && (
+            <div className="py-12 text-center text-sm text-slate-500">
+              데이터를 불러오는 중...
+            </div>
+          )}
+          {!loading && tasks.length === 0 && (
+            <div className="py-12 text-center text-sm text-slate-500">
+              준비 중인 작업이 없습니다.
+            </div>
+          )}
+          {!loading && tasks.length > 0 && (
+            <div className="space-y-8 pb-2">
+              {tasks.map((task) => (
+                <TaskSection
+                  key={task.id}
+                  task={task}
+                  onRelocateQrClick={handleRelocateQrClick}
+                  onPickingActionClick={handlePickingActionClick}
+                  onWorkOrderClick={handleWorkOrderClick}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>
