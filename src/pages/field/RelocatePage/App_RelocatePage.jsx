@@ -181,7 +181,7 @@ const App_RelocatePage = () => {
     if (!isWipScanEnabled) return;
 
     navigate("/App/ready/relocate/qr/wip", {
-      state: { relocation, scanState },
+      state: { batchItemId, relocation, scanState },
     });
   };
 
@@ -189,17 +189,20 @@ const App_RelocatePage = () => {
     if (!isZoneScanEnabled) return;
 
     navigate("/App/ready/relocate/qr/zone", {
-      state: { relocation, scanState },
+      state: { batchItemId, relocation, scanState },
     });
   };
 
   const handleSaveClick = async () => {
     if (!isSaveEnabled || isSaving) return;
+    if (!batchItemId) {
+      alert("작업 정보를 찾을 수 없어 완료 처리할 수 없습니다.");
+      return;
+    }
+
     setIsSaving(true);
     try {
-      if (batchItemId) {
-        await saveBatchItem(batchItemId, {});
-      }
+      await saveBatchItem(batchItemId, {});
       setIsSavePopupOpen(true);
     } catch (err) {
       console.error("작업 완료 처리 실패:", err);

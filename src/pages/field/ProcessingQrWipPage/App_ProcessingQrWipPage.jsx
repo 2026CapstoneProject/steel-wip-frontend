@@ -102,12 +102,15 @@ const App_ProcessingQrWipPage = () => {
 
   const handleSaveClick = async () => {
     if (!zoneScanCompleted) return;
+
+    const batchItemId = generatedWip.batchItemId;
+    if (!batchItemId) {
+      alert("적재 작업 정보를 찾을 수 없어 완료 처리할 수 없습니다.");
+      return;
+    }
+
     try {
-      // generatedWip에 batchItemId가 있으면 API 호출로 완료 처리
-      const batchItemId = generatedWip.batchItemId || generatedWip.id;
-      if (batchItemId) {
-        await saveBatchItem(batchItemId, {});
-      }
+      await saveBatchItem(batchItemId, {});
       setIsSavePopupOpen(true);
     } catch (err) {
       console.error("적재 완료 처리 실패:", err);

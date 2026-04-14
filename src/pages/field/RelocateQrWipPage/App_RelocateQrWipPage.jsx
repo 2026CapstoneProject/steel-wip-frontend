@@ -40,6 +40,7 @@ const App_RelocateQrWipPage = () => {
   }, []);
 
   const relocation = state?.relocation ?? fallbackRelocation;
+  const batchItemId = state?.batchItemId ?? null;
 
   const scanState = state?.scanState ?? {
     wipScanned: false,
@@ -70,6 +71,7 @@ const App_RelocateQrWipPage = () => {
       state: {
         type: "RELOCATE_WIP_SCAN_SUCCESS",
         scannedAt: formatNowTime(),
+        batchItemId,
         relocation,
         scanState: {
           ...scanState,

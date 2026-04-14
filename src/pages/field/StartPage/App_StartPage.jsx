@@ -8,10 +8,16 @@ function mapReadyDataToEquipment(readyDataList) {
   return (readyDataList ?? []).map((item) => {
     // 배치 전체에서 미완료 작업 수 산출 (relocation + picking 아이템 합산)
     const incompleteBatchCount = (item.batch ?? []).length;
-    const totalItems = (item.batch ?? []).reduce(
-      (sum, b) => sum + (b.relocation?.length ?? 0) + (b.picking?.length ?? 0),
-      0
-    );
+    const totalItems =
+      Number.isFinite(item.remainingTaskCount)
+        ? item.remainingTaskCount
+        : (item.batch ?? []).reduce(
+            (sum, b) =>
+              sum +
+              (b.relocation?.length ?? 0) +
+              (b.picking?.length ?? 0),
+            0
+          );
 
     return {
       equipmentId: `scenario-${item.scenarioId}`,

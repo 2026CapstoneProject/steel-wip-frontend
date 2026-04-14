@@ -40,6 +40,7 @@ const App_RelocateQrZonePage = () => {
   }, []);
 
   const relocation = state?.relocation ?? fallbackRelocation;
+  const batchItemId = state?.batchItemId ?? null;
 
   const scanState = state?.scanState ?? {
     wipScanned: false,
@@ -65,6 +66,7 @@ const App_RelocateQrZonePage = () => {
       state: {
         type: "RELOCATE_ZONE_SCAN_SUCCESS",
         scannedAt: formatNowTime(),
+        batchItemId,
         relocation,
         scanState: {
           ...scanState,

@@ -162,7 +162,12 @@ const PickingCard = ({ item, onActionClick, onWorkOrderClick }) => {
   );
 };
 
-const TaskSection = ({ task, onRelocateQrClick, onPickingActionClick, onWorkOrderClick }) => (
+const TaskSection = ({
+  task,
+  onRelocateQrClick,
+  onPickingActionClick,
+  onWorkOrderClick,
+}) => (
   <section className="space-y-4">
     <div className="flex items-center gap-2 px-1">
       <div className="h-5 w-1.5 rounded-full bg-indigo-700" />
@@ -221,7 +226,10 @@ const App_ReadyPage = () => {
   const tasks = readyData ? mapBatchesToTasks(readyData.batch) : [];
   const progressPercent = Math.round((readyData?.scenarioProgressRate ?? 0) * 100);
   const remainingTaskCount = tasks.reduce(
-    (sum, t) => sum + (t.relocations?.length ?? 0) + (t.pickings?.length ?? 0),
+    (sum, t) =>
+      sum +
+      (t.relocations?.length ?? 0) +
+      (t.pickings?.length ?? 0),
     0
   );
 
@@ -317,13 +325,13 @@ const App_ReadyPage = () => {
           {!loading && tasks.length > 0 && (
             <div className="space-y-8 pb-2">
               {tasks.map((task) => (
-                <TaskSection
-                  key={task.id}
-                  task={task}
-                  onRelocateQrClick={handleRelocateQrClick}
-                  onPickingActionClick={handlePickingActionClick}
-                  onWorkOrderClick={handleWorkOrderClick}
-                />
+                  <TaskSection
+                    key={task.id}
+                    task={task}
+                    onRelocateQrClick={handleRelocateQrClick}
+                    onPickingActionClick={handlePickingActionClick}
+                    onWorkOrderClick={handleWorkOrderClick}
+                  />
               ))}
             </div>
           )}
