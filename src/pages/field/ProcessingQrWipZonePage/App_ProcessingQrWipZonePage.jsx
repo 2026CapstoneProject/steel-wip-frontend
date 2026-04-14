@@ -10,6 +10,13 @@ const App_ProcessingQrWipZonePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // state 없이 직접 접근 시 Processing 페이지로 리다이렉트
+  React.useEffect(() => {
+    if (!location.state?.generatedWip) {
+      navigate("/App/processing", { replace: true });
+    }
+  }, []);
+
   const {
     generatedWip = {},
     generatedItems = [],

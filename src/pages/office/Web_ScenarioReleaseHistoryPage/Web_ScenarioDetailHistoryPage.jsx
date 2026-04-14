@@ -1,223 +1,188 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
 import Web_ScenarioSummaryPanel from "../../../components/office/Web_ScenarioSummaryPanel/Web_ScenarioSummaryPanel";
 import Web_ScenarioMetricCards from "../../../components/office/Web_ScenarioMetricCards/Web_ScenarioMetricCards";
 import Web_ScenarioTimelineSection from "../../../components/office/Web_ScenarioTimelineSection/Web_ScenarioTimelineSection";
 
-import Web_ScenarioGoBackModal from "../../../components/modal/Web_ScenarioGoBackModal/Web_ScenarioGoBackModal";
-import Web_ScenarioAddModal from "../../../components/modal/Web_ScenarioAddModal/Web_ScenarioAddModal";
-import Web_ScenarioSendModal from "../../../components/modal/Web_ScenarioSendModal/Web_ScenarioSendModal";
+import { getScenarioDetail } from "../../../services/scenarioService";
 
-import {
-  clearScenarioLantekCache,
-  getScenarioLantekCache,
-  setScenarioLantekCache,
-} from "../../../utils/Web/lantekCache";
+// 백엔드 ScenarioResultData → timelineItems 형태로 변환
+function mapBatchItemsToTimeline(batchItems) {
+  const RELOCATION = [];
+  const PICKING = [];
+  const INBOUND = [];
 
-export default function Web_ScenarioResultPage() {
-  const navigate = useNavigate();
+  (batchItems ?? []).forEach((item) => {
+    const row = {
+      qrNumber: `WIP-${item.steelWipId}`,
+      thickness: String(item.thickness ?? ""),
+      width: String(item.width ?? ""),
+      length: String(item.length ?? ""),
+      from: item.fromLocation || "-",
+      to: item.toLocation || "-",
+      estimatedTime: String(item.expectedStartTime ?? ""),
+    };
+    if (item.batchItemAction === "RELOCATION") RELOCATION.push(row);
+    else if (item.batchItemAction === "PICKING") PICKING.push(row);
+    else if (item.batchItemAction === "INBOUND") INBOUND.push(row);
+  });
 
-  const [isGoBackModalOpen, setIsGoBackModalOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
-  const cachedData = getScenarioLantekCache();
-  const cachedProjectInfo = cachedData?.projectInfo ?? {};
-
-  const scenarioSummary = {
-    scenarioId: "#00001",
-    projectName: cachedProjectInfo.projectName || "-",
-    productionPlanName: cachedProjectInfo.productionPlanName || "-",
-    shipmentDate: cachedProjectInfo.shipmentDate || "-",
-    equipmentName: cachedProjectInfo.equipmentName || "-",
-    status: "ACTIVE",
-  };
-
-  const metrics = [
-    { label: "선택된 잔재 수", value: "42", unit: "EA" },
-    { label: "크레인 이동 횟수", value: "128", unit: "Times" },
-    { label: "이동 횟수", value: "156", unit: "Times" },
-    { label: "총 소요 시간", value: "02:45", unit: "HR", highlight: true },
-  ];
-
-  const timelineItems = [
-    {
+  const items = [];
+  if (RELOCATION.length > 0) {
+    items.push({
       id: 1,
       type: "재배치 (Relocation)",
       icon: "sync_alt",
       colorClass: "bg-primary ring-surface",
       iconColorClass: "text-primary",
-      rows: [
-        {
-          qrNumber: "QR-AX-9021",
-          thickness: "1.5",
-          width: "1200",
-          length: "2400",
-          from: "Zone A-04",
-          to: "Zone B-12",
-          estimatedTime: "12",
-        },
-      ],
-    },
-    {
+      rows: RELOCATION,
+    });
+  }
+  if (PICKING.length > 0) {
+    items.push({
       id: 2,
       type: "피킹 (Picking)",
-      subLabel: "(Batch #88)",
       icon: "inventory",
       colorClass: "bg-red-500 ring-surface",
       iconColorClass: "text-secondary",
-      rows: [
-        {
-          qrNumber: "QR-PK-2201",
-          thickness: "2.0",
-          width: "1000",
-          length: "2000",
-          from: "Rack 44-A",
-          to: "Laser 1 Tray",
-          estimatedTime: "8",
-        },
-        {
-          qrNumber: "QR-PK-2202",
-          thickness: "2.0",
-          width: "1000",
-          length: "2000",
-          from: "Rack 44-B",
-          to: "Laser 1 Tray",
-          estimatedTime: "8",
-        },
-        {
-          qrNumber: "QR-PK-2203",
-          thickness: "2.0",
-          width: "1000",
-          length: "2000",
-          from: "Rack 44-C",
-          to: "Laser 1 Tray",
-          estimatedTime: "8",
-        },
-      ],
-    },
-    {
+      rows: PICKING,
+    });
+  }
+  if (INBOUND.length > 0) {
+    items.push({
       id: 3,
-      type: "적재 (Loading)",
+      type: "적재 (Inbound)",
       icon: "layers",
       colorClass: "bg-emerald-500 ring-surface",
       iconColorClass: "text-emerald-500",
-      rows: [
-        {
-          qrNumber: "QR-LD-5001",
-          thickness: "3.0",
-          width: "1500",
-          length: "3000",
-          from: "Loading Bay 2",
-          to: "Storage C-01",
-          estimatedTime: "20",
-        },
-      ],
-    },
-  ];
-
-  const handleCloseGoBackModal = () => {
-    setIsGoBackModalOpen(false);
-  };
-
-  const handleCloseAddModal = () => {
-    setIsAddModalOpen(false);
-  };
-
-  const handleCloseSendModal = () => {
-    setIsSendModalOpen(false);
-  };
-
-  const handleGoBackNo = () => {
-    clearScenarioLantekCache();
-    setIsGoBackModalOpen(false);
-    navigate("/office/scenario/input");
-  };
-
-  const handleGoBackYes = () => {
-    const existingCache = getScenarioLantekCache();
-
-    if (existingCache) {
-      setScenarioLantekCache(existingCache);
-    }
-
-    setIsGoBackModalOpen(false);
-    navigate("/office/scenario/input");
-  };
-
-  const handleAddConfirm = () => {
-    setIsAddModalOpen(false);
-    navigate("/office/scenario/creationhistory");
-  };
-
-  const handleSendConfirm = () => {
-    const releaseHistoryItem = {
-      id: `release-${Date.now()}`,
-      projectName: scenarioSummary.projectName,
-      projectDeadline: scenarioSummary.shipmentDate,
-      status: "in-progress",
-      statusLabel: "In Progress",
-      statusDescription: "진행 중",
-      rows: [
-        {
-          id: `row-${Date.now()}`,
-          productionPlanName: scenarioSummary.productionPlanName,
-          shipmentDate: scenarioSummary.shipmentDate,
-          releaseDate: new Date().toISOString().slice(0, 10),
-          materialCount: Number(metrics[0]?.value || 0),
-        },
-      ],
-    };
-
-    setIsSendModalOpen(false);
-
-    navigate("/office/scenario/releasehistory", {
-      state: {
-        releasedScenario: releaseHistoryItem,
-      },
+      rows: INBOUND,
     });
+  }
+  return items;
+}
+
+export default function Web_ScenarioDetailHistoryPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const scenarioId = location.state?.scenarioId ?? null;
+  const projectInfo = location.state?.projectInfo ?? null;
+
+  const [scenarioData, setScenarioData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // state 없이 직접 접근 시 발행 이력 목록으로 리다이렉트
+  useEffect(() => {
+    if (!scenarioId && !projectInfo) {
+      navigate("/office/scenario/releasehistory", { replace: true });
+      return;
+    }
+    if (scenarioId) {
+      fetchScenarioDetail(scenarioId);
+    } else {
+      setLoading(false);
+    }
+  }, [scenarioId, navigate]);
+
+  const fetchScenarioDetail = async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await getScenarioDetail(id);
+      const dataList = response.data?.data ?? [];
+      if (dataList.length > 0) {
+        setScenarioData(dataList[0]);
+      }
+    } catch (err) {
+      console.error("시나리오 상세 조회 실패:", err);
+      setError("시나리오 데이터를 불러오는 데 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (!scenarioId && !projectInfo) return null;
+
+  const scenarioSummary = {
+    scenarioId: scenarioData
+      ? `#${String(scenarioData.scenarioId).padStart(5, "0")}`
+      : projectInfo?.scenarioId || "-",
+    projectName: scenarioData?.projectTitle || projectInfo?.projectName || "-",
+    productionPlanName: scenarioData?.scenarioTitle || projectInfo?.productionPlanName || "-",
+    shipmentDate: scenarioData?.scenarioDue || projectInfo?.shipmentDate || "-",
+    equipmentName: scenarioData?.lazerName || projectInfo?.equipmentName || "-",
+    status: projectInfo?.statusLabel || "발행됨",
+  };
+
+  const metrics = scenarioData
+    ? [
+        { label: "선택된 잔재 수", value: String(scenarioData.totalWipNum ?? 0), unit: "EA" },
+        { label: "크레인 이동 횟수", value: String(scenarioData.totalCraneMove ?? 0), unit: "Times" },
+        { label: "이동 횟수", value: String(scenarioData.totalMoveNum ?? 0), unit: "Times" },
+        {
+          label: "총 소요 시간",
+          value: `${Math.floor((scenarioData.totalCuttingTime ?? 0) / 60)
+            .toString()
+            .padStart(2, "0")}:${((scenarioData.totalCuttingTime ?? 0) % 60)
+            .toString()
+            .padStart(2, "0")}`,
+          unit: "HR",
+          highlight: true,
+        },
+      ]
+    : [
+        { label: "선택된 잔재 수", value: "-", unit: "EA" },
+        { label: "크레인 이동 횟수", value: "-", unit: "Times" },
+        { label: "이동 횟수", value: "-", unit: "Times" },
+        { label: "총 소요 시간", value: "--:--", unit: "HR", highlight: true },
+      ];
+
+  const timelineItems = scenarioData ? mapBatchItemsToTimeline(scenarioData.batchItems) : [];
 
   return (
-    <Web_AppLayout pageTitle="발행된 시나리오 결과 확인">
+    <Web_AppLayout pageTitle="발행된 시나리오 상세">
       <div className="px-8 pt-8 pb-12">
-        <div className="mb-10 grid grid-cols-12 gap-6">
-          <Web_ScenarioSummaryPanel summary={scenarioSummary} />
-          <Web_ScenarioMetricCards
-            metrics={metrics}
-            equipmentName={scenarioSummary.equipmentName}
-            status={scenarioSummary.status}
-          />
+        <div className="mb-8 flex items-end justify-between">
+          <p className="font-headline text-lg font-bold tracking-tight text-on-surface">
+            현장 전송 이력 &gt; 시나리오 상세
+          </p>
+          <button
+            type="button"
+            className="flex items-center gap-2 rounded-xl border border-outline-variant/10 bg-surface-container-lowest px-5 py-2.5 text-sm font-semibold text-on-surface transition-all hover:bg-surface-container active:scale-95"
+            onClick={() => navigate("/office/scenario/releasehistory")}
+          >
+            <span className="material-symbols-outlined text-lg">arrow_back</span>
+            목록으로
+          </button>
         </div>
 
-        <Web_ScenarioTimelineSection items={timelineItems} />
+        {loading && (
+          <div className="py-24 text-center text-sm text-on-surface-variant">
+            시나리오 상세를 불러오는 중...
+          </div>
+        )}
+
+        {error && !loading && (
+          <div className="py-12 text-center text-sm text-red-500">{error}</div>
+        )}
+
+        {!loading && !error && (
+          <>
+            <div className="mb-10 grid grid-cols-12 gap-6">
+              <Web_ScenarioSummaryPanel summary={scenarioSummary} />
+              <Web_ScenarioMetricCards
+                metrics={metrics}
+                equipmentName={scenarioSummary.equipmentName}
+                status={scenarioSummary.status}
+              />
+            </div>
+            <Web_ScenarioTimelineSection items={timelineItems} />
+          </>
+        )}
       </div>
-
-      {isGoBackModalOpen && (
-        <Web_ScenarioGoBackModal
-          onClose={handleCloseGoBackModal}
-          onCancel={handleCloseGoBackModal}
-          onNo={handleGoBackNo}
-          onConfirm={handleGoBackYes}
-        />
-      )}
-
-      {isAddModalOpen && (
-        <Web_ScenarioAddModal
-          onClose={handleCloseAddModal}
-          onCancel={handleCloseAddModal}
-          onConfirm={handleAddConfirm}
-        />
-      )}
-
-      {isSendModalOpen && (
-        <Web_ScenarioSendModal
-          onClose={handleCloseSendModal}
-          onCancel={handleCloseSendModal}
-          onConfirm={handleSendConfirm}
-        />
-      )}
     </Web_AppLayout>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
+import { saveBatchItem } from "../../../services/fieldService";
 
 const fallbackPicking = {
   id: "picking-wip-01",
@@ -295,6 +296,13 @@ const App_PickingWipPage = () => {
   const processedScanKeyRef = useRef("");
   const completeTimerRef = useRef(null);
 
+  // state 없이 직접 접근 시 Ready 페이지로 리다이렉트
+  useEffect(() => {
+    if (!location.state?.picking && !location.state?.item && !location.state?.task) {
+      navigate("/App/ready", { replace: true });
+    }
+  }, []);
+
   const picking = useMemo(() => {
     const source =
       location.state?.picking ||
@@ -446,9 +454,18 @@ const App_PickingWipPage = () => {
     setIsDoubleCheckOpen(false);
   };
 
-  const handleDoubleCheckYes = () => {
+  const handleDoubleCheckYes = async () => {
     setIsDoubleCheckOpen(false);
-    setIsCompletePopupOpen(true);
+    try {
+      const batchItemId = picking.batchItemId;
+      if (batchItemId) {
+        await saveBatchItem(batchItemId, {});
+      }
+      setIsCompletePopupOpen(true);
+    } catch (err) {
+      console.error("작업 완료 처리 실패:", err);
+      alert("작업 완료 처리에 실패했습니다.");
+    }
   };
 
   return (

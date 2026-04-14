@@ -9,6 +9,13 @@ const App_ProcessingQrPage = () => {
   const location = useLocation();
   const moveTimerRef = useRef(null);
 
+  // state 없이 직접 접근 시 Processing 페이지로 리다이렉트
+  React.useEffect(() => {
+    if (!location.state?.generatedItems) {
+      navigate("/App/processing", { replace: true });
+    }
+  }, []);
+
   const { generatedItems = [], batches = [], summary = {} } = location.state ?? {};
 
   const pendingItems = useMemo(

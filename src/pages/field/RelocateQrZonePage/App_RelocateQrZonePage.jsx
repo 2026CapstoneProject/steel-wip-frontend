@@ -32,6 +32,13 @@ const App_RelocateQrZonePage = () => {
   const navigate = useNavigate();
   const { state } = useLocation();
 
+  // state 없이 직접 접근 시 Ready 페이지로 리다이렉트
+  React.useEffect(() => {
+    if (!state?.relocation) {
+      navigate("/App/ready", { replace: true });
+    }
+  }, []);
+
   const relocation = state?.relocation ?? fallbackRelocation;
 
   const scanState = state?.scanState ?? {

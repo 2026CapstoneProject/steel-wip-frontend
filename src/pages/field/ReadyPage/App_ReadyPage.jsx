@@ -293,15 +293,6 @@ const App_ReadyPage = () => {
           <App_ProcessTabs
             activeKey="ready"
             className="mb-0"
-            stateByKey={{
-              end: {
-                tasks,
-                summary: {
-                  date: new Date().toISOString(),
-                  progressPercent,
-                },
-              },
-            }}
           />
 
           <SummarySection

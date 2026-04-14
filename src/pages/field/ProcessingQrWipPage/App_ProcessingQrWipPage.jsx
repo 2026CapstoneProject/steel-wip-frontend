@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
+import { saveBatchItem } from "../../../services/fieldService";
 
 const POPUP_DELAY_MS = 1200;
 
@@ -21,6 +22,13 @@ const formatScanTime = (value) => {
 const App_ProcessingQrWipPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // state 없이 직접 접근 시 Processing 페이지로 리다이렉트
+  useEffect(() => {
+    if (!location.state?.generatedWip) {
+      navigate("/App/processing", { replace: true });
+    }
+  }, []);
 
   const {
     generatedWip = {},
@@ -92,9 +100,19 @@ const App_ProcessingQrWipPage = () => {
     });
   };
 
-  const handleSaveClick = () => {
+  const handleSaveClick = async () => {
     if (!zoneScanCompleted) return;
-    setIsSavePopupOpen(true);
+    try {
+      // generatedWip에 batchItemId가 있으면 API 호출로 완료 처리
+      const batchItemId = generatedWip.batchItemId || generatedWip.id;
+      if (batchItemId) {
+        await saveBatchItem(batchItemId, {});
+      }
+      setIsSavePopupOpen(true);
+    } catch (err) {
+      console.error("적재 완료 처리 실패:", err);
+      alert("적재 완료 처리에 실패했습니다.");
+    }
   };
 
   const handlePrevious = () => {

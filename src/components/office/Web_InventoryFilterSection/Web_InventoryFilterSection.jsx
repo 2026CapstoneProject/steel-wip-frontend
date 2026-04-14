@@ -53,10 +53,10 @@ export default function Web_InventoryFilterSection({
             className="w-full h-12 px-4 bg-surface-container-high border-none rounded-lg focus:ring-2 focus:ring-primary focus:bg-white transition-all text-sm font-body"
           >
             <option value="전체">전체 (All)</option>
-            <option value="SS400">GS400</option>
-            <option value="SM490">SM355A</option>
-            <option value="SHN490">SM420B</option>
-            <option value="SHN490">SS275</option>
+            <option value="GS400">GS400</option>
+            <option value="SM355A">SM355A</option>
+            <option value="SM420B">SM420B</option>
+            <option value="SS275">SS275</option>
           </select>
         </div>
 
