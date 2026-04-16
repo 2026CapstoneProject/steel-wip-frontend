@@ -18,7 +18,6 @@ import {
 } from "../../../utils/Web/lantekCache";
 
 import { getScenarioDetail, sendScenario } from "../../../services/scenarioService";
-import { runScheduler } from "../../../services/schedulerService";
 
 // 백엔드 ScenarioResultData → timelineItems 형태로 변환
 function formatScenarioQr(item) {
@@ -95,8 +94,6 @@ export default function Web_ScenarioResultPage() {
   const [scenarioData, setScenarioData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [ensuringSolverResult, setEnsuringSolverResult] = useState(false);
-
   const cachedData = getScenarioLantekCache();
   const cachedProjectInfo = cachedData?.projectInfo ?? {};
 
@@ -115,40 +112,19 @@ export default function Web_ScenarioResultPage() {
     setLoading(true);
     setError(null);
     try {
-      let schedulerErrorMessage = null;
-      if (!ensuringSolverResult) {
-        setEnsuringSolverResult(true);
-        try {
-          await runScheduler(id);
-        } catch (schedulerErr) {
-          console.error("시나리오 결과 생성 실패:", schedulerErr);
-          schedulerErrorMessage =
-            schedulerErr.response?.data?.message ||
-            schedulerErr.response?.data?.detail ||
-            "시나리오 결과 생성에 실패했습니다.";
-        }
-      }
-
       const response = await getScenarioDetail(id);
       const dataList = response.data?.data ?? [];
       const nextScenario = dataList[0] ?? null;
       setScenarioData(nextScenario);
 
       if (!nextScenario) {
-        setError(
-          schedulerErrorMessage || "시나리오 결과를 생성하거나 불러오는 데 실패했습니다.",
-        );
+        setError("시나리오 결과를 불러오는 데 실패했습니다.");
         return;
-      }
-
-      if (schedulerErrorMessage && !nextScenario?.solverSummary) {
-        setError(schedulerErrorMessage);
       }
     } catch (err) {
       console.error("시나리오 결과 조회 실패:", err);
-      setError("시나리오 결과를 생성하거나 불러오는 데 실패했습니다.");
+      setError("시나리오 결과를 불러오는 데 실패했습니다.");
     } finally {
-      setEnsuringSolverResult(false);
       setLoading(false);
     }
   };

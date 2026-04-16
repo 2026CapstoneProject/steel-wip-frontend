@@ -22,6 +22,8 @@ import { createScenario } from "../../../services/scenarioService";
 import { deleteLantekData } from "../../../services/lantekService";
 import { runScheduler } from "../../../services/schedulerService";
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export default function Web_LantekInputPage() {
   const navigate = useNavigate();
 
@@ -190,16 +192,25 @@ export default function Web_LantekInputPage() {
     setScenarioLantekCache({ projectInfo, lantekRows, tempSavedFile });
     setIsScenarioCheckModalOpen(false);
     setIsLoadingModalOpen(true);
+    const startedAt = Date.now();
 
     try {
       // 스케줄러(최적화 알고리즘) 실행
       await runScheduler(projectInfo.scenarioId);
+      const remainingDelay = Math.max(0, 10000 - (Date.now() - startedAt));
+      if (remainingDelay > 0) {
+        await sleep(remainingDelay);
+      }
       setIsLoadingModalOpen(false);
       navigate("/office/scenario/result", {
         state: { scenarioId: projectInfo.scenarioId },
       });
     } catch (err) {
       console.error("스케줄러 실행 실패:", err);
+      const remainingDelay = Math.max(0, 10000 - (Date.now() - startedAt));
+      if (remainingDelay > 0) {
+        await sleep(remainingDelay);
+      }
       const errorMessage =
         err.response?.data?.message ||
         err.response?.data?.detail ||
@@ -291,7 +302,9 @@ export default function Web_LantekInputPage() {
         />
       )}
 
-      {isLoadingModalOpen && <Web_LoadingModal />}
+      {isLoadingModalOpen && (
+        <Web_LoadingModal message="시나리오를 생성하는 중입니다." />
+      )}
 
       {isResetModalOpen && (
         <Web_ResetConfirmModal

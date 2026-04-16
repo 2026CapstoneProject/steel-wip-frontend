@@ -8,7 +8,6 @@ import Web_ScenarioTimelineSection from "../../../components/office/Web_Scenario
 import Web_SolverTimelineSection from "../../../components/office/Web_SolverTimelineSection/Web_SolverTimelineSection";
 
 import { getScenarioDetail } from "../../../services/scenarioService";
-import { runScheduler } from "../../../services/schedulerService";
 
 // 백엔드 ScenarioResultData → timelineItems 형태로 변환
 function formatScenarioQr(item) {
@@ -81,8 +80,6 @@ export default function Web_ScenarioCreationDetailHistoryPage() {
   const [scenarioData, setScenarioData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [ensuringSolverResult, setEnsuringSolverResult] = useState(false);
-
   // state 없이 직접 접근 시 생성 이력 목록으로 리다이렉트
   useEffect(() => {
     if (!scenarioId && !projectInfo) {
@@ -100,40 +97,19 @@ export default function Web_ScenarioCreationDetailHistoryPage() {
     setLoading(true);
     setError(null);
     try {
-      let schedulerErrorMessage = null;
-      if (!ensuringSolverResult) {
-        setEnsuringSolverResult(true);
-        try {
-          await runScheduler(id);
-        } catch (schedulerErr) {
-          console.error("시나리오 결과 생성 실패:", schedulerErr);
-          schedulerErrorMessage =
-            schedulerErr.response?.data?.message ||
-            schedulerErr.response?.data?.detail ||
-            "시나리오 결과 생성에 실패했습니다.";
-        }
-      }
-
       const response = await getScenarioDetail(id);
       const dataList = response.data?.data ?? [];
       const nextScenario = dataList[0] ?? null;
       setScenarioData(nextScenario);
 
       if (!nextScenario) {
-        setError(
-          schedulerErrorMessage || "시나리오 결과를 생성하거나 불러오는 데 실패했습니다.",
-        );
+        setError("시나리오 결과를 불러오는 데 실패했습니다.");
         return;
-      }
-
-      if (schedulerErrorMessage && !nextScenario?.solverSummary) {
-        setError(schedulerErrorMessage);
       }
     } catch (err) {
       console.error("시나리오 상세 조회 실패:", err);
-      setError("시나리오 결과를 생성하거나 불러오는 데 실패했습니다.");
+      setError("시나리오 결과를 불러오는 데 실패했습니다.");
     } finally {
-      setEnsuringSolverResult(false);
       setLoading(false);
     }
   };

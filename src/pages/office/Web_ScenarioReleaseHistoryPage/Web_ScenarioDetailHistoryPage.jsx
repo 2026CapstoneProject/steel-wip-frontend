@@ -8,7 +8,6 @@ import Web_ScenarioTimelineSection from "../../../components/office/Web_Scenario
 import Web_SolverTimelineSection from "../../../components/office/Web_SolverTimelineSection/Web_SolverTimelineSection";
 
 import { getScenarioDetail } from "../../../services/scenarioService";
-import { runScheduler } from "../../../services/schedulerService";
 
 function hasDemoSolverTimeline(scenario) {
   const craneSchedule = scenario?.craneSchedule ?? [];
@@ -90,8 +89,6 @@ export default function Web_ScenarioDetailHistoryPage() {
   const [scenarioData, setScenarioData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [ensuringSolverResult, setEnsuringSolverResult] = useState(false);
-
   // state 없이 직접 접근 시 발행 이력 목록으로 리다이렉트
   useEffect(() => {
     if (!scenarioId && !projectInfo) {
@@ -111,28 +108,11 @@ export default function Web_ScenarioDetailHistoryPage() {
     try {
       const response = await getScenarioDetail(id);
       const dataList = response.data?.data ?? [];
-      if (dataList.length > 0) {
-        const nextScenario = dataList[0];
-        if (!hasDemoSolverTimeline(nextScenario) && !ensuringSolverResult) {
-          setEnsuringSolverResult(true);
-          try {
-            await runScheduler(id);
-            const refreshedResponse = await getScenarioDetail(id);
-            const refreshedList = refreshedResponse.data?.data ?? [];
-            setScenarioData(refreshedList[0] ?? nextScenario);
-          } catch (schedulerErr) {
-            console.error("Solver 결과 자동 보정 실패:", schedulerErr);
-            setScenarioData(nextScenario);
-          }
-          return;
-        }
-        setScenarioData(nextScenario);
-      }
+      setScenarioData(dataList[0] ?? null);
     } catch (err) {
       console.error("시나리오 상세 조회 실패:", err);
       setError("시나리오 데이터를 불러오는 데 실패했습니다.");
     } finally {
-      setEnsuringSolverResult(false);
       setLoading(false);
     }
   };

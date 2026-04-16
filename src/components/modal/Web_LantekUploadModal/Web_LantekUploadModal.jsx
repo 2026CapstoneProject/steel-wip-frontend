@@ -1,6 +1,9 @@
 import { useRef, useState } from "react";
 import { importLantekData } from "../../../services/lantekService";
 import { createScenario } from "../../../services/scenarioService";
+import Web_LoadingModal from "../Web_LoadingModal/Web_LoadingModal";
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function Web_LantekUploadModal({
   scenarioId,
@@ -50,6 +53,7 @@ export default function Web_LantekUploadModal({
       return;
     }
     setUploading(true);
+    const startedAt = Date.now();
     try {
       let activeScenarioId = scenarioId;
       if (!activeScenarioId) {
@@ -71,9 +75,17 @@ export default function Web_LantekUploadModal({
 
       // 백엔드가 반환하는 LantekScenarioData[] (data 배열의 첫번째 항목)
       const lantekDataList = response.data?.data ?? [];
+      const remainingDelay = Math.max(0, 5000 - (Date.now() - startedAt));
+      if (remainingDelay > 0) {
+        await sleep(remainingDelay);
+      }
       onUpload(selectedFile, lantekDataList);
     } catch (err) {
       console.error("LANTEK import 실패:", err);
+      const remainingDelay = Math.max(0, 5000 - (Date.now() - startedAt));
+      if (remainingDelay > 0) {
+        await sleep(remainingDelay);
+      }
       const msg =
         err.response?.data?.message ||
         err.response?.data?.detail ||
@@ -169,6 +181,10 @@ export default function Web_LantekUploadModal({
           </div>
         </div>
       </div>
+
+      {uploading && (
+        <Web_LoadingModal message="LANTEK 파일을 분석하는 중입니다." />
+      )}
     </div>
   );
 }

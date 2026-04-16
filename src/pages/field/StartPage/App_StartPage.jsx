@@ -21,8 +21,8 @@ function mapReadyDataToEquipment(readyDataList) {
           );
 
     return {
-      equipmentId: `scenario-${item.scenarioId}`,
-      equipmentName: `시나리오 #${item.scenarioId}`,
+      equipmentId: `${item.lazerName || "LAZER1"}-${item.scenarioId}`,
+      equipmentName: item.lazerName || "LAZER1",
       scenarios: [
         {
           scenarioId: item.scenarioId,

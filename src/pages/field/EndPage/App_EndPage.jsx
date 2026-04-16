@@ -19,8 +19,8 @@ const formatSummaryDate = () => {
 };
 
 // ─── 백엔드 FieldEndData → UI tasks 변환 ─────────────────────────
-// backend: { batch: [ { relocation: [...], picking: [...] } ] }
-// UI:      [ { id, title, relocations, pickings } ]
+// backend: { batch: [ { relocation: [...], picking: [...], inbound: [...] } ] }
+// UI:      [ { id, title, relocations, pickings, inbounds } ]
 function mapEndDataToTasks(endDataList) {
   // batchGroup 전체를 하나의 Task로 묶어 표시
   const tasks = [];
@@ -43,14 +43,27 @@ function mapEndDataToTasks(endDataList) {
           : (item.thickness && item.width ? `${item.thickness} × ${item.width}` : "-"),
         duration: item.expectedRunningTime ? `${item.expectedRunningTime}m` : null,
       }));
+      const inbounds = (group.inbound ?? []).map((item, inboundIdx) => ({
+        id: String(item.batchItemId),
+        title: `Inbound ${inboundIdx + 1}`,
+        materialName: item.material || "-",
+        fromZone: item.fromLocationName || "설비",
+        toZone: item.toLocationName || "-",
+        dimension:
+          item.thickness && item.width && item.height
+            ? `${item.thickness} × ${item.width} × ${item.height}`
+            : "-",
+        duration: item.expectedRunningTime ? `${item.expectedRunningTime}m` : null,
+      }));
 
-      if (relocations.length === 0 && pickings.length === 0) return;
+      if (relocations.length === 0 && pickings.length === 0 && inbounds.length === 0) return;
 
       tasks.push({
         id: `batch-group-${groupIdx}`,
         title: `Task ${String(groupIdx + 1).padStart(2, "0")}`,
         relocations,
         pickings,
+        inbounds,
       });
     });
   });
@@ -128,9 +141,35 @@ const EndPickingCard = ({ item, onWorkOrderClick }) => (
   </div>
 );
 
+const EndInboundCard = ({ item }) => (
+  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 shadow-sm">
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <div className="mb-2 flex items-center gap-2">
+          <h3 className="text-[15px] font-extrabold text-slate-900">{item.title}</h3>
+        </div>
+        <p className="mb-1 text-sm font-bold text-slate-900">{item.materialName}</p>
+        <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500">
+          <span>{item.fromZone}</span>
+          <span>→</span>
+          <span className="text-emerald-700">{item.toZone}</span>
+        </div>
+        <div className="text-[11px] font-medium text-slate-500">{item.dimension}</div>
+      </div>
+      {item.duration ? (
+        <div className="flex items-center gap-1 text-slate-400">
+          <span className="material-symbols-outlined text-xs">schedule</span>
+          <span className="text-[11px]">{item.duration}</span>
+        </div>
+      ) : null}
+    </div>
+  </div>
+);
+
 const CompletedTaskCard = ({ task, isOpen, onToggle, onWorkOrderClick }) => {
   const relocations = Array.isArray(task?.relocations) ? task.relocations : [];
   const pickings = Array.isArray(task?.pickings) ? task.pickings : [];
+  const inbounds = Array.isArray(task?.inbounds) ? task.inbounds : [];
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0px_4px_12px_rgba(0,0,0,0.03)]">
@@ -158,6 +197,9 @@ const CompletedTaskCard = ({ task, isOpen, onToggle, onWorkOrderClick }) => {
           ))}
           {pickings.map((item) => (
             <EndPickingCard key={item.id} item={item} onWorkOrderClick={onWorkOrderClick} />
+          ))}
+          {inbounds.map((item) => (
+            <EndInboundCard key={item.id} item={item} />
           ))}
         </div>
       ) : null}
