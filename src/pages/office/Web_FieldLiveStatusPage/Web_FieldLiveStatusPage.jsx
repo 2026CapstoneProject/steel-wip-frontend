@@ -50,6 +50,7 @@ function mapActionColor(action) {
 
 function mapStatusLabel(status) {
   switch (status) {
+    case "BEFORE_PENDING": return "대기";
     case "PENDING":     return "대기";
     case "IN_PROGRESS": return "이동중";
     case "COMPLETED":   return "완료";
@@ -59,10 +60,37 @@ function mapStatusLabel(status) {
 
 function mapStatusClass(status) {
   switch (status) {
+    case "BEFORE_PENDING": return "bg-surface-container-highest text-on-surface-variant";
     case "IN_PROGRESS": return "bg-secondary-container text-on-secondary-container";
     case "COMPLETED":   return "bg-emerald-100 text-emerald-700";
     default:            return "bg-surface-container-highest text-on-surface-variant";
   }
+}
+
+function summarizeEquipment(items, equipmentId) {
+  if (!items.length) {
+    return {
+      equipmentId,
+      scenarioTitle: "진행 중인 시나리오 없음",
+      batchLabel: "-",
+      remainingTasks: 0,
+      actionSummary: "-",
+    };
+  }
+
+  const first = items[0];
+  const actionSet = [...new Set(items.map((item) => mapActionLabel(item.batchItemAction)))];
+
+  return {
+    equipmentId,
+    scenarioTitle: first.scenarioTitle || `시나리오 #${first.scenarioId ?? "-"}`,
+    batchLabel:
+      Number.isFinite(first.batchOrder) || first.batchOrder
+        ? `Batch ${String(first.batchOrder).padStart(2, "0")}`
+        : "-",
+    remainingTasks: items.length,
+    actionSummary: actionSet.join(", "),
+  };
 }
 
 // FieldBatchItem → timeline 아이템 형태로 변환
@@ -75,6 +103,10 @@ function mapBatchItemToTimeline(item, equipmentId) {
     icon:          mapActionIcon(item.batchItemAction),
     colorClass:    mapActionColor(item.batchItemAction),
     iconColorClass: "",
+    subLabel:
+      item.batchOrder
+        ? `${item.scenarioTitle || "-"} · Batch ${String(item.batchOrder).padStart(2, "0")}`
+        : item.scenarioTitle || "",
     rows: (item.wip ?? []).map((w) => ({
       qrNumber:      w.qrId || "-",
       thickness:     w.thickness,
@@ -95,6 +127,7 @@ export default function Web_FieldLiveStatusPage() {
   const [searchFilters, setSearchFilters]   = useState(INITIAL_FILTERS);
   const [selectedEquipment, setSelectedEquipment] = useState("LAZER1");
   const [timelineItems, setTimelineItems]   = useState([]);
+  const [equipmentSummaries, setEquipmentSummaries] = useState([]);
   const [loading, setLoading]               = useState(true);
   const [error, setError]                   = useState(null);
 
@@ -108,20 +141,27 @@ export default function Web_FieldLiveStatusPage() {
         const results = await Promise.all(
           LAZER_IDS.map((id) => getLiveField(id))
         );
+        const summaries = LAZER_IDS.map((id, idx) =>
+          summarizeEquipment(results[idx].data?.data ?? [], id)
+        );
         const allItems = LAZER_IDS.flatMap((id, idx) =>
           (results[idx].data?.data ?? []).map((item) => mapBatchItemToTimeline(item, id))
         );
+        setEquipmentSummaries(summaries);
         setTimelineItems(allItems);
       } else {
         const response = await getLiveField(equipmentId);
+        const itemsRaw = response.data?.data ?? [];
         const items = (response.data?.data ?? []).map((item) =>
           mapBatchItemToTimeline(item, equipmentId)
         );
+        setEquipmentSummaries([summarizeEquipment(itemsRaw, equipmentId)]);
         setTimelineItems(items);
       }
     } catch (err) {
       console.error("현장 현황 조회 실패:", err);
       setError("현장 데이터를 불러오는 데 실패했습니다.");
+      setEquipmentSummaries([]);
       setTimelineItems([]);
     } finally {
       setLoading(false);
@@ -282,15 +322,44 @@ export default function Web_FieldLiveStatusPage() {
         )}
 
         {!loading && !error && (
-          filteredTimelineItems.length > 0 ? (
-            <Web_ScenarioTimelineSection items={filteredTimelineItems} />
-          ) : (
-            <div className="bg-surface-container-lowest rounded-xl p-10 text-center text-sm text-on-surface-variant shadow-sm">
-              {timelineItems.length === 0
-                ? "현재 진행 중인 현장 작업이 없습니다."
-                : "조회 조건에 해당하는 현장 작업이 없습니다."}
-            </div>
-          )
+          <>
+            <section className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {equipmentSummaries.map((summary) => (
+                <div
+                  key={summary.equipmentId}
+                  className="rounded-xl border border-outline-variant/10 bg-white p-5 shadow-sm"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
+                      {summary.equipmentId}
+                    </span>
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                      {summary.batchLabel}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-on-surface">
+                    {summary.scenarioTitle}
+                  </h3>
+                  <p className="mt-2 text-sm text-on-surface-variant">
+                    현재 작업: {summary.actionSummary}
+                  </p>
+                  <p className="mt-3 text-sm font-semibold text-on-surface">
+                    남은 작업 {summary.remainingTasks}개
+                  </p>
+                </div>
+              ))}
+            </section>
+
+            {filteredTimelineItems.length > 0 ? (
+              <Web_ScenarioTimelineSection items={filteredTimelineItems} />
+            ) : (
+              <div className="bg-surface-container-lowest rounded-xl p-10 text-center text-sm text-on-surface-variant shadow-sm">
+                {timelineItems.length === 0
+                  ? "현재 진행 중인 현장 작업이 없습니다."
+                  : "조회 조건에 해당하는 현장 작업이 없습니다."}
+              </div>
+            )}
+          </>
         )}
       </div>
     </Web_AppLayout>

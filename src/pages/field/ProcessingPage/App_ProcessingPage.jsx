@@ -4,6 +4,10 @@ import App_ProcessTabs from "../../../components/field/ProcessTabs/App_ProcessTa
 import App_Header from "../../../components/field/Header/App_Header";
 import workOrderPdf from "../../../assets/Steel_all_Work_instruction.pdf";
 import { getFieldProgress } from "../../../services/fieldService";
+import {
+  getSelectedFieldScenarioId,
+  setSelectedFieldScenarioId,
+} from "../../../utils/App/selectedScenario";
 
 const PROCESS_STATUS_META = {
   pending: {
@@ -52,7 +56,13 @@ function mapProgressData(progressData) {
   }));
 
   return {
-    summaryCountLabel: "남은 재공품",
+    summaryCountLabel: "남은 작업",
+    scenarioId: progressData?.scenarioId ?? null,
+    scenarioTitle: progressData?.scenarioTitle ?? "",
+    batchProgressRate: progressData?.batchProgressRate ?? 0,
+    completedTaskCount: progressData?.completedTaskCount ?? 0,
+    totalTaskCount: progressData?.totalTaskCount ?? 0,
+    remainingTaskCount: progressData?.remainingTaskCount ?? 0,
     expectedTotalMinutes: progressData?.expectedTotalRunningTime ?? 0,
     batches,
   };
@@ -66,7 +76,7 @@ const getRemainingGeneratedCount = (batches = []) =>
     return sum + pendingCount;
   }, 0);
 
-const getProgressPercent = (batches = [], expectedTotalMinutes = 0) => {
+const getGeneratedProgressPercent = (batches = [], expectedTotalMinutes = 0) => {
   const total = batches.reduce(
     (sum, b) => sum + (b.estimatedCuttingTime ?? 0),
     0
@@ -219,20 +229,31 @@ const ProcessingBatchCard = ({ batch, onWorkOrderClick }) => (
 const App_ProcessingPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const selectedScenarioId =
+    location.state?.selectedScenarioId ?? getSelectedFieldScenarioId();
 
   const [progressData, setProgressData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (location.state?.selectedScenarioId) {
+      setSelectedFieldScenarioId(location.state.selectedScenarioId);
+    }
+  }, [location.state]);
 
   const fetchProgressData = async () => {
     setLoading(true);
     try {
       const response = await getFieldProgress();
       const dataList = response.data?.data ?? [];
-      if (dataList.length > 0) {
-        setProgressData(dataList[0]);
-      } else {
-        setProgressData(null);
+      const matchedData =
+        dataList.find((item) => item.scenarioId === selectedScenarioId) ??
+        dataList[0] ??
+        null;
+      if (matchedData?.scenarioId) {
+        setSelectedFieldScenarioId(matchedData.scenarioId);
       }
+      setProgressData(matchedData);
     } catch (err) {
       console.error("생산 중 데이터 조회 실패:", err);
     } finally {
@@ -243,7 +264,7 @@ const App_ProcessingPage = () => {
   // 페이지 진입 시 최신 데이터 조회
   useEffect(() => {
     fetchProgressData();
-  }, []);
+  }, [selectedScenarioId]);
 
   // QR 저장 후 돌아왔을 때 재조회 (적재 완료 상태 반영)
   useEffect(() => {
@@ -256,15 +277,24 @@ const App_ProcessingPage = () => {
 
   const totalEstimatedTimeText = formatDurationText(mappedData.expectedTotalMinutes);
 
-  const remainingCount = useMemo(
+  const remainingGeneratedCount = useMemo(
     () => getRemainingGeneratedCount(mappedData.batches),
     [mappedData.batches]
   );
 
   const progressPercent = useMemo(
-    () => getProgressPercent(mappedData.batches, mappedData.expectedTotalMinutes),
-    [mappedData.batches, mappedData.expectedTotalMinutes]
+    () =>
+      Math.round(
+        Number.isFinite(mappedData.batchProgressRate)
+          ? mappedData.batchProgressRate * 100
+          : 0
+      ),
+    [mappedData.batchProgressRate]
   );
+  const remainingCount =
+    Number.isFinite(mappedData.remainingTaskCount)
+      ? mappedData.remainingTaskCount
+      : remainingGeneratedCount;
 
   // QR 페이지로 넘길 때 generatedItems에 inputMaterialName 등 추가
   const generatedItemsForQr = useMemo(
@@ -287,6 +317,7 @@ const App_ProcessingPage = () => {
         generatedItems: generatedItemsForQr,
         batches: mappedData.batches,
         summary: {
+          scenarioId: mappedData.scenarioId,
           progressPercent,
           remainingCount,
           totalEstimatedMinutes: mappedData.expectedTotalMinutes,

@@ -4,6 +4,10 @@ import App_ProcessTabs from "../../../components/field/ProcessTabs/App_ProcessTa
 import App_Header from "../../../components/field/Header/App_Header";
 import workOrderPdf from "../../../assets/Steel_all_Work_instruction.pdf";
 import { getFieldReady } from "../../../services/fieldService";
+import {
+  getSelectedFieldScenarioId,
+  setSelectedFieldScenarioId,
+} from "../../../utils/App/selectedScenario";
 
 // ─── 헬퍼 함수 ──────────────────────────────────────────────────────
 
@@ -200,22 +204,35 @@ const TaskSection = ({
 const App_ReadyPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const selectedScenarioId =
+    location.state?.selectedScenarioId ?? getSelectedFieldScenarioId();
 
   const [readyData, setReadyData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (location.state?.selectedScenarioId) {
+      setSelectedFieldScenarioId(location.state.selectedScenarioId);
+    }
+  }, [location.state]);
+
+  useEffect(() => {
     fetchReadyData();
-  }, []);
+  }, [selectedScenarioId]);
 
   const fetchReadyData = async () => {
     setLoading(true);
     try {
       const response = await getFieldReady();
       const dataList = response.data?.data ?? [];
-      if (dataList.length > 0) {
-        setReadyData(dataList[0]);
+      const matchedData =
+        dataList.find((item) => item.scenarioId === selectedScenarioId) ??
+        dataList[0] ??
+        null;
+      if (matchedData?.scenarioId) {
+        setSelectedFieldScenarioId(matchedData.scenarioId);
       }
+      setReadyData(matchedData);
     } catch (err) {
       console.error("생산 준비 데이터 조회 실패:", err);
     } finally {
@@ -225,13 +242,19 @@ const App_ReadyPage = () => {
 
   const tasks = readyData ? mapBatchesToTasks(readyData.batch) : [];
   const progressPercent = Math.round((readyData?.scenarioProgressRate ?? 0) * 100);
-  const remainingTaskCount = tasks.reduce(
+  const visibleReadyTaskCount = tasks.reduce(
     (sum, t) =>
       sum +
       (t.relocations?.length ?? 0) +
       (t.pickings?.length ?? 0),
     0
   );
+  const hiddenCurrentBatchTaskCount =
+    readyData?.currentBatchRemainingTaskCount ?? 0;
+  const hiddenInboundTaskCount =
+    readyData?.currentBatchPendingInboundCount ?? 0;
+  const remainingTaskCount =
+    visibleReadyTaskCount > 0 ? visibleReadyTaskCount : hiddenCurrentBatchTaskCount;
 
   const handleRelocateQrClick = (item) => {
     navigate("/App/ready/relocate", {
@@ -318,9 +341,22 @@ const App_ReadyPage = () => {
             </div>
           )}
           {!loading && tasks.length === 0 && (
-            <div className="py-12 text-center text-sm text-slate-500">
-              준비 중인 작업이 없습니다.
-            </div>
+            hiddenCurrentBatchTaskCount > 0 ? (
+              <div className="rounded-2xl border border-indigo-100 bg-white px-5 py-6 text-center shadow-sm">
+                <p className="text-sm font-semibold text-slate-700">
+                  현재 생산 중인 배치에 남은 작업이 있습니다.
+                </p>
+                <p className="mt-2 text-sm text-slate-500">
+                  {hiddenInboundTaskCount > 0
+                    ? `적재 작업 ${hiddenInboundTaskCount}개가 남아 있어 생산 준비 목록에는 보이지 않습니다. 생산 중 탭에서 이어서 완료해주세요.`
+                    : `현재 생산 중 배치 작업 ${hiddenCurrentBatchTaskCount}개가 남아 있어 생산 준비 목록에는 아직 표시되지 않습니다.`}
+                </p>
+              </div>
+            ) : (
+              <div className="py-12 text-center text-sm text-slate-500">
+                준비 중인 작업이 없습니다.
+              </div>
+            )
           )}
           {!loading && tasks.length > 0 && (
             <div className="space-y-8 pb-2">

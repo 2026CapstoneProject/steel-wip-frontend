@@ -40,6 +40,8 @@ const App_ProcessingQrWipPage = () => {
   } = location.state ?? {};
 
   const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
+  const [nextPathAfterSave, setNextPathAfterSave] = useState("/App/processing");
+  const [nextStateAfterSave, setNextStateAfterSave] = useState({});
 
   const detailData = useMemo(
     () => ({
@@ -74,17 +76,13 @@ const App_ProcessingQrWipPage = () => {
     if (!isSavePopupOpen) return;
 
     const timer = window.setTimeout(() => {
-      navigate("/App/processing", {
-        state: {
-          savedGeneratedWipId: generatedWip.id,
-          savedStatus: "complete",
-          zoneScannedAt,
-        },
+      navigate(nextPathAfterSave, {
+        state: nextStateAfterSave,
       });
     }, POPUP_DELAY_MS);
 
     return () => window.clearTimeout(timer);
-  }, [isSavePopupOpen, navigate, generatedWip.id, zoneScannedAt]);
+  }, [isSavePopupOpen, navigate, nextPathAfterSave, nextStateAfterSave]);
 
   const handleZoneScanClick = () => {
     if (zoneScanCompleted) return;
@@ -110,7 +108,23 @@ const App_ProcessingQrWipPage = () => {
     }
 
     try {
-      await saveBatchItem(batchItemId, {});
+      const response = await saveBatchItem(batchItemId, {});
+      const saveResult = response.data?.data ?? {};
+      const shouldMoveToReady = Boolean(saveResult.shouldMoveToReady);
+      setNextPathAfterSave(shouldMoveToReady ? "/App/ready" : "/App/processing");
+      setNextStateAfterSave(
+        shouldMoveToReady
+          ? {
+              selectedScenarioId: summary?.scenarioId ?? null,
+              justCompletedBatch: true,
+              savedGeneratedWipId: generatedWip.id,
+            }
+          : {
+              savedGeneratedWipId: generatedWip.id,
+              savedStatus: "complete",
+              zoneScannedAt,
+            }
+      );
       setIsSavePopupOpen(true);
     } catch (err) {
       console.error("적재 완료 처리 실패:", err);

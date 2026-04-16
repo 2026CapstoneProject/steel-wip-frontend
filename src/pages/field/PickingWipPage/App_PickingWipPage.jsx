@@ -458,9 +458,11 @@ const App_PickingWipPage = () => {
     setIsDoubleCheckOpen(false);
     try {
       const batchItemId = picking.batchItemId;
-      if (batchItemId) {
-        await saveBatchItem(batchItemId, {});
+      if (!batchItemId) {
+        alert("작업 정보를 찾을 수 없어 완료 처리할 수 없습니다.");
+        return;
       }
+      await saveBatchItem(batchItemId, {});
       setIsCompletePopupOpen(true);
     } catch (err) {
       console.error("작업 완료 처리 실패:", err);

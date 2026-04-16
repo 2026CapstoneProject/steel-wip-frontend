@@ -200,8 +200,12 @@ export default function Web_LantekInputPage() {
       });
     } catch (err) {
       console.error("스케줄러 실행 실패:", err);
+      const errorMessage =
+        err.response?.data?.message ||
+        err.response?.data?.detail ||
+        "Solver 실행에 실패했습니다. 시나리오 결과를 다시 생성해주세요.";
       setIsLoadingModalOpen(false);
-      alert("알고리즘 실행에 실패했습니다. 다시 시도해주세요.");
+      alert(errorMessage);
     }
   };
 
@@ -252,13 +256,24 @@ export default function Web_LantekInputPage() {
       {isUploadModalOpen && (
         <Web_LantekUploadModal
           scenarioId={projectInfo.scenarioId}
+          projectId={projectInfo.projectId}
+          shipmentDate={projectInfo.shipmentDate}
           tempSavedFile={tempSavedFile}
+          onScenarioResolved={(scenario) => {
+            setProjectInfo((prev) => ({
+              ...prev,
+              scenarioId: scenario.id,
+              productionPlanName: scenario.title,
+            }));
+          }}
           onClose={() => setIsUploadModalOpen(false)}
           onUpload={(file, lantekDataList) => {
             setTempSavedFile(file);
             // 백엔드 LantekScenarioData[] → lantekRows 형태로 변환
             const rows = (lantekDataList[0]?.lazerCutting ?? []).map((cut) => ({
               id: cut.id,
+              jobName: cut.jobName,
+              plannedSourceWipId: cut.plannedSourceWipId,
               estimatedCuttingTime: cut.estimatedCuttingTime,
               input: cut.input,
               estimatedWips: cut.estimatedWips,

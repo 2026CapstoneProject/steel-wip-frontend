@@ -1,8 +1,41 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function Web_LantekAccordionItem({ row, index }) {
   const [isOpen, setIsOpen] = useState(true);
-  const [residuals, setResiduals] = useState(row.residuals || []);
+
+  const input = row.input ?? {};
+  const residualSource = useMemo(
+    () =>
+      (row.estimatedWips ?? row.residuals ?? []).map((item, itemIndex) => ({
+        id: item.id ?? itemIndex + 1,
+        plannedWipId: item.plannedWipId ?? null,
+        jobName: item.jobName ?? row.jobName ?? null,
+        thickness: item.thickness ?? 0,
+        width: item.width ?? 0,
+        length: item.height ?? item.length ?? 0,
+        weight: item.weight ?? "",
+        memo: item.memo ?? "",
+      })),
+    [row.estimatedWips, row.residuals]
+  );
+  const [residuals, setResiduals] = useState(residualSource);
+
+  useEffect(() => {
+    setResiduals(residualSource);
+  }, [residualSource]);
+
+  const spec = {
+    manufacturer: input.manufacturer ?? "-",
+    material: input.material ?? "-",
+    thickness: input.thickness ?? "-",
+    width: input.width ?? "-",
+    length: input.height ?? input.length ?? "-",
+  };
+  const jobLabel = row.jobName ? `${row.jobName}` : null;
+  const sourceWipLabel =
+    row.plannedSourceWipId && row.plannedSourceWipId > 0
+      ? `투입 WIP ${row.plannedSourceWipId}`
+      : null;
 
   const handleResidualChange = (targetId, field, value) => {
     setResiduals((prev) =>
@@ -31,11 +64,16 @@ export default function Web_LantekAccordionItem({ row, index }) {
 
           <div className="text-left">
             <div className="font-headline font-bold text-on-surface text-[1.1rem]">
-              {row.qrNumber} - {row.thickness}T / {row.width} / {row.length}
+              {spec.manufacturer} {spec.material} - {spec.thickness}T / {spec.width} / {spec.length}
             </div>
             <div className="text-sm text-on-surface-variant font-medium">
-              두께: {row.thickness}mm | 폭: {row.width}mm | 길이: {row.length}mm
+              두께: {spec.thickness}mm | 폭: {spec.width}mm | 길이: {spec.length}mm
             </div>
+            {(jobLabel || sourceWipLabel) && (
+              <div className="text-sm text-primary font-semibold mt-1">
+                {[jobLabel, sourceWipLabel].filter(Boolean).join(" · ")}
+              </div>
+            )}
           </div>
         </div>
 
@@ -68,7 +106,7 @@ export default function Web_LantekAccordionItem({ row, index }) {
             <table className="w-full text-sm">
               <thead className="bg-surface-container-low text-on-surface-variant">
                 <tr>
-                  <th className="px-4 py-4 text-center font-semibold">NO</th>
+                  <th className="px-4 py-4 text-center font-semibold">WIP ID</th>
                   <th className="px-4 py-4 text-center font-semibold">
                     절단 후 두께(MM)
                   </th>
@@ -92,7 +130,7 @@ export default function Web_LantekAccordionItem({ row, index }) {
                     className="border-t border-outline-variant/10"
                   >
                     <td className="px-4 py-4 text-center font-semibold text-on-surface">
-                      {item.id}
+                      {item.plannedWipId ?? item.id}
                     </td>
 
                     <td className="px-4 py-4">

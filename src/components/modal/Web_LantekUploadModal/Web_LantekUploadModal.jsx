@@ -1,15 +1,36 @@
 import { useRef, useState } from "react";
 import { importLantekData } from "../../../services/lantekService";
+import { createScenario } from "../../../services/scenarioService";
 
 export default function Web_LantekUploadModal({
   scenarioId,
+  projectId,
+  shipmentDate,
   tempSavedFile,
+  onScenarioResolved,
   onClose,
   onUpload,
 }) {
   const inputRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+
+  const createFreshScenario = async () => {
+    if (!projectId || !shipmentDate) {
+      throw new Error("시나리오를 다시 생성할 프로젝트 정보가 없습니다.");
+    }
+
+    const response = await createScenario({
+      project_id: projectId,
+      scenario_due: shipmentDate,
+    });
+    const scenario = response.data?.data;
+    if (!scenario?.id) {
+      throw new Error("시나리오 재생성에 실패했습니다.");
+    }
+    onScenarioResolved?.(scenario);
+    return scenario.id;
+  };
 
   const handleFileSelect = (file) => {
     if (!file) return;
@@ -28,20 +49,36 @@ export default function Web_LantekUploadModal({
       alert("파일을 먼저 선택해주세요.");
       return;
     }
-    if (!scenarioId) {
-      alert("시나리오 ID가 없습니다. 생산계획명을 먼저 조회해주세요.");
-      return;
-    }
-
     setUploading(true);
     try {
-      const response = await importLantekData(scenarioId, selectedFile);
+      let activeScenarioId = scenarioId;
+      if (!activeScenarioId) {
+        activeScenarioId = await createFreshScenario();
+      }
+
+      let response;
+      try {
+        response = await importLantekData(activeScenarioId, selectedFile);
+      } catch (err) {
+        const msg = err.response?.data?.message || err.response?.data?.detail || "";
+        if (msg.includes("시나리오를 찾을 수 없습니다")) {
+          activeScenarioId = await createFreshScenario();
+          response = await importLantekData(activeScenarioId, selectedFile);
+        } else {
+          throw err;
+        }
+      }
+
       // 백엔드가 반환하는 LantekScenarioData[] (data 배열의 첫번째 항목)
       const lantekDataList = response.data?.data ?? [];
       onUpload(selectedFile, lantekDataList);
     } catch (err) {
       console.error("LANTEK import 실패:", err);
-      const msg = err.response?.data?.message || "파일 업로드에 실패했습니다.";
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.detail ||
+        err.message ||
+        "파일 업로드에 실패했습니다.";
       alert(msg);
     } finally {
       setUploading(false);

@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import App_ProcessTabs from "../../../components/field/ProcessTabs/App_ProcessTabs";
 import App_Header from "../../../components/field/Header/App_Header";
 import workOrderPdf from "../../../assets/Steel_all_Work_instruction.pdf";
 import { getFieldEnd } from "../../../services/fieldService";
+import {
+  getSelectedFieldScenarioId,
+  setSelectedFieldScenarioId,
+} from "../../../utils/App/selectedScenario";
 
 // ─── 날짜 포맷 헬퍼 ──────────────────────────────────────────────
 const formatSummaryDate = () => {
@@ -169,6 +174,9 @@ const EmptyCompletedTaskState = () => (
 // ─── 메인 컴포넌트 ──────────────────────────────────────────────
 
 const App_EndPage = () => {
+  const location = useLocation();
+  const selectedScenarioId =
+    location.state?.selectedScenarioId ?? getSelectedFieldScenarioId();
   const [tasks, setTasks] = useState([]);
   const [progressPercent, setProgressPercent] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -176,24 +184,38 @@ const App_EndPage = () => {
 
   const summaryDate = formatSummaryDate();
 
+  useEffect(() => {
+    if (location.state?.selectedScenarioId) {
+      setSelectedFieldScenarioId(location.state.selectedScenarioId);
+    }
+  }, [location.state]);
+
   // 페이지 진입/포커스 시마다 최신 완료 데이터 조회
   useEffect(() => {
     fetchEndData();
-  }, []);
+  }, [selectedScenarioId]);
 
   const fetchEndData = async () => {
     setLoading(true);
     try {
       const response = await getFieldEnd();
       const endDataList = response.data?.data ?? [];
-      const mappedTasks = mapEndDataToTasks(endDataList);
+      const matchedData =
+        endDataList.find((item) => item.scenarioId === selectedScenarioId) ??
+        endDataList[0] ??
+        null;
+      if (matchedData?.scenarioId) {
+        setSelectedFieldScenarioId(matchedData.scenarioId);
+      }
+      const mappedTasks = mapEndDataToTasks(matchedData ? [matchedData] : []);
       setTasks(mappedTasks);
 
-      // 진행률: 첫 번째 endData의 scenarioProgressRate 사용
-      if (endDataList.length > 0) {
+      if (matchedData) {
         setProgressPercent(
-          Math.round((endDataList[0].scenarioProgressRate ?? 0) * 100)
+          Math.round((matchedData.scenarioProgressRate ?? 0) * 100)
         );
+      } else {
+        setProgressPercent(0);
       }
 
       // 첫 번째 task를 기본으로 열어둠

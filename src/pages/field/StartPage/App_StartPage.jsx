@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
 import { getFieldReady } from "../../../services/fieldService";
+import { setSelectedFieldScenarioId } from "../../../utils/App/selectedScenario";
 
 // FieldReadyData → 화면용 scenario 항목으로 변환
 function mapReadyDataToEquipment(readyDataList) {
@@ -45,9 +46,6 @@ function App_StartPage() {
   const [equipmentList, setEquipmentList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEquipmentId, setSelectedEquipmentId] = useState(null);
-  const [selectedScenario, setSelectedScenario] = useState(null);
-  const [workerCount, setWorkerCount] = useState(0);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchReadyData();
@@ -93,27 +91,16 @@ function App_StartPage() {
     const representative = getRepresentativeScenario(equipment);
     if (!representative) return;
     setSelectedEquipmentId(equipment.equipmentId);
-    setSelectedScenario({
-      ...representative,
-      equipmentId: equipment.equipmentId,
-      equipmentName: equipment.equipmentName,
-    });
-    setWorkerCount(0);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => setIsModalOpen(false);
-  const handleDecreaseWorker = () => setWorkerCount((prev) => Math.max(0, prev - 1));
-  const handleIncreaseWorker = () => setWorkerCount((prev) => prev + 1);
-
-  const handleConfirmWorkerCount = () => {
-    if (!selectedScenario) return;
-    navigate("/App/tasks", {
+    setSelectedFieldScenarioId(representative.scenarioId);
+    navigate("/App/ready", {
       state: {
-        selectedEquipmentId,
-        selectedScenarioId: selectedScenario.scenarioId,
-        selectedScenario,
-        workerCount,
+        selectedEquipmentId: equipment.equipmentId,
+        selectedScenarioId: representative.scenarioId,
+        selectedScenario: {
+          ...representative,
+          equipmentId: equipment.equipmentId,
+          equipmentName: equipment.equipmentName,
+        },
         scenarioList: flattenedScenarios,
       },
     });
@@ -224,62 +211,6 @@ function App_StartPage() {
           </div>
         </div>
       </main>
-
-      {isModalOpen && selectedScenario && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-6 backdrop-blur-[4px]">
-          <div className="w-full max-w-[340px] rounded-[2rem] bg-white shadow-2xl">
-            <div className="space-y-8 p-8">
-              <div className="text-center">
-                <h2 className="text-2xl font-extrabold text-[#191C1E]">
-                  {selectedScenario.equipmentName}, {selectedScenario.scenarioName}
-                </h2>
-              </div>
-
-              <div className="space-y-4">
-                <label className="block text-center text-sm font-semibold text-[#505F76]">
-                  작업자 수
-                </label>
-                <div className="flex items-center justify-between px-2">
-                  <button
-                    type="button"
-                    onClick={handleDecreaseWorker}
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-[#3F51B5] text-white shadow-lg active:scale-90"
-                  >
-                    <span className="material-symbols-outlined text-2xl">remove</span>
-                  </button>
-                  <div className="flex h-16 w-16 items-center justify-center rounded-xl border-2 border-[#D9DCE8]">
-                    <span className="text-4xl font-extrabold text-[#4F59B7]">{workerCount}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleIncreaseWorker}
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-[#3F51B5] text-white shadow-lg active:scale-90"
-                  >
-                    <span className="material-symbols-outlined text-2xl">add</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-4 pt-2">
-                <button
-                  type="button"
-                  onClick={handleConfirmWorkerCount}
-                  className="w-full rounded-xl bg-[#E8EAF6] py-4 text-lg font-bold text-[#5C6BC0] shadow-lg active:scale-[0.98]"
-                >
-                  확인
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="w-full py-2 text-center text-base font-medium text-[#505F76]"
-                >
-                  취소
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

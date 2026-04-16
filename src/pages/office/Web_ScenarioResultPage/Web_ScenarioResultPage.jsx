@@ -5,6 +5,7 @@ import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayou
 import Web_ScenarioSummaryPanel from "../../../components/office/Web_ScenarioSummaryPanel/Web_ScenarioSummaryPanel";
 import Web_ScenarioMetricCards from "../../../components/office/Web_ScenarioMetricCards/Web_ScenarioMetricCards";
 import Web_ScenarioTimelineSection from "../../../components/office/Web_ScenarioTimelineSection/Web_ScenarioTimelineSection";
+import Web_SolverTimelineSection from "../../../components/office/Web_SolverTimelineSection/Web_SolverTimelineSection";
 
 import Web_ScenarioGoBackModal from "../../../components/modal/Web_ScenarioGoBackModal/Web_ScenarioGoBackModal";
 import Web_ScenarioAddModal from "../../../components/modal/Web_ScenarioAddModal/Web_ScenarioAddModal";
@@ -17,8 +18,14 @@ import {
 } from "../../../utils/Web/lantekCache";
 
 import { getScenarioDetail, sendScenario } from "../../../services/scenarioService";
+import { runScheduler } from "../../../services/schedulerService";
 
 // 백엔드 ScenarioResultData → timelineItems 형태로 변환
+function formatScenarioQr(item) {
+  if (item?.qrCode) return item.qrCode;
+  return `QR-WIP-${String(item?.steelWipId ?? "").padStart(3, "0")}`;
+}
+
 function mapBatchItemsToTimeline(batchItems) {
   const RELOCATION = [];
   const PICKING = [];
@@ -27,7 +34,7 @@ function mapBatchItemsToTimeline(batchItems) {
   (batchItems ?? []).forEach((item) => {
     const action = String(item.batchItemAction ?? "").trim();
     const row = {
-      qrNumber: `WIP-${item.steelWipId}`,
+      qrNumber: formatScenarioQr(item),
       thickness: String(item.thickness ?? ""),
       width: String(item.width ?? ""),
       length: String(item.length ?? ""),
@@ -88,6 +95,7 @@ export default function Web_ScenarioResultPage() {
   const [scenarioData, setScenarioData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [ensuringSolverResult, setEnsuringSolverResult] = useState(false);
 
   const cachedData = getScenarioLantekCache();
   const cachedProjectInfo = cachedData?.projectInfo ?? {};
@@ -107,15 +115,40 @@ export default function Web_ScenarioResultPage() {
     setLoading(true);
     setError(null);
     try {
+      let schedulerErrorMessage = null;
+      if (!ensuringSolverResult) {
+        setEnsuringSolverResult(true);
+        try {
+          await runScheduler(id);
+        } catch (schedulerErr) {
+          console.error("시나리오 결과 생성 실패:", schedulerErr);
+          schedulerErrorMessage =
+            schedulerErr.response?.data?.message ||
+            schedulerErr.response?.data?.detail ||
+            "시나리오 결과 생성에 실패했습니다.";
+        }
+      }
+
       const response = await getScenarioDetail(id);
       const dataList = response.data?.data ?? [];
-      if (dataList.length > 0) {
-        setScenarioData(dataList[0]);
+      const nextScenario = dataList[0] ?? null;
+      setScenarioData(nextScenario);
+
+      if (!nextScenario) {
+        setError(
+          schedulerErrorMessage || "시나리오 결과를 생성하거나 불러오는 데 실패했습니다.",
+        );
+        return;
+      }
+
+      if (schedulerErrorMessage && !nextScenario?.solverSummary) {
+        setError(schedulerErrorMessage);
       }
     } catch (err) {
       console.error("시나리오 결과 조회 실패:", err);
-      setError("시나리오 데이터를 불러오는 데 실패했습니다.");
+      setError("시나리오 결과를 생성하거나 불러오는 데 실패했습니다.");
     } finally {
+      setEnsuringSolverResult(false);
       setLoading(false);
     }
   };
@@ -127,12 +160,12 @@ export default function Web_ScenarioResultPage() {
     productionPlanName: scenarioData?.scenarioTitle || cachedProjectInfo.productionPlanName || "-",
     shipmentDate: scenarioData?.scenarioDue || cachedProjectInfo.shipmentDate || "-",
     equipmentName: scenarioData?.lazerName || cachedProjectInfo.equipmentName || "-",
-    status: "ACTIVE",
+    status: scenarioData?.solverSummary?.status || "ACTIVE",
   };
 
   const metrics = scenarioData
     ? [
-        { label: "선택된 잔재 수", value: String(scenarioData.totalWipNum ?? 0), unit: "EA" },
+        { label: "재공품 수", value: String(scenarioData.totalWipNum ?? 0), unit: "EA" },
         { label: "크레인 이동 횟수", value: String(scenarioData.totalCraneMove ?? 0), unit: "Times" },
         { label: "이동 횟수", value: String(scenarioData.totalMoveNum ?? 0), unit: "Times" },
         {
@@ -147,10 +180,10 @@ export default function Web_ScenarioResultPage() {
         },
       ]
     : [
-        { label: "선택된 잔재 수", value: "-", unit: "EA" },
+        { label: "재공품 수", value: "-", unit: "EA" },
         { label: "크레인 이동 횟수", value: "-", unit: "Times" },
         { label: "이동 횟수", value: "-", unit: "Times" },
-        { label: "총 소요 시간", value: "--:--", unit: "HR", highlight: true },
+        { label: "총 소요 시간", value: "-", unit: "HR", highlight: true },
       ];
 
   const timelineItems = scenarioData ? mapBatchItemsToTimeline(scenarioData.batchItems) : [];
@@ -247,7 +280,14 @@ export default function Web_ScenarioResultPage() {
                 status={scenarioSummary.status}
               />
             </div>
-            <Web_ScenarioTimelineSection items={timelineItems} />
+            {scenarioData?.solverSummary ? (
+              <Web_SolverTimelineSection
+                craneSchedule={scenarioData.craneSchedule}
+                batchItems={scenarioData.batchItems}
+              />
+            ) : (
+              <Web_ScenarioTimelineSection items={timelineItems} />
+            )}
           </>
         )}
       </div>
