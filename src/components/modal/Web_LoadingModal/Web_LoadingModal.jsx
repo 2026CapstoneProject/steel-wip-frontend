@@ -1,4 +1,6 @@
-export default function Web_LoadingModal() {
+export default function Web_LoadingModal({
+  message = "페이지가 로딩 중입니다.",
+}) {
   return (
     <>
       <style>
@@ -23,7 +25,7 @@ export default function Web_LoadingModal() {
 
           <div className="flex flex-col items-center gap-2">
             <p className="font-headline font-semibold text-xl text-on-surface tracking-tight">
-              페이지가 로딩 중입니다.
+              {message}
             </p>
           </div>
         </div>

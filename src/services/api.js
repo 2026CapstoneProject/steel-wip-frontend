@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // axios 기본 인스턴스 - 모든 API 호출에서 공통으로 사용
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  baseURL: (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000') + '/api',
   headers: {
     'Content-Type': 'application/json',
   },

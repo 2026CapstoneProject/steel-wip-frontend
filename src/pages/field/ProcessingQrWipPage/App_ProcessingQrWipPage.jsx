@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
+import { saveBatchItem } from "../../../services/fieldService";
 
 const POPUP_DELAY_MS = 1200;
 
@@ -22,6 +23,13 @@ const App_ProcessingQrWipPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // state 없이 직접 접근 시 Processing 페이지로 리다이렉트
+  useEffect(() => {
+    if (!location.state?.generatedWip) {
+      navigate("/App/processing", { replace: true });
+    }
+  }, []);
+
   const {
     generatedWip = {},
     generatedItems = [],
@@ -32,6 +40,8 @@ const App_ProcessingQrWipPage = () => {
   } = location.state ?? {};
 
   const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
+  const [nextPathAfterSave, setNextPathAfterSave] = useState("/App/processing");
+  const [nextStateAfterSave, setNextStateAfterSave] = useState({});
 
   const detailData = useMemo(
     () => ({
@@ -66,17 +76,13 @@ const App_ProcessingQrWipPage = () => {
     if (!isSavePopupOpen) return;
 
     const timer = window.setTimeout(() => {
-      navigate("/App/processing", {
-        state: {
-          savedGeneratedWipId: generatedWip.id,
-          savedStatus: "complete",
-          zoneScannedAt,
-        },
+      navigate(nextPathAfterSave, {
+        state: nextStateAfterSave,
       });
     }, POPUP_DELAY_MS);
 
     return () => window.clearTimeout(timer);
-  }, [isSavePopupOpen, navigate, generatedWip.id, zoneScannedAt]);
+  }, [isSavePopupOpen, navigate, nextPathAfterSave, nextStateAfterSave]);
 
   const handleZoneScanClick = () => {
     if (zoneScanCompleted) return;
@@ -92,9 +98,38 @@ const App_ProcessingQrWipPage = () => {
     });
   };
 
-  const handleSaveClick = () => {
+  const handleSaveClick = async () => {
     if (!zoneScanCompleted) return;
-    setIsSavePopupOpen(true);
+
+    const batchItemId = generatedWip.batchItemId;
+    if (!batchItemId) {
+      alert("적재 작업 정보를 찾을 수 없어 완료 처리할 수 없습니다.");
+      return;
+    }
+
+    try {
+      const response = await saveBatchItem(batchItemId, {});
+      const saveResult = response.data?.data ?? {};
+      const shouldMoveToReady = Boolean(saveResult.shouldMoveToReady);
+      setNextPathAfterSave(shouldMoveToReady ? "/App/ready" : "/App/processing");
+      setNextStateAfterSave(
+        shouldMoveToReady
+          ? {
+              selectedScenarioId: summary?.scenarioId ?? null,
+              justCompletedBatch: true,
+              savedGeneratedWipId: generatedWip.id,
+            }
+          : {
+              savedGeneratedWipId: generatedWip.id,
+              savedStatus: "complete",
+              zoneScannedAt,
+            }
+      );
+      setIsSavePopupOpen(true);
+    } catch (err) {
+      console.error("적재 완료 처리 실패:", err);
+      alert("적재 완료 처리에 실패했습니다.");
+    }
   };
 
   const handlePrevious = () => {

@@ -32,7 +32,15 @@ const App_RelocateQrWipPage = () => {
   const navigate = useNavigate();
   const { state } = useLocation();
 
+  // state 없이 직접 접근 시 Ready 페이지로 리다이렉트
+  React.useEffect(() => {
+    if (!state?.relocation) {
+      navigate("/App/ready", { replace: true });
+    }
+  }, []);
+
   const relocation = state?.relocation ?? fallbackRelocation;
+  const batchItemId = state?.batchItemId ?? null;
 
   const scanState = state?.scanState ?? {
     wipScanned: false,
@@ -63,6 +71,7 @@ const App_RelocateQrWipPage = () => {
       state: {
         type: "RELOCATE_WIP_SCAN_SUCCESS",
         scannedAt: formatNowTime(),
+        batchItemId,
         relocation,
         scanState: {
           ...scanState,

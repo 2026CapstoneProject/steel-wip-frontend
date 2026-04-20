@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
 import Web_ScenarioSummaryPanel from "../../../components/office/Web_ScenarioSummaryPanel/Web_ScenarioSummaryPanel";
 import Web_ScenarioMetricCards from "../../../components/office/Web_ScenarioMetricCards/Web_ScenarioMetricCards";
 import Web_ScenarioTimelineSection from "../../../components/office/Web_ScenarioTimelineSection/Web_ScenarioTimelineSection";
+import Web_SolverTimelineSection from "../../../components/office/Web_SolverTimelineSection/Web_SolverTimelineSection";
 
 import Web_ScenarioGoBackModal from "../../../components/modal/Web_ScenarioGoBackModal/Web_ScenarioGoBackModal";
 import Web_ScenarioAddModal from "../../../components/modal/Web_ScenarioAddModal/Web_ScenarioAddModal";
@@ -16,120 +17,152 @@ import {
   setScenarioLantekCache,
 } from "../../../utils/Web/lantekCache";
 
-import { addScenarioCreationHistoryItem } from "../../../utils/Web/scenarioCreationHistoryCache";
+import { getScenarioDetail, sendScenario } from "../../../services/scenarioService";
 
-export default function Web_ScenarioResultPage() {
-  const navigate = useNavigate();
+// 백엔드 ScenarioResultData → timelineItems 형태로 변환
+function formatScenarioQr(item) {
+  if (item?.qrCode) return item.qrCode;
+  return `QR-WIP-${String(item?.steelWipId ?? "").padStart(3, "0")}`;
+}
 
-  const [isGoBackModalOpen, setIsGoBackModalOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
-  const cachedData = getScenarioLantekCache();
-  const cachedProjectInfo = cachedData?.projectInfo ?? {};
+function mapBatchItemsToTimeline(batchItems) {
+  const RELOCATION = [];
+  const PICKING = [];
+  const INBOUND = [];
 
-  const scenarioSummary = {
-    scenarioId: "#00001",
-    projectName: cachedProjectInfo.projectName || "-",
-    productionPlanName: cachedProjectInfo.productionPlanName || "-",
-    shipmentDate: cachedProjectInfo.shipmentDate || "-",
-    equipmentName: cachedProjectInfo.equipmentName || "-",
-    status: "ACTIVE",
-  };
+  (batchItems ?? []).forEach((item) => {
+    const action = String(item.batchItemAction ?? "").trim();
+    const row = {
+      qrNumber: formatScenarioQr(item),
+      thickness: String(item.thickness ?? ""),
+      width: String(item.width ?? ""),
+      length: String(item.length ?? ""),
+      from: item.fromLocation || "-",
+      to: item.toLocation || "-",
+      estimatedTime: String(item.expectedStartTime ?? ""),
+    };
+    if (action === "RELOCATION" || action === "RELOCATE" || action === "재배치") RELOCATION.push(row);
+    else if (action === "PICKING" || action === "피킹") PICKING.push(row);
+    else if (action === "INBOUND" || action === "적재") INBOUND.push(row);
+  });
 
-  const metrics = [
-    { label: "선택된 잔재 수", value: "42", unit: "EA" },
-    { label: "크레인 이동 횟수", value: "128", unit: "Times" },
-    { label: "이동 횟수", value: "156", unit: "Times" },
-    { label: "총 소요 시간", value: "02:45", unit: "HR", highlight: true },
-  ];
-
-  const timelineItems = [
-    {
+  const items = [];
+  if (RELOCATION.length > 0) {
+    items.push({
       id: 1,
       type: "재배치 (Relocation)",
       icon: "sync_alt",
       colorClass: "bg-primary ring-surface",
       iconColorClass: "text-primary",
-      rows: [
-        {
-          qrNumber: "QR-AX-9021",
-          thickness: "1.5",
-          width: "1200",
-          length: "2400",
-          from: "Zone A-04",
-          to: "Zone B-12",
-          estimatedTime: "12",
-        },
-      ],
-    },
-    {
+      rows: RELOCATION,
+    });
+  }
+  if (PICKING.length > 0) {
+    items.push({
       id: 2,
       type: "피킹 (Picking)",
-      subLabel: "(Batch #88)",
       icon: "inventory",
       colorClass: "bg-red-500 ring-surface",
       iconColorClass: "text-secondary",
-      rows: [
-        {
-          qrNumber: "QR-PK-2201",
-          thickness: "2.0",
-          width: "1000",
-          length: "2000",
-          from: "Rack 44-A",
-          to: "Laser 1 Tray",
-          estimatedTime: "8",
-        },
-        {
-          qrNumber: "QR-PK-2202",
-          thickness: "2.0",
-          width: "1000",
-          length: "2000",
-          from: "Rack 44-B",
-          to: "Laser 1 Tray",
-          estimatedTime: "8",
-        },
-        {
-          qrNumber: "QR-PK-2203",
-          thickness: "2.0",
-          width: "1000",
-          length: "2000",
-          from: "Rack 44-C",
-          to: "Laser 1 Tray",
-          estimatedTime: "8",
-        },
-      ],
-    },
-    {
+      rows: PICKING,
+    });
+  }
+  if (INBOUND.length > 0) {
+    items.push({
       id: 3,
-      type: "적재 (Loading)",
+      type: "적재 (Inbound)",
       icon: "layers",
       colorClass: "bg-emerald-500 ring-surface",
       iconColorClass: "text-emerald-500",
-      rows: [
+      rows: INBOUND,
+    });
+  }
+  return items;
+}
+
+export default function Web_ScenarioResultPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // 이전 페이지(LantekInputPage)에서 scenarioId를 state로 전달받음
+  const scenarioIdFromState = location.state?.scenarioId ?? null;
+
+  const [isGoBackModalOpen, setIsGoBackModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+
+  const [scenarioData, setScenarioData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const cachedData = getScenarioLantekCache();
+  const cachedProjectInfo = cachedData?.projectInfo ?? {};
+
+  // scenarioId 결정: state에서 받거나 캐시에서 복원
+  const scenarioId = scenarioIdFromState ?? cachedProjectInfo.scenarioId ?? null;
+
+  useEffect(() => {
+    if (scenarioId) {
+      fetchScenarioDetail(scenarioId);
+    } else {
+      setLoading(false);
+    }
+  }, [scenarioId]);
+
+  const fetchScenarioDetail = async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await getScenarioDetail(id);
+      const dataList = response.data?.data ?? [];
+      const nextScenario = dataList[0] ?? null;
+      setScenarioData(nextScenario);
+
+      if (!nextScenario) {
+        setError("시나리오 결과를 불러오는 데 실패했습니다.");
+        return;
+      }
+    } catch (err) {
+      console.error("시나리오 결과 조회 실패:", err);
+      setError("시나리오 결과를 불러오는 데 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 화면에 표시할 데이터 구성
+  const scenarioSummary = {
+    scenarioId: scenarioData ? `#${String(scenarioData.scenarioId).padStart(5, "0")}` : "-",
+    projectName: scenarioData?.projectTitle || cachedProjectInfo.projectName || "-",
+    productionPlanName: scenarioData?.scenarioTitle || cachedProjectInfo.productionPlanName || "-",
+    shipmentDate: scenarioData?.scenarioDue || cachedProjectInfo.shipmentDate || "-",
+    equipmentName: scenarioData?.lazerName || cachedProjectInfo.equipmentName || "-",
+    status: scenarioData?.solverSummary?.status || "ACTIVE",
+  };
+
+  const metrics = scenarioData
+    ? [
+        { label: "재공품 수", value: String(scenarioData.totalWipNum ?? 0), unit: "EA" },
+        { label: "크레인 이동 횟수", value: String(scenarioData.totalCraneMove ?? 0), unit: "Times" },
+        { label: "이동 횟수", value: String(scenarioData.totalMoveNum ?? 0), unit: "Times" },
         {
-          qrNumber: "QR-LD-5001",
-          thickness: "3.0",
-          width: "1500",
-          length: "3000",
-          from: "Loading Bay 2",
-          to: "Storage C-01",
-          estimatedTime: "20",
+          label: "총 소요 시간",
+          value: `${Math.floor((scenarioData.totalCuttingTime ?? 0) / 60)
+            .toString()
+            .padStart(2, "0")}:${((scenarioData.totalCuttingTime ?? 0) % 60)
+            .toString()
+            .padStart(2, "0")}`,
+          unit: "HR",
+          highlight: true,
         },
-      ],
-    },
-  ];
+      ]
+    : [
+        { label: "재공품 수", value: "-", unit: "EA" },
+        { label: "크레인 이동 횟수", value: "-", unit: "Times" },
+        { label: "이동 횟수", value: "-", unit: "Times" },
+        { label: "총 소요 시간", value: "-", unit: "HR", highlight: true },
+      ];
 
-  const handleCloseGoBackModal = () => {
-    setIsGoBackModalOpen(false);
-  };
-
-  const handleCloseAddModal = () => {
-    setIsAddModalOpen(false);
-  };
-
-  const handleCloseSendModal = () => {
-    setIsSendModalOpen(false);
-  };
+  const timelineItems = scenarioData ? mapBatchItemsToTimeline(scenarioData.batchItems) : [];
 
   const handleGoBackNo = () => {
     clearScenarioLantekCache();
@@ -139,65 +172,31 @@ export default function Web_ScenarioResultPage() {
 
   const handleGoBackYes = () => {
     const existingCache = getScenarioLantekCache();
-
-    if (existingCache) {
-      setScenarioLantekCache(existingCache);
-    }
-
+    if (existingCache) setScenarioLantekCache(existingCache);
     setIsGoBackModalOpen(false);
     navigate("/office/scenario/input");
   };
 
   const handleAddConfirm = () => {
-    const createdHistoryItem = addScenarioCreationHistoryItem({
-      id: `scenario-history-${Date.now()}`,
-      scenarioId: scenarioSummary.scenarioId,
-      projectName: scenarioSummary.projectName,
-      productionPlanName: scenarioSummary.productionPlanName,
-      shipmentDate: scenarioSummary.shipmentDate,
-      createdAt: new Date().toISOString().slice(0, 19).replace("T", " "),
-      scrapCount: Number(metrics[0]?.value || 0),
-      moveCount: Number(metrics[2]?.value || 0),
-      totalMinutes: 165, // 임시값. 아래 설명 참고
-      isReleased: false,
-    });
-
     setIsAddModalOpen(false);
-
-    navigate("/office/scenario/creationhistory", {
-      state: {
-        productionPlanName: scenarioSummary.productionPlanName,
-        createdScenarioId: createdHistoryItem.id,
-      },
-    });
+    navigate("/office/scenario/creationhistory");
   };
 
-  const handleSendConfirm = () => {
-    const releaseHistoryItem = {
-      id: `release-${Date.now()}`,
-      projectName: scenarioSummary.projectName,
-      projectDeadline: scenarioSummary.shipmentDate,
-      status: "in-progress",
-      statusLabel: "In Progress",
-      statusDescription: "진행 중",
-      rows: [
-        {
-          id: `row-${Date.now()}`,
-          productionPlanName: scenarioSummary.productionPlanName,
-          shipmentDate: scenarioSummary.shipmentDate,
-          releaseDate: new Date().toISOString().slice(0, 10),
-          materialCount: Number(metrics[0]?.value || 0),
-        },
-      ],
-    };
-
-    setIsSendModalOpen(false);
-
-    navigate("/office/scenario/releasehistory", {
-      state: {
-        releasedScenario: releaseHistoryItem,
-      },
-    });
+  const handleSendConfirm = async () => {
+    if (!scenarioId) {
+      alert("시나리오 ID를 찾을 수 없습니다.");
+      return;
+    }
+    try {
+      await sendScenario(scenarioId);
+      setIsSendModalOpen(false);
+      clearScenarioLantekCache();
+      navigate("/office/scenario/releasehistory");
+    } catch (err) {
+      console.error("시나리오 발행 실패:", err);
+      const msg = err.response?.data?.message || "시나리오 발행에 실패했습니다.";
+      alert(msg);
+    }
   };
 
   return (
@@ -209,19 +208,15 @@ export default function Web_ScenarioResultPage() {
               LANTEK 결과 입력 &gt; 시나리오 결과 확인
             </p>
           </div>
-
           <div className="flex gap-3">
             <button
               type="button"
               className="flex items-center gap-2 rounded-xl border border-outline-variant/10 bg-surface-container-lowest px-5 py-2.5 text-sm font-semibold text-on-surface transition-all hover:bg-surface-container active:scale-95"
               onClick={() => setIsGoBackModalOpen(true)}
             >
-              <span className="material-symbols-outlined text-lg">
-                arrow_back
-              </span>
+              <span className="material-symbols-outlined text-lg">arrow_back</span>
               뒤로 가기
             </button>
-
             <button
               type="button"
               className="flex items-center gap-2 rounded-xl border border-outline-variant/10 bg-surface-container px-5 py-2.5 text-sm font-semibold text-on-surface-variant transition-all hover:bg-surface-container-high active:scale-95"
@@ -230,7 +225,6 @@ export default function Web_ScenarioResultPage() {
               <span className="material-symbols-outlined text-lg">add_box</span>
               이력 추가
             </button>
-
             <button
               type="button"
               className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dim px-6 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-95"
@@ -242,39 +236,57 @@ export default function Web_ScenarioResultPage() {
           </div>
         </div>
 
-        <div className="mb-10 grid grid-cols-12 gap-6">
-          <Web_ScenarioSummaryPanel summary={scenarioSummary} />
-          <Web_ScenarioMetricCards
-            metrics={metrics}
-            equipmentName={scenarioSummary.equipmentName}
-            status={scenarioSummary.status}
-          />
-        </div>
+        {loading && (
+          <div className="py-24 text-center text-sm text-on-surface-variant">
+            시나리오 결과를 불러오는 중...
+          </div>
+        )}
 
-        <Web_ScenarioTimelineSection items={timelineItems} />
+        {error && !loading && (
+          <div className="py-12 text-center text-sm text-red-500">{error}</div>
+        )}
+
+        {!loading && !error && (
+          <>
+            <div className="mb-10 grid grid-cols-12 gap-6">
+              <Web_ScenarioSummaryPanel summary={scenarioSummary} />
+              <Web_ScenarioMetricCards
+                metrics={metrics}
+                equipmentName={scenarioSummary.equipmentName}
+                status={scenarioSummary.status}
+              />
+            </div>
+            {scenarioData?.solverSummary ? (
+              <Web_SolverTimelineSection
+                craneSchedule={scenarioData.craneSchedule}
+                batchItems={scenarioData.batchItems}
+              />
+            ) : (
+              <Web_ScenarioTimelineSection items={timelineItems} />
+            )}
+          </>
+        )}
       </div>
 
       {isGoBackModalOpen && (
         <Web_ScenarioGoBackModal
-          onClose={handleCloseGoBackModal}
-          onCancel={handleCloseGoBackModal}
+          onClose={() => setIsGoBackModalOpen(false)}
+          onCancel={() => setIsGoBackModalOpen(false)}
           onNo={handleGoBackNo}
           onConfirm={handleGoBackYes}
         />
       )}
-
       {isAddModalOpen && (
         <Web_ScenarioAddModal
-          onClose={handleCloseAddModal}
-          onCancel={handleCloseAddModal}
+          onClose={() => setIsAddModalOpen(false)}
+          onCancel={() => setIsAddModalOpen(false)}
           onConfirm={handleAddConfirm}
         />
       )}
-
       {isSendModalOpen && (
         <Web_ScenarioSendModal
-          onClose={handleCloseSendModal}
-          onCancel={handleCloseSendModal}
+          onClose={() => setIsSendModalOpen(false)}
+          onCancel={() => setIsSendModalOpen(false)}
           onConfirm={handleSendConfirm}
         />
       )}

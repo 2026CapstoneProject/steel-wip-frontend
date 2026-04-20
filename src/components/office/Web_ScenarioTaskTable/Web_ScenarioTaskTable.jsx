@@ -1,6 +1,8 @@
 export default function Web_ScenarioTaskTable({
   rows,
   accentTextClass = "text-primary",
+  timeHeaderLabel = "예상소요시간(min)",
+  statusHeaderLabel = "상태",
 }) {
   return (
     <div className="overflow-hidden bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/10">
@@ -26,7 +28,10 @@ export default function Web_ScenarioTaskTable({
               이동 위치
             </th>
             <th className="px-4 py-3 text-[11px] font-extrabold text-on-surface-variant uppercase tracking-wider text-center">
-              예상소요시간(min)
+              {timeHeaderLabel}
+            </th>
+            <th className="px-4 py-3 text-[11px] font-extrabold text-on-surface-variant uppercase tracking-wider text-center">
+              {statusHeaderLabel}
             </th>
           </tr>
         </thead>
@@ -53,6 +58,16 @@ export default function Web_ScenarioTaskTable({
               </td>
               <td className="px-4 py-4 text-sm text-center">
                 {row.estimatedTime}
+              </td>
+              <td className="px-4 py-4 text-center">
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+                    row.statusClass ??
+                    "bg-surface-container-highest text-on-surface-variant"
+                  }`}
+                >
+                  {row.status ?? "-"}
+                </span>
               </td>
             </tr>
           ))}

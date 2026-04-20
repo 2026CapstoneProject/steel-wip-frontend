@@ -1,93 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react"; // useMemo: paginatedList 에서 사용
 import { useLocation, useNavigate } from "react-router-dom";
 
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
 import { clearScenarioLantekCache } from "../../../utils/Web/lantekCache";
-import {
-  getScenarioCreationHistoryList,
-  markScenarioCreationHistoryAsReleased,
-} from "../../../utils/Web/scenarioCreationHistoryCache";
-
-const DEFAULT_SCENARIO_HISTORY = [
-  {
-    id: "scenario-000001",
-    scenarioId: "#000001",
-    projectName: "토네이도 I&C",
-    productionPlanName: "토네이도 I&C-1",
-    projectDeadline: "2026-03-30",
-    shipmentDate: "2026-03-04",
-    createdAt: "2026-03-04 10:00:30",
-    scrapCount: 130,
-    moveCount: 1245,
-    totalMinutes: 420,
-    isReleased: false,
-  },
-  {
-    id: "scenario-000002",
-    scenarioId: "#000002",
-    projectName: "토네이도 I&C",
-    productionPlanName: "토네이도 I&C-3",
-    projectDeadline: "2026-03-30",
-    shipmentDate: "2026-03-04",
-    createdAt: "2026-03-04 09:15:12",
-    scrapCount: 125,
-    moveCount: 1180,
-    totalMinutes: 395,
-    isReleased: false,
-  },
-  {
-    id: "scenario-000003",
-    scenarioId: "#000003",
-    projectName: "토네이도 건설",
-    productionPlanName: "토네이도 건설-3",
-    projectDeadline: "2026-03-28",
-    shipmentDate: "2026-03-03",
-    createdAt: "2026-03-03 16:40:00",
-    scrapCount: 210,
-    moveCount: 2890,
-    totalMinutes: 680,
-    isReleased: false,
-  },
-  {
-    id: "scenario-000004",
-    scenarioId: "#000004",
-    projectName: "토네이도 건설",
-    productionPlanName: "토네이도 건설-2",
-    projectDeadline: "2026-03-27",
-    shipmentDate: "2026-03-03",
-    createdAt: "2026-03-03 14:22:15",
-    scrapCount: 45,
-    moveCount: 620,
-    totalMinutes: 180,
-    isReleased: false,
-  },
-  {
-    id: "scenario-000005",
-    scenarioId: "#000005",
-    projectName: "삼성전자",
-    productionPlanName: "삼성전자-1",
-    projectDeadline: "2026-03-30",
-    shipmentDate: "2026-03-02",
-    createdAt: "2026-03-02 11:30:45",
-    scrapCount: 132,
-    moveCount: 1310,
-    totalMinutes: 435,
-    isReleased: false,
-  },
-  {
-    id: "scenario-000006",
-    scenarioId: "#000006",
-    projectName: "SK하이닉스",
-    productionPlanName: "SK하이닉스-1",
-    projectDeadline: "2026-04-30",
-    shipmentDate: "2026-04-15",
-    createdAt: "2026-04-01 9:10:15",
-    scrapCount: 12,
-    moveCount: 10,
-    totalMinutes: 40,
-    isReleased: false,
-  },
-];
+import { getScenarioCart, sendScenario } from "../../../services/scenarioService";
 
 const DEFAULT_FILTERS = {
   projectName: "",
@@ -116,19 +32,27 @@ function isWithinDateRange(targetDate, fromDate, toDate) {
   return true;
 }
 
-function sortByCreatedAtDesc(list) {
-  return [...list].sort((a, b) =>
-    String(b.createdAt).localeCompare(String(a.createdAt)),
-  );
+function sortByIdDesc(list) {
+  return [...list].sort((a, b) => b.id - a.id);
 }
 
-function buildScenarioHistorySource() {
-  const cachedList = getScenarioCreationHistoryList();
-
-  return sortByCreatedAtDesc([
-    ...cachedList.filter((item) => !item.isReleased),
-    ...DEFAULT_SCENARIO_HISTORY.filter((item) => !item.isReleased),
-  ]);
+// 백엔드 ProjectScenarioHistory[] → 프론트 flat list 형태로 변환
+function mapCartToFlatList(projectList) {
+  return (projectList ?? []).flatMap((project) =>
+    (project.scenario ?? []).map((s) => ({
+      id: s.id,
+      scenarioId: `#${String(s.id).padStart(6, "0")}`,
+      projectName: project.projectTitle,
+      productionPlanName: s.title,
+      projectDeadline: s.due ?? "",
+      shipmentDate: s.due ?? "",
+      scrapCount: s.selectedWips ?? 0,
+      // 백엔드 Pydantic alias: "#relocation", "#crane" (JSON 직렬화 시 alias 사용)
+      moveCount: (s["#relocation"] ?? 0) + (s["#crane"] ?? 0),
+      totalMinutes: s.totalMinute ?? 0,
+      isReleased: false,
+    }))
+  );
 }
 
 function FilterInput({ label, name, value, onChange, placeholder }) {
@@ -149,20 +73,12 @@ function FilterInput({ label, name, value, onChange, placeholder }) {
   );
 }
 
-function DateRangeInput({
-  label,
-  fromName,
-  toName,
-  fromValue,
-  toValue,
-  onChange,
-}) {
+function DateRangeInput({ label, fromName, toName, fromValue, toValue, onChange }) {
   return (
     <div className="space-y-2">
       <label className="font-label text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
         {label}
       </label>
-
       <div className="flex items-center gap-2">
         <input
           type="date"
@@ -196,80 +112,57 @@ export default function Web_ScenarioCreationHistoryPage() {
     productionPlanName: initialProductionPlanName,
   }));
 
-  const [appliedFilters, setAppliedFilters] = useState(() => ({
-    ...DEFAULT_FILTERS,
-    productionPlanName: initialProductionPlanName,
-  }));
+  const [scenarioHistoryList, setScenarioHistoryList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
-  const [scenarioHistoryList, setScenarioHistoryList] = useState(() => {
-    const cachedList = getScenarioCreationHistoryList();
-    return sortByCreatedAtDesc([
-      ...cachedList,
-      ...DEFAULT_SCENARIO_HISTORY.filter((item) => !item.isReleased),
-    ]);
-  });
+  // params 를 받아서 API 호출 — 마운트 시(params 없음)와 조회 버튼(params 있음) 공용
+  const fetchScenarioCart = async (params = {}) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await getScenarioCart(params);
+      const data = response.data?.data ?? [];
+      const flatList = sortByIdDesc(mapCartToFlatList(data));
+      setScenarioHistoryList(flatList);
+    } catch (err) {
+      console.error("시나리오 생성 이력 조회 실패:", err);
+      setError("데이터를 불러오는 데 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const baseVisibleList = useMemo(() => {
-    return scenarioHistoryList.filter((item) => !item.isReleased);
-  }, [scenarioHistoryList]);
+  // 컴포넌트 마운트 시 전체 조회
+  useEffect(() => {
+    fetchScenarioCart();
+  }, []);
 
-  const filteredList = useMemo(() => {
-    return baseVisibleList.filter((item) => {
-      const projectNameMatched = item.projectName
-        .toLowerCase()
-        .includes(appliedFilters.projectName.trim().toLowerCase());
-
-      const productionPlanMatched = item.productionPlanName
-        .toLowerCase()
-        .includes(appliedFilters.productionPlanName.trim().toLowerCase());
-
-      const projectDeadlineMatched = isWithinDateRange(
-        item.projectDeadline,
-        appliedFilters.projectDeadlineFrom,
-        appliedFilters.projectDeadlineTo,
-      );
-
-      const shipmentDateMatched = isWithinDateRange(
-        item.shipmentDate,
-        appliedFilters.shipmentDateFrom,
-        appliedFilters.shipmentDateTo,
-      );
-
-      const createdAtMatched = isWithinDateRange(
-        item.createdAt,
-        appliedFilters.createdAtFrom,
-        appliedFilters.createdAtTo,
-      );
-
-      return (
-        projectNameMatched &&
-        productionPlanMatched &&
-        projectDeadlineMatched &&
-        shipmentDateMatched &&
-        createdAtMatched
-      );
-    });
-  }, [baseVisibleList, appliedFilters]);
+  // 페이지네이션용 — 서버에서 이미 필터된 목록을 그대로 사용
+  const filteredList = scenarioHistoryList;
 
   const handleChangeFilter = (event) => {
     const { name, value } = event.target;
-
-    setFilters((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSearch = () => {
-    setAppliedFilters(filters);
+    // 서버사이드 필터링: 입력된 값만 params 로 전달
+    const params = {};
+    if (filters.projectName) params.projectName = filters.projectName;
+    if (filters.productionPlanName) params.scenarioName = filters.productionPlanName;
+    if (filters.shipmentDateFrom) params.scenDueMin = filters.shipmentDateFrom;
+    if (filters.shipmentDateTo) params.scenDueMax = filters.shipmentDateTo;
     setCurrentPage(1);
+    fetchScenarioCart(params);
   };
 
   const handleReset = () => {
     setFilters(DEFAULT_FILTERS);
-    setAppliedFilters(DEFAULT_FILTERS);
     setCurrentPage(1);
-    setScenarioHistoryList(buildScenarioHistorySource());
+    fetchScenarioCart(); // 파라미터 없이 전체 조회
   };
 
   const handleCreateScenario = () => {
@@ -280,6 +173,7 @@ export default function Web_ScenarioCreationHistoryPage() {
   const handleViewScenario = (scenario) => {
     navigate("/office/scenario/creationhistory/detail", {
       state: {
+        scenarioId: scenario.id,
         projectInfo: {
           scenarioId: scenario.scenarioId || "-",
           projectName: scenario.projectName || "-",
@@ -292,58 +186,26 @@ export default function Web_ScenarioCreationHistoryPage() {
     });
   };
 
-  const handleReleaseScenario = (scenario) => {
-    markScenarioCreationHistoryAsReleased(scenario.id);
-
-    setScenarioHistoryList((prev) =>
-      prev.filter((item) => item.id !== scenario.id),
-    );
-
-    navigate("/office/scenario/releasehistory", {
-      state: {
-        releasedScenario: {
-          id: `released-${scenario.id}`,
-          projectName: scenario.projectName,
-          projectDeadline: scenario.projectDeadline,
-          status: "before-progress",
-          statusLabel: "Before Progress",
-          statusDescription: "진행 예정",
-          rows: [
-            {
-              id: scenario.id,
-              productionPlanName: scenario.productionPlanName,
-              shipmentDate: scenario.shipmentDate,
-              releaseDate: new Date().toISOString().slice(0, 10),
-              materialCount: scenario.scrapCount,
-            },
-          ],
-        },
-      },
-    });
+  const handleReleaseScenario = async (scenario) => {
+    try {
+      await sendScenario(scenario.id);
+      // 발행 성공 후 목록에서 제거 + 발행 이력 페이지로 이동
+      setScenarioHistoryList((prev) => prev.filter((item) => item.id !== scenario.id));
+      navigate("/office/scenario/releasehistory");
+    } catch (err) {
+      console.error("시나리오 발행 실패:", err);
+      alert("시나리오 발행에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
-
-  const visibleStart =
-    filteredList.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0;
-
-  const visibleEnd = Math.min(
-    currentPage * ITEMS_PER_PAGE,
-    filteredList.length,
-  );
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredList.length / ITEMS_PER_PAGE),
-  );
+  const visibleStart = filteredList.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0;
+  const visibleEnd = Math.min(currentPage * ITEMS_PER_PAGE, filteredList.length);
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / ITEMS_PER_PAGE));
 
   const paginatedList = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-
-    return filteredList.slice(startIndex, endIndex);
-  }, [filteredList, currentPage]);
+    return scenarioHistoryList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [scenarioHistoryList, currentPage]);
 
   return (
     <Web_AppLayout pageTitle="시나리오 생성 이력">
@@ -354,9 +216,7 @@ export default function Web_ScenarioCreationHistoryPage() {
             onClick={handleCreateScenario}
             className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 font-semibold text-white shadow-lg shadow-primary/20 transition-all hover:bg-primary-dim active:scale-95"
           >
-            <span className="material-symbols-outlined text-lg">
-              add_circle
-            </span>
+            <span className="material-symbols-outlined text-lg">add_circle</span>
             <span className="text-white">시나리오 추가 생성</span>
           </button>
         </div>
@@ -364,9 +224,7 @@ export default function Web_ScenarioCreationHistoryPage() {
         <section className="mb-8 rounded-xl bg-surface-container-lowest p-8 shadow-sm">
           <div className="mb-6 flex items-center gap-2">
             <span className="h-6 w-1 rounded-full bg-primary" />
-            <h3 className="font-headline text-lg font-bold text-on-surface">
-              Search Filter
-            </h3>
+            <h3 className="font-headline text-lg font-bold text-on-surface">Search Filter</h3>
           </div>
 
           <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2 lg:grid-cols-3">
@@ -377,7 +235,6 @@ export default function Web_ScenarioCreationHistoryPage() {
               onChange={handleChangeFilter}
               placeholder="프로젝트명 입력"
             />
-
             <FilterInput
               label="생산계획명"
               name="productionPlanName"
@@ -385,31 +242,12 @@ export default function Web_ScenarioCreationHistoryPage() {
               onChange={handleChangeFilter}
               placeholder="생산계획명 입력"
             />
-
             <DateRangeInput
-              label="프로젝트 최종 납기일"
-              fromName="projectDeadlineFrom"
-              toName="projectDeadlineTo"
-              fromValue={filters.projectDeadlineFrom}
-              toValue={filters.projectDeadlineTo}
-              onChange={handleChangeFilter}
-            />
-
-            <DateRangeInput
-              label="생산계획 출하일"
+              label="생산계획 납기일"
               fromName="shipmentDateFrom"
               toName="shipmentDateTo"
               fromValue={filters.shipmentDateFrom}
               toValue={filters.shipmentDateTo}
-              onChange={handleChangeFilter}
-            />
-
-            <DateRangeInput
-              label="시나리오 생성일"
-              fromName="createdAtFrom"
-              toName="createdAtTo"
-              fromValue={filters.createdAtFrom}
-              toValue={filters.createdAtTo}
               onChange={handleChangeFilter}
             />
           </div>
@@ -422,7 +260,6 @@ export default function Web_ScenarioCreationHistoryPage() {
             >
               초기화
             </button>
-
             <button
               type="button"
               onClick={handleSearch}
@@ -434,170 +271,118 @@ export default function Web_ScenarioCreationHistoryPage() {
           </div>
         </section>
 
-        <div className="overflow-hidden rounded-2xl border border-outline-variant/10 bg-surface-container-lowest shadow-xl shadow-blue-900/5">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="bg-surface-container-low/50">
-                  <th className="border-b border-outline-variant/10 px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                    Scenario ID
-                  </th>
-                  <th className="border-b border-outline-variant/10 px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                    생산계획명
-                  </th>
-                  <th className="border-b border-outline-variant/10 px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                    생산계획 출하일
-                  </th>
-                  <th className="border-b border-outline-variant/10 px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                    시나리오 생성일
-                  </th>
-                  <th className="border-b border-outline-variant/10 px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                    잔재 수
-                  </th>
-                  <th className="border-b border-outline-variant/10 px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                    이동 횟수
-                  </th>
-                  <th className="border-b border-outline-variant/10 px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                    총 소요 시간(min)
-                  </th>
-                  <th className="border-b border-outline-variant/10 px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+        {loading && (
+          <div className="py-16 text-center text-sm text-on-surface-variant">데이터를 불러오는 중...</div>
+        )}
 
-              <tbody className="divide-y divide-outline-variant/5">
-                {paginatedList.length > 0 ? (
-                  paginatedList.map((scenario) => (
-                    <tr
-                      key={scenario.id}
-                      className="group transition-colors hover:bg-surface-container-low/30"
-                    >
-                      <td className="px-6 py-5">
-                        <span className="font-headline font-bold text-primary">
-                          {scenario.scenarioId}
-                        </span>
-                      </td>
+        {error && !loading && (
+          <div className="py-8 text-center text-sm text-red-500">{error}</div>
+        )}
 
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-3">
-                          <span className="font-semibold text-on-surface">
-                            {scenario.productionPlanName}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-5 text-sm text-on-surface-variant">
-                        {scenario.shipmentDate}
-                      </td>
-
-                      <td className="px-6 py-5 text-sm text-on-surface-variant">
-                        {scenario.createdAt}
-                      </td>
-
-                      <td className="px-6 py-5 text-center">
-                        {scenario.scrapCount}
-                      </td>
-
-                      <td className="px-6 py-5 text-center text-sm font-medium">
-                        {scenario.moveCount.toLocaleString()}
-                      </td>
-
-                      <td className="px-6 py-5 text-center text-sm font-medium">
-                        {scenario.totalMinutes}
-                      </td>
-
-                      <td className="px-6 py-5">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleViewScenario(scenario)}
-                            className="rounded-lg border border-primary/20 px-4 py-1.5 text-xs font-bold text-primary transition-all hover:bg-primary/5"
-                          >
-                            보기
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleReleaseScenario(scenario)}
-                            className="rounded-lg bg-primary px-4 py-1.5 text-xs font-bold text-white shadow-md shadow-primary/10 transition-all hover:bg-primary-dim"
-                          >
-                            발행
-                          </button>
-                        </div>
+        {!loading && !error && (
+          <div className="overflow-hidden rounded-2xl border border-outline-variant/10 bg-surface-container-lowest shadow-xl shadow-blue-900/5">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-surface-container-low/50">
+                    <th className="border-b border-outline-variant/10 px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">Scenario ID</th>
+                    <th className="border-b border-outline-variant/10 px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">프로젝트명</th>
+                    <th className="border-b border-outline-variant/10 px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">생산계획명</th>
+                    <th className="border-b border-outline-variant/10 px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">납기일</th>
+                    <th className="border-b border-outline-variant/10 px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-on-surface-variant">잔재 수</th>
+                    <th className="border-b border-outline-variant/10 px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-on-surface-variant">이동 횟수</th>
+                    <th className="border-b border-outline-variant/10 px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-on-surface-variant">총 소요 시간(min)</th>
+                    <th className="border-b border-outline-variant/10 px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-on-surface-variant">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/5">
+                  {paginatedList.length > 0 ? (
+                    paginatedList.map((scenario) => (
+                      <tr key={scenario.id} className="group transition-colors hover:bg-surface-container-low/30">
+                        <td className="px-6 py-5">
+                          <span className="font-headline font-bold text-primary">{scenario.scenarioId}</span>
+                        </td>
+                        <td className="px-6 py-5 text-sm font-semibold text-on-surface">{scenario.projectName}</td>
+                        <td className="px-6 py-5 text-sm font-semibold text-on-surface">{scenario.productionPlanName}</td>
+                        <td className="px-6 py-5 text-sm text-on-surface-variant">{scenario.shipmentDate}</td>
+                        <td className="px-6 py-5 text-center">{scenario.scrapCount}</td>
+                        <td className="px-6 py-5 text-center text-sm font-medium">{scenario.moveCount.toLocaleString()}</td>
+                        <td className="px-6 py-5 text-center text-sm font-medium">{scenario.totalMinutes}</td>
+                        <td className="px-6 py-5">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleViewScenario(scenario)}
+                              className="rounded-lg border border-primary/20 px-4 py-1.5 text-xs font-bold text-primary transition-all hover:bg-primary/5"
+                            >
+                              보기
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReleaseScenario(scenario)}
+                              className="rounded-lg bg-primary px-4 py-1.5 text-xs font-bold text-white shadow-md shadow-primary/10 transition-all hover:bg-primary-dim"
+                            >
+                              발행
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-16 text-center text-sm font-medium text-on-surface-variant">
+                        조회 조건에 맞는 시나리오 생성 이력이 없습니다.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="px-6 py-16 text-center text-sm font-medium text-on-surface-variant"
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between bg-surface-container-low/20 px-6 py-4">
+              <p className="text-xs font-medium text-on-surface-variant">
+                Showing{" "}
+                <span className="font-bold text-on-surface">{visibleStart} - {visibleEnd}</span>{" "}
+                of {filteredList.length} entries
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high disabled:opacity-30"
+                >
+                  <span className="material-symbols-outlined text-sm">chevron_left</span>
+                </button>
+                {Array.from({ length: totalPages }, (_, index) => {
+                  const pageNumber = index + 1;
+                  return (
+                    <button
+                      key={pageNumber}
+                      type="button"
+                      onClick={() => setCurrentPage(pageNumber)}
+                      className={`h-8 w-8 rounded-lg text-xs font-bold transition-colors ${
+                        pageNumber === currentPage
+                          ? "bg-primary text-white"
+                          : "text-on-surface hover:bg-surface-container-high"
+                      }`}
                     >
-                      조회 조건에 맞는 시나리오 생성 이력이 없습니다.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex items-center justify-between bg-surface-container-low/20 px-6 py-4">
-            <p className="text-xs font-medium text-on-surface-variant">
-              Showing{" "}
-              <span className="font-bold text-on-surface">
-                {visibleStart} - {visibleEnd}
-              </span>{" "}
-              of {filteredList.length} entries
-            </p>
-
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high disabled:opacity-30"
-              >
-                <span className="material-symbols-outlined text-sm">
-                  chevron_left
-                </span>
-              </button>
-
-              {Array.from({ length: totalPages }, (_, index) => {
-                const pageNumber = index + 1;
-                const isActive = pageNumber === currentPage;
-
-                return (
-                  <button
-                    key={pageNumber}
-                    type="button"
-                    onClick={() => setCurrentPage(pageNumber)}
-                    className={`h-8 w-8 rounded-lg text-xs font-bold transition-colors ${
-                      isActive
-                        ? "bg-primary text-white"
-                        : "text-on-surface hover:bg-surface-container-high"
-                    }`}
-                  >
-                    {pageNumber}
-                  </button>
-                );
-              })}
-
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                }
-                disabled={currentPage === totalPages}
-                className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high disabled:opacity-30"
-              >
-                <span className="material-symbols-outlined text-sm">
-                  chevron_right
-                </span>
-              </button>
+                      {pageNumber}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-high disabled:opacity-30"
+                >
+                  <span className="material-symbols-outlined text-sm">chevron_right</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </Web_AppLayout>
   );

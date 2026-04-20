@@ -162,6 +162,13 @@ export default function App_PickingWipQrPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // state 없이 직접 접근 시 Ready 페이지로 리다이렉트
+  React.useEffect(() => {
+    if (!location.state?.picking && !location.state?.item && !location.state?.task) {
+      navigate("/App/ready", { replace: true });
+    }
+  }, []);
+
   const routeState = location.state || {};
   const returnPath = routeState.returnPath || "/App/ready/picking/wip";
 

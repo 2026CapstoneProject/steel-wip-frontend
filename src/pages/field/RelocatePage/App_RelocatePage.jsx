@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
+import { saveBatchItem } from "../../../services/fieldService";
 
 const fallbackRelocation = {
   id: "relocate-01",
@@ -90,6 +91,13 @@ const App_RelocatePage = () => {
   const location = useLocation();
   const processedScanKeyRef = useRef("");
 
+  // state 없이 직접 접근 시 Ready 페이지로 리다이렉트
+  useEffect(() => {
+    if (!location.state?.relocation) {
+      navigate("/App/ready", { replace: true });
+    }
+  }, []);
+
   const relocation = location.state?.relocation ?? fallbackRelocation;
 
   const [scanState, setScanState] = useState({
@@ -100,6 +108,11 @@ const App_RelocatePage = () => {
   });
 
   const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // QR 스캔 후 돌아올 때 location.state가 덮어씌워지므로
+  // 첫 마운트 시 batchItemId를 useState로 한 번만 고정 보관
+  const [batchItemId] = useState(() => location.state?.batchItemId);
 
   const isStarted = scanState.wipScanned;
   const isCompleted = scanState.wipScanned && scanState.zoneScanned;
@@ -168,7 +181,7 @@ const App_RelocatePage = () => {
     if (!isWipScanEnabled) return;
 
     navigate("/App/ready/relocate/qr/wip", {
-      state: { relocation, scanState },
+      state: { batchItemId, relocation, scanState },
     });
   };
 
@@ -176,13 +189,27 @@ const App_RelocatePage = () => {
     if (!isZoneScanEnabled) return;
 
     navigate("/App/ready/relocate/qr/zone", {
-      state: { relocation, scanState },
+      state: { batchItemId, relocation, scanState },
     });
   };
 
-  const handleSaveClick = () => {
-    if (!isSaveEnabled) return;
-    setIsSavePopupOpen(true);
+  const handleSaveClick = async () => {
+    if (!isSaveEnabled || isSaving) return;
+    if (!batchItemId) {
+      alert("작업 정보를 찾을 수 없어 완료 처리할 수 없습니다.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await saveBatchItem(batchItemId, {});
+      setIsSavePopupOpen(true);
+    } catch (err) {
+      console.error("작업 완료 처리 실패:", err);
+      alert("작업 완료 처리에 실패했습니다.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
+import { saveBatchItem } from "../../../services/fieldService";
 
 const fallbackPicking = {
   id: "picking-raw-01",
@@ -325,6 +326,13 @@ const App_PickingRawPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // state 없이 직접 접근 시 Ready 페이지로 리다이렉트
+  useEffect(() => {
+    if (!location.state?.picking && !location.state?.item && !location.state?.task) {
+      navigate("/App/ready", { replace: true });
+    }
+  }, []);
+
   const picking = useMemo(() => {
     const source =
       location.state?.picking ||
@@ -428,9 +436,20 @@ const App_PickingRawPage = () => {
     });
   };
 
-  const handleDoubleCheckYes = () => {
+  const handleDoubleCheckYes = async () => {
     setIsDoubleCheckOpen(false);
-    setIsCompletePopupOpen(true);
+    try {
+      const batchItemId = picking.batchItemId;
+      if (!batchItemId) {
+        alert("작업 정보를 찾을 수 없어 완료 처리할 수 없습니다.");
+        return;
+      }
+      await saveBatchItem(batchItemId, {});
+      setIsCompletePopupOpen(true);
+    } catch (err) {
+      console.error("작업 완료 처리 실패:", err);
+      alert("작업 완료 처리에 실패했습니다.");
+    }
   };
 
   return (

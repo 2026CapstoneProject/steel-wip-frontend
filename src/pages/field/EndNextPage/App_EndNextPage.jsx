@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import App_ProcessTabs from "../../../components/field/ProcessTabs/App_ProcessTabs";
 import App_Header from "../../../components/field/Header/App_Header";
 import workOrderPdf from "../../../assets/Steel_all_Work_instruction.pdf";
+import { getFieldEnd } from "../../../services/fieldService";
 
 const SHARED_PROCESS_TABS_STATE_KEY = "__FIELD_PROCESS_TABS_SHARED_STATE__";
 
@@ -130,6 +131,44 @@ const formatSummaryDate = (value) => {
   } catch {
     return "";
   }
+};
+
+const mapEndDataToTasks = (endDataList) => {
+  const tasks = [];
+
+  (endDataList ?? []).forEach((endData) => {
+    (endData.batch ?? []).forEach((group, groupIdx) => {
+      const relocations = (group.relocation ?? []).map((item) => ({
+        id: String(item.batchItemId),
+        materialName: item.material || "-",
+        fromZone: item.fromLocationName || "-",
+        toZone: item.toLocationName || "-",
+        duration: item.expectedRunningTime ? `${item.expectedRunningTime}m` : null,
+      }));
+
+      const pickings = (group.picking ?? []).map((item, pickIdx) => ({
+        id: String(item.batchItemId),
+        title: `Picking ${pickIdx + 1}`,
+        materialName: item.material || "-",
+        infoLabel: item.wipId ? "현재 위치" : "규격",
+        infoValue: item.wipId
+          ? (item.fromLocationName || "-")
+          : (item.thickness && item.width ? `${item.thickness} × ${item.width}` : "-"),
+        duration: item.expectedRunningTime ? `${item.expectedRunningTime}m` : null,
+      }));
+
+      if (relocations.length === 0 && pickings.length === 0) return;
+
+      tasks.push({
+        id: `batch-group-${groupIdx}`,
+        title: `Task ${String(groupIdx + 1).padStart(2, "0")}`,
+        relocations,
+        pickings,
+      });
+    });
+  });
+
+  return tasks;
 };
 
 const normalizeEndNextState = (source = {}) => {
@@ -374,22 +413,41 @@ const App_EndNextPage = () => {
     return formatSummaryDate(runtimeState?.summary?.date);
   }, [runtimeState]);
 
-  const progressPercent = useMemo(() => {
-    const value = Number(runtimeState?.summary?.progressPercent);
-    if (!Number.isFinite(value)) return 0;
-    return Math.max(0, Math.min(100, Math.round(value)));
-  }, [runtimeState]);
+  const [liveSummaryDate, setLiveSummaryDate] = useState(summaryDate);
+  const [liveProgressPercent, setLiveProgressPercent] = useState(0);
+  const [liveTasks, setLiveTasks] = useState([]);
 
-  const tasks = useMemo(() => {
-    const source = Array.isArray(runtimeState?.tasks) ? runtimeState.tasks : [];
+  useEffect(() => {
+    setLiveSummaryDate(summaryDate);
+  }, [summaryDate]);
 
-    return source.map((task, index) => ({
-      id: task?.id ?? `task-${index + 1}`,
-      title: task?.title ?? `Task ${index + 1}`,
-      relocations: Array.isArray(task?.relocations) ? task.relocations : [],
-      pickings: Array.isArray(task?.pickings) ? task.pickings : [],
-    }));
-  }, [runtimeState]);
+  useEffect(() => {
+    const fetchEndData = async () => {
+      try {
+        const response = await getFieldEnd();
+        const endDataList = response.data?.data ?? [];
+        const mappedTasks = mapEndDataToTasks(endDataList);
+        setLiveTasks(mappedTasks);
+
+        if (endDataList.length > 0) {
+          setLiveProgressPercent(
+            Math.round((endDataList[0].scenarioProgressRate ?? 0) * 100)
+          );
+        } else {
+          setLiveProgressPercent(0);
+        }
+      } catch (err) {
+        console.error("작업 완료 데이터 조회 실패:", err);
+        setLiveTasks([]);
+        setLiveProgressPercent(0);
+      }
+    };
+
+    fetchEndData();
+  }, []);
+
+  const progressPercent = liveProgressPercent;
+  const tasks = liveTasks;
 
   const [openTaskIds, setOpenTaskIds] = useState(() =>
     tasks.length > 0 ? [tasks[0].id] : []
@@ -449,13 +507,19 @@ const App_EndNextPage = () => {
     mergeSharedProcessTabsState({
       endNext: {
         ...runtimeState,
+        summary: {
+          ...(runtimeState?.summary ?? {}),
+          date: liveSummaryDate,
+          progressPercent,
+        },
+        tasks,
         nextScenarioAlert: {
           showToast,
           hasUnread: hasUnreadAlert,
         },
       },
     });
-  }, [runtimeState, showToast, hasUnreadAlert]);
+  }, [runtimeState, liveSummaryDate, progressPercent, tasks, showToast, hasUnreadAlert]);
 
   const handleToggleTask = (taskId) => {
     setOpenTaskIds((prev) =>
@@ -475,6 +539,12 @@ const App_EndNextPage = () => {
 
     const nextState = {
       ...runtimeState,
+      summary: {
+        ...(runtimeState?.summary ?? {}),
+        date: liveSummaryDate,
+        progressPercent,
+      },
+      tasks,
       nextScenarioAlert: {
         showToast: false,
         hasUnread: false,
@@ -512,7 +582,7 @@ const App_EndNextPage = () => {
         <div className="shrink-0 bg-[#f7f9fb] pt-3">
           <App_ProcessTabs activeKey="end" className="mb-0" />
           <SummarySection
-            summaryDate={summaryDate}
+            summaryDate={liveSummaryDate}
             progressPercent={progressPercent}
           />
         </div>
