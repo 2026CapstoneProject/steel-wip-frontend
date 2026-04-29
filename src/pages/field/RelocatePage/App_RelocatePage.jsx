@@ -116,6 +116,7 @@ const App_RelocatePage = () => {
 
   const isStarted = scanState.wipScanned;
   const isCompleted = scanState.wipScanned && scanState.zoneScanned;
+  const isExitLocked = scanState.wipScanned || scanState.zoneScanned;
 
   const isWipScanEnabled = !scanState.wipScanned;
   const isZoneScanEnabled = scanState.wipScanned && !scanState.zoneScanned;
@@ -174,8 +175,9 @@ const App_RelocatePage = () => {
   }, [location.key, location.state]);
 
   const handlePrevClick = () => {
-    navigate(-1);
-  };
+  if (isExitLocked) return;
+  navigate(-1);
+};
 
   const handleWipScanClick = () => {
     if (!isWipScanEnabled) return;
@@ -215,6 +217,15 @@ const App_RelocatePage = () => {
   return (
     <div className="relative h-[100dvh] overflow-hidden bg-[#f7f9fb] text-slate-900">
       <App_Header />
+
+{isExitLocked && (
+  <div
+    className="pointer-events-none fixed left-1/2 top-0 z-[60] h-[72px] w-full max-w-md -translate-x-1/2"
+    aria-hidden="true"
+  >
+    <div className="pointer-events-auto h-full w-[180px]" />
+  </div>
+)}
 
       <main
   className={`mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col ${

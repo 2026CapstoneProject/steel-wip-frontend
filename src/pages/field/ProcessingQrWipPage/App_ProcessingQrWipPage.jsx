@@ -42,6 +42,7 @@ const App_ProcessingQrWipPage = () => {
   const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
   const [nextPathAfterSave, setNextPathAfterSave] = useState("/App/processing");
   const [nextStateAfterSave, setNextStateAfterSave] = useState({});
+  const isExitLocked = zoneScanCompleted && !isSavePopupOpen;
 
   const detailData = useMemo(
     () => ({
@@ -133,14 +134,24 @@ const App_ProcessingQrWipPage = () => {
   };
 
   const handlePrevious = () => {
-    navigate(-1);
-  };
+  if (isExitLocked) return;
+  navigate(-1);
+};
 
   const wrapperBlurClass = isSavePopupOpen ? "blur-sm" : "";
 
   return (
     <div className="relative h-[100dvh] overflow-hidden bg-[#f7f9fb] text-slate-900">
       <App_Header />
+
+{isExitLocked && (
+  <div
+    className="pointer-events-none fixed left-1/2 top-0 z-[60] h-[72px] w-full max-w-md -translate-x-1/2"
+    aria-hidden="true"
+  >
+    <div className="pointer-events-auto h-full w-[180px]" />
+  </div>
+)}
 
       <main
   className={`mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col ${wrapperBlurClass}`}
