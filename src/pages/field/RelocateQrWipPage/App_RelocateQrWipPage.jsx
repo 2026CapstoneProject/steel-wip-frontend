@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
-import QrCameraScanner from "../../../components/field/qr/QrCameraScanner";
+import QrCameraScanner from "../../../components/field/Qr/QrCameraScanner";
 
 const fallbackRelocation = {
 	id: "relocate-01",
