@@ -335,6 +335,7 @@ const App_PickingWipPage = () => {
 
   const isCompleted = scanState.qrScanned;
   const isSaveEnabled = isCompleted;
+  const isExitLocked = scanState.qrScanned;
 
   const statusText = isCompleted ? "이동 완료" : "이동 중";
   const progressWidth = isCompleted ? "100%" : "66.6667%";
@@ -427,8 +428,9 @@ const App_PickingWipPage = () => {
   ]);
 
   const handlePrevClick = () => {
-    navigate(-1);
-  };
+  if (isExitLocked) return;
+  navigate(-1);
+};
 
   const handleScanClick = () => {
     navigate("qr", {
@@ -473,6 +475,15 @@ const App_PickingWipPage = () => {
   return (
     <div className="h-[100dvh] overflow-hidden bg-[#F7F9FB] text-[#191C1E]">
       <App_Header />
+
+{isExitLocked && (
+  <div
+    className="pointer-events-none fixed left-1/2 top-0 z-[60] h-[72px] w-full max-w-md -translate-x-1/2"
+    aria-hidden="true"
+  >
+    <div className="pointer-events-auto h-full w-[180px]" />
+  </div>
+)}
 
       <main
         className={`mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col ${blurClass}`}
