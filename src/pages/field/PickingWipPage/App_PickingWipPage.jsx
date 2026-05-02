@@ -334,8 +334,10 @@ const App_PickingWipPage = () => {
 		qrScanned: location.state?.scanState?.qrScanned ?? false,
 		fromTime: location.state?.scanState?.fromTime ?? "",
 		toTime: location.state?.scanState?.toTime ?? "",
+		expectedDurationMinutes:
+			location.state?.scanState?.expectedDurationMinutes ?? 0,
+		wipScannedValue: location.state?.scanState?.wipScannedValue ?? "",
 	});
-
 	const [isDoubleCheckOpen, setIsDoubleCheckOpen] = useState(false);
 	const [isCompletePopupOpen, setIsCompletePopupOpen] = useState(false);
 
@@ -376,30 +378,21 @@ const App_PickingWipPage = () => {
 		const returnedState = location.state;
 		if (!returnedState?.type) return;
 
-		const currentKey = `${location.key}-${returnedState.type}-${returnedState.scannedAt || ""}`;
-		if (processedScanKeyRef.current === currentKey) return;
-		processedScanKeyRef.current = currentKey;
-
 		if (returnedState.type === "PICKING_WIP_QR_SUCCESS") {
-			const nextFromTime =
-				returnedState?.scanState?.fromTime ||
-				returnedState?.scannedAt ||
-				returnedState?.picking?.from?.time ||
-				formatNowTime();
-
-			const nextToTime =
-				returnedState?.scanState?.toTime ||
-				returnedState?.estimatedToTime ||
-				returnedState?.picking?.to?.time ||
-				"";
-
-			setScanState({
+			setScanState((prev) => ({
+				...prev,
 				qrScanned: true,
-				fromTime: nextFromTime,
-				toTime: nextToTime,
-			});
+				fromTime: returnedState.scannedAt ?? prev.fromTime ?? "",
+				toTime: returnedState.estimatedToTime ?? prev.toTime ?? "",
+				expectedDurationMinutes:
+					returnedState.scanState?.expectedDurationMinutes ??
+					prev.expectedDurationMinutes ??
+					0,
+				wipScannedValue:
+					returnedState.scannedValue ?? prev.wipScannedValue ?? "",
+			}));
 		}
-	}, [location.key, location.state]);
+	}, [location.state]);
 
 	useEffect(() => {
 		if (!isCompletePopupOpen) return;
@@ -451,7 +444,6 @@ const App_PickingWipPage = () => {
 			},
 		});
 	};
-
 	const handleSaveClick = () => {
 		if (!isSaveEnabled) return;
 		setIsDoubleCheckOpen(true);
@@ -463,17 +455,36 @@ const App_PickingWipPage = () => {
 
 	const handleDoubleCheckYes = async () => {
 		setIsDoubleCheckOpen(false);
+
 		try {
 			const batchItemId = picking.batchItemId;
 			if (!batchItemId) {
 				alert("작업 정보를 찾을 수 없어 완료 처리할 수 없습니다.");
 				return;
 			}
-			await saveBatchItem(batchItemId, {});
+
+			const wipQR = String(scanState?.wipScannedValue ?? "").trim();
+
+			if (!wipQR) {
+				alert("재공품 QR 스캔값이 없습니다.");
+				return;
+			}
+
+			await saveBatchItem(batchItemId, {
+				wipQR,
+				locQR: null,
+			});
+
 			setIsCompletePopupOpen(true);
 		} catch (err) {
 			console.error("작업 완료 처리 실패:", err);
-			alert("작업 완료 처리에 실패했습니다.");
+
+			const errorMessage =
+				err?.response?.data?.detail ||
+				err?.response?.data?.message ||
+				"작업 완료 처리에 실패했습니다.";
+
+			alert(errorMessage);
 		}
 	};
 
