@@ -125,8 +125,11 @@ const RelocateCard = ({ item, onQrClick }) => (
 		<div className="mb-3 flex items-start justify-between">
 			<div>
 				<h3 className="text-sm font-bold text-indigo-700">
-					{item.materialName}
+					{item.materialName} - {item.manufacturer}
 				</h3>
+				<span className="text-xs font-bold text-slate-700">
+					{item.specText} | {item.wipQr}
+				</span>
 				<div className="mt-1 flex items-center gap-1 text-xs font-semibold text-slate-500">
 					<span>{item.fromZone}</span>
 					<span>→</span>
@@ -169,8 +172,12 @@ const PickingCard = ({ item, onActionClick, onWorkOrderClick }) => {
 							{item.type}
 						</span>
 					</div>
-					<p className="mb-1 text-sm font-bold text-slate-900">
-						{item.materialName}
+					<p className="mb-1 text-sm font-bold text-indigo-700">
+						{item.materialName} - {item.manufacturer}
+						<br />
+						<span className="text-xs font-bold text-slate-900">
+							{item.specText} | {item.wipQr}
+						</span>
 					</p>
 					<div className="flex items-center gap-1.5">
 						<span className="text-[11px] font-medium text-slate-500">

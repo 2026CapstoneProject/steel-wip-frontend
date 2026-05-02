@@ -312,6 +312,14 @@ const App_RelocatePage = () => {
 											{relocation.weightText}
 										</p>
 									</div>
+									<div>
+										<p className="mb-1 text-xs font-medium text-slate-500">
+											QR
+										</p>
+										<p className="font-semibold text-slate-900">
+											{relocation.wipQr}
+										</p>
+									</div>
 								</div>
 							</div>
 						</section>
