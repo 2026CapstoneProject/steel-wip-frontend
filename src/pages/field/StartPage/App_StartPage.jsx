@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import App_Header from "../../../components/field/Header/App_Header";
+import steelAllLogo from "../../../assets/Steel_all_CI_align_1st.png";
 import { getFieldReady } from "../../../services/fieldService";
 import { setSelectedFieldScenarioId } from "../../../utils/App/selectedScenario";
 
@@ -108,9 +108,31 @@ function App_StartPage() {
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-[#F7F9FB] font-['Inter'] text-[#191C1E]">
-      <div className="shrink-0">
-        <App_Header />
-      </div>
+      <div className="shrink-0 border-b border-slate-100 bg-white">
+  <div className="mx-auto flex h-[72px] w-full max-w-md items-center justify-between px-6">
+    <div className="flex items-center">
+      <img
+        src={steelAllLogo}
+        alt="Steel-all"
+        className="h-7 w-auto object-contain"
+      />
+    </div>
+
+    <div className="flex items-center gap-4">
+      <button type="button" className="relative p-1" aria-label="notifications">
+        <span className="material-symbols-outlined text-2xl text-slate-700">
+          notifications
+        </span>
+      </button>
+
+      <button type="button" aria-label="account">
+        <span className="material-symbols-outlined text-3xl text-slate-700">
+          account_circle
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
 
       <main className="mx-auto h-[calc(100dvh-72px)] w-full max-w-lg">
         <div className="h-full overflow-y-auto px-4 py-6">

@@ -1,20 +1,32 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import steelAllLogo from "../../../assets/Steel_all_CI_align_1st.png";
 
 const App_Header = ({
   hasUnreadAlert = false,
   onNotificationClick = () => {},
 }) => {
+  const navigate = useNavigate();
+
+  const handleLogoClick = () => {
+    navigate("/App/ready");
+  };
+
   return (
     <header className="shrink-0 border-b border-slate-100 bg-white">
       <div className="mx-auto flex h-[72px] w-full max-w-md items-center justify-between px-6">
-        <div className="flex items-center">
+        <button
+          type="button"
+          onClick={handleLogoClick}
+          className="flex items-center"
+          aria-label="go to ready page"
+        >
           <img
             src={steelAllLogo}
             alt="Steel-all"
             className="h-7 w-auto object-contain"
           />
-        </div>
+        </button>
 
         <div className="flex items-center gap-4">
           <button

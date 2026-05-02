@@ -6,358 +6,418 @@ import { saveBatchItem } from "../../../services/fieldService";
 const POPUP_DELAY_MS = 1200;
 
 const formatScanTime = (value) => {
-  if (!value) return "";
+	if (!value) return "";
 
-  try {
-    return new Date(value).toLocaleTimeString("ko-KR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  } catch {
-    return String(value);
-  }
+	try {
+		return new Date(value).toLocaleTimeString("ko-KR", {
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: false,
+		});
+	} catch {
+		return String(value);
+	}
 };
 
 const App_ProcessingQrWipPage = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+	const navigate = useNavigate();
+	const location = useLocation();
 
-  // state 없이 직접 접근 시 Processing 페이지로 리다이렉트
-  useEffect(() => {
-    if (!location.state?.generatedWip) {
-      navigate("/App/processing", { replace: true });
-    }
-  }, []);
+	useEffect(() => {
+		if (!location.state?.generatedWip) {
+			navigate("/App/processing", { replace: true });
+		}
+	}, [location.state, navigate]);
 
-  const {
-    generatedWip = {},
-    generatedItems = [],
-    batches = [],
-    summary = {},
-    zoneScanCompleted = false,
-    zoneScannedAt = "",
-  } = location.state ?? {};
+	const {
+		generatedWip = {},
+		generatedItems = [],
+		batches = [],
+		summary = {},
+		zoneScanCompleted = false,
+		zoneScannedAt = "",
+		scannedWipQr = "",
+		scannedLocQr = "",
+		wipScannedAt = "",
+	} = location.state ?? {};
 
-  const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
-  const [nextPathAfterSave, setNextPathAfterSave] = useState("/App/processing");
-  const [nextStateAfterSave, setNextStateAfterSave] = useState({});
+	const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
+	const [nextPathAfterSave, setNextPathAfterSave] = useState("/App/processing");
+	const [nextStateAfterSave, setNextStateAfterSave] = useState({});
+	const [isSaving, setIsSaving] = useState(false);
+	const isExitLocked = zoneScanCompleted && !isSavePopupOpen;
 
-  const detailData = useMemo(
-    () => ({
-      title: generatedWip.title ?? "발생한 재공품",
-      manufacturer: generatedWip.manufacturer ?? "현대 제철",
-      material:
-        generatedWip.inputMaterialName ??
-        generatedWip.materialName ??
-        generatedWip.material ??
-        "SM355A",
-      specText:
-        generatedWip.specText ??
-        generatedWip.spec ??
-        generatedWip.sizeText ??
-        "16 x 715 x 1,890",
-      weightText:
-        generatedWip.weightText ??
-        generatedWip.weight ??
-        generatedWip.weightLabel ??
-        "2,100 kg",
-      zone: generatedWip.zone ?? generatedWip.toZone ?? "-",
-    }),
-    [generatedWip]
-  );
+	const detailData = useMemo(
+		() => ({
+			title: generatedWip.title ?? "발생한 재공품",
+			manufacturer: generatedWip.manufacturer ?? "-",
+			material:
+				generatedWip.inputMaterialName ??
+				generatedWip.materialName ??
+				generatedWip.material ??
+				"SM355A",
+			specText:
+				generatedWip.specText ??
+				generatedWip.spec ??
+				generatedWip.sizeText ??
+				"-",
+			weightText:
+				generatedWip.weightText ??
+				generatedWip.weight ??
+				generatedWip.weightLabel ??
+				"-",
+			zone: generatedWip.zone ?? generatedWip.toZone ?? "-",
+		}),
+		[generatedWip],
+	);
 
-  const displayedScanTime = useMemo(
-    () => formatScanTime(zoneScannedAt),
-    [zoneScannedAt]
-  );
+	const displayedZoneScanTime = useMemo(
+		() => formatScanTime(zoneScannedAt),
+		[zoneScannedAt],
+	);
 
-  useEffect(() => {
-    if (!isSavePopupOpen) return;
+	const displayedWipScanTime = useMemo(
+		() => formatScanTime(wipScannedAt),
+		[wipScannedAt],
+	);
 
-    const timer = window.setTimeout(() => {
-      navigate(nextPathAfterSave, {
-        state: nextStateAfterSave,
-      });
-    }, POPUP_DELAY_MS);
+	useEffect(() => {
+		if (!isSavePopupOpen) return;
 
-    return () => window.clearTimeout(timer);
-  }, [isSavePopupOpen, navigate, nextPathAfterSave, nextStateAfterSave]);
+		const timer = window.setTimeout(() => {
+			navigate(nextPathAfterSave, {
+				state: nextStateAfterSave,
+			});
+		}, POPUP_DELAY_MS);
 
-  const handleZoneScanClick = () => {
-    if (zoneScanCompleted) return;
+		return () => window.clearTimeout(timer);
+	}, [isSavePopupOpen, navigate, nextPathAfterSave, nextStateAfterSave]);
 
-    navigate("/App/processing/qr/wip/zone", {
-      state: {
-        generatedWip,
-        generatedItems,
-        batches,
-        summary,
-        returnTo: "/App/processing/qr/wip",
-      },
-    });
-  };
+	const handleZoneScanClick = () => {
+		if (zoneScanCompleted) return;
 
-  const handleSaveClick = async () => {
-    if (!zoneScanCompleted) return;
+		navigate("/App/processing/qr/wip/zone", {
+			state: {
+				generatedWip,
+				generatedItems,
+				batches,
+				summary,
+				scannedWipQr,
+				wipScannedAt,
+				returnTo: "/App/processing/qr/wip",
+			},
+		});
+	};
 
-    const batchItemId = generatedWip.batchItemId;
-    if (!batchItemId) {
-      alert("적재 작업 정보를 찾을 수 없어 완료 처리할 수 없습니다.");
-      return;
-    }
+	const handleSaveClick = async () => {
+		if (!zoneScanCompleted || isSaving) return;
 
-    try {
-      const response = await saveBatchItem(batchItemId, {});
-      const saveResult = response.data?.data ?? {};
-      const shouldMoveToReady = Boolean(saveResult.shouldMoveToReady);
-      setNextPathAfterSave(shouldMoveToReady ? "/App/ready" : "/App/processing");
-      setNextStateAfterSave(
-        shouldMoveToReady
-          ? {
-              selectedScenarioId: summary?.scenarioId ?? null,
-              justCompletedBatch: true,
-              savedGeneratedWipId: generatedWip.id,
-            }
-          : {
-              savedGeneratedWipId: generatedWip.id,
-              savedStatus: "complete",
-              zoneScannedAt,
-            }
-      );
-      setIsSavePopupOpen(true);
-    } catch (err) {
-      console.error("적재 완료 처리 실패:", err);
-      alert("적재 완료 처리에 실패했습니다.");
-    }
-  };
+		const batchItemId = generatedWip.batchItemId;
+		if (!batchItemId) {
+			alert("적재 작업 정보를 찾을 수 없어 완료 처리할 수 없습니다.");
+			return;
+		}
 
-  const handlePrevious = () => {
-    navigate(-1);
-  };
+		if (!scannedWipQr) {
+			alert("재공품 QR 스캔값이 없습니다.");
+			return;
+		}
 
-  const wrapperBlurClass = isSavePopupOpen ? "blur-sm" : "";
+		if (!scannedLocQr) {
+			alert("적재공간 QR 스캔값이 없습니다.");
+			return;
+		}
 
-  return (
-    <div className="relative h-[100dvh] overflow-hidden bg-[#f7f9fb] text-slate-900">
-      <App_Header />
+		try {
+			setIsSaving(true);
 
-      <main
-  className={`mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col ${wrapperBlurClass}`}
->
-  <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-28 pt-12">
-    <div className="space-y-6">
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">재공품 상세 정보</h2>
-        </div>
+			const response = await saveBatchItem(batchItemId, {
+				wipQR: scannedWipQr,
+				locQR: scannedLocQr,
+			});
 
-        <div className="rounded-xl bg-white p-5 shadow-[0_4px_20px_rgba(25,28,30,0.04)]">
-          <div className="grid grid-cols-2 gap-y-4">
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-500">제조사</p>
-              <p className="font-semibold text-slate-900">
-                {detailData.manufacturer}
-              </p>
-            </div>
+			const saveResult = response.data?.data ?? {};
+			const shouldMoveToReady = Boolean(saveResult.shouldMoveToReady);
 
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-500">재질</p>
-              <p className="font-semibold text-slate-900">
-                {detailData.material}
-              </p>
-            </div>
+			setNextPathAfterSave(
+				shouldMoveToReady ? "/App/ready" : "/App/processing",
+			);
+			setNextStateAfterSave(
+				shouldMoveToReady
+					? {
+							selectedScenarioId: summary?.scenarioId ?? null,
+							justCompletedBatch: true,
+							savedGeneratedWipId: generatedWip.id,
+						}
+					: {
+							savedGeneratedWipId: generatedWip.id,
+							savedStatus: "complete",
+							zoneScannedAt,
+						},
+			);
 
-            <div className="col-span-2 pt-2">
-              <p className="mb-1 text-xs font-medium text-slate-500">
-                규격 (두께 x 폭 x 길이)
-              </p>
-              <p className="text-lg font-bold text-[#24389c]">
-                {detailData.specText}
-              </p>
-            </div>
+			setIsSavePopupOpen(true);
+		} catch (err) {
+			console.error("적재 완료 처리 실패:", err);
+			alert(err?.response?.data?.detail || "적재 완료 처리에 실패했습니다.");
+		} finally {
+			setIsSaving(false);
+		}
+	};
 
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-500">중량</p>
-              <p className="font-semibold text-slate-900">
-                {detailData.weightText}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+	const handlePrevious = () => {
+		if (isExitLocked || isSaving) return;
+		navigate(-1);
+	};
 
-      <section>
-        <div className="flex items-center gap-4 rounded-xl bg-[#eceef0] p-4">
-          <div className="rounded-full bg-[#24389c]/10 p-3">
-            <span className="material-symbols-outlined text-[#24389c]">
-              location_on
-            </span>
-          </div>
+	const wrapperBlurClass = isSavePopupOpen ? "blur-sm" : "";
 
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
-              To
-            </p>
-            <p className="text-base font-bold text-slate-900">
-              {detailData.zone}
-              {zoneScanCompleted && displayedScanTime ? (
-                <span className="ml-4 text-xs font-normal text-slate-500">
-                  {displayedScanTime}
-                </span>
-              ) : null}
-            </p>
-          </div>
-        </div>
-      </section>
+	return (
+		<div className="relative h-[100dvh] overflow-hidden bg-[#f7f9fb] text-slate-900">
+			<App_Header />
 
-      <section className="flex flex-col items-center py-4">
-        <div className="relative mb-6 flex h-1 w-full max-w-xs items-center rounded-full bg-[#e6e8ea]">
-          <div
-            className={`absolute left-0 top-0 h-full rounded-full bg-[#24389c] ${
-              zoneScanCompleted ? "w-full" : "w-2/3"
-            }`}
-          />
+			{isExitLocked && (
+				<div
+					className="pointer-events-none fixed left-1/2 top-0 z-[60] h-[72px] w-full max-w-md -translate-x-1/2"
+					aria-hidden="true"
+				>
+					<div className="pointer-events-auto h-full w-[180px]" />
+				</div>
+			)}
 
-          <div className="absolute inset-0 flex items-center justify-between">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#24389c]">
-              <span
-                className="material-symbols-outlined text-[14px] text-white"
-                style={{ fontVariationSettings: '"FILL" 1' }}
-              >
-                check
-              </span>
-            </div>
+			<main
+				className={`mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col ${wrapperBlurClass}`}
+			>
+				<div className="min-h-0 flex-1 overflow-y-auto px-6 pb-28 pt-12">
+					<div className="space-y-6">
+						<section>
+							<div className="mb-3 flex items-center justify-between">
+								<h2 className="text-lg font-bold text-slate-900">
+									재공품 상세 정보
+								</h2>
+							</div>
 
-            <div
-              className={`flex h-7 w-7 items-center justify-center rounded-full bg-[#24389c] ${
-                zoneScanCompleted ? "" : "ring-4 ring-[#dee0ff]"
-              }`}
-            >
-              <span
-                className="material-symbols-outlined text-[14px] text-white"
-                style={{ fontVariationSettings: '"FILL" 1' }}
-              >
-                check
-              </span>
-            </div>
+							<div className="rounded-xl bg-white p-5 shadow-[0_4px_20px_rgba(25,28,30,0.04)]">
+								<div className="grid grid-cols-2 gap-y-4">
+									<div>
+										<p className="mb-1 text-xs font-medium text-slate-500">
+											제조사
+										</p>
+										<p className="font-semibold text-slate-900">
+											{detailData.manufacturer}
+										</p>
+									</div>
 
-            <div
-              className={`flex h-7 w-7 items-center justify-center rounded-full ${
-                zoneScanCompleted
-                  ? "bg-[#24389c]"
-                  : "border-2 border-[#e6e8ea] bg-[#e0e3e5]"
-              }`}
-            >
-              <span
-                className={`material-symbols-outlined text-[14px] ${
-                  zoneScanCompleted ? "text-white" : "text-slate-500"
-                }`}
-                style={
-                  zoneScanCompleted
-                    ? { fontVariationSettings: '"FILL" 1' }
-                    : undefined
-                }
-              >
-                {zoneScanCompleted ? "check" : "inventory_2"}
-              </span>
-            </div>
-          </div>
-        </div>
+									<div>
+										<p className="mb-1 text-xs font-medium text-slate-500">
+											재질
+										</p>
+										<p className="font-semibold text-slate-900">
+											{detailData.material}
+										</p>
+									</div>
 
-        <p className="rounded-full bg-[#24389c]/10 px-4 py-1 text-sm font-bold text-[#24389c]">
-          {zoneScanCompleted ? "이동 완료" : "이동 중"}
-        </p>
-      </section>
+									<div className="col-span-2 pt-2">
+										<p className="mb-1 text-xs font-medium text-slate-500">
+											규격 (두께 x 폭 x 길이)
+										</p>
+										<p className="text-lg font-bold text-[#24389c]">
+											{detailData.specText}
+										</p>
+									</div>
 
-      <section className="relative space-y-4">
-        <div className="flex flex-col items-center rounded-2xl bg-white p-8 text-center shadow-[0_20px_40px_rgba(25,28,30,0.06)]">
-          <div className="relative mb-6 flex h-48 w-48 items-center justify-center overflow-hidden rounded-2xl bg-[#f2f4f6]">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="material-symbols-outlined text-5xl text-[#24389c]/30">
-                qr_code_2
-              </span>
-            </div>
+									<div>
+										<p className="mb-1 text-xs font-medium text-slate-500">
+											중량
+										</p>
+										<p className="font-semibold text-slate-900">
+											{detailData.weightText}
+										</p>
+									</div>
 
-            <div className="absolute left-6 top-6 h-8 w-8 rounded-tl-sm border-l-2 border-t-2 border-[#24389c]/40" />
-            <div className="absolute right-6 top-6 h-8 w-8 rounded-tr-sm border-r-2 border-t-2 border-[#24389c]/40" />
-            <div className="absolute bottom-6 left-6 h-8 w-8 rounded-bl-sm border-b-2 border-l-2 border-[#24389c]/40" />
-            <div className="absolute bottom-6 right-6 h-8 w-8 rounded-br-sm border-b-2 border-r-2 border-[#24389c]/40" />
-            <div className="absolute inset-x-10 top-1/2 h-[1px] bg-[#24389c]/20" />
-          </div>
+									<div>
+										<p className="mb-1 text-xs font-medium text-slate-500">
+											WIP 스캔
+										</p>
+										<p className="font-semibold text-slate-900">
+											{displayedWipScanTime || "-"}
+										</p>
+									</div>
+								</div>
+							</div>
+						</section>
 
-          <div className="w-full">
-            <button
-              type="button"
-              onClick={handleZoneScanClick}
-              disabled={zoneScanCompleted}
-              className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-bold transition-all ${
-                zoneScanCompleted
-                  ? "cursor-not-allowed bg-[#e6e8ea] text-slate-500 shadow-sm"
-                  : "bg-gradient-to-br from-[#24389c] to-[#3f51b5] text-white shadow-lg shadow-[#24389c]/20 active:scale-95"
-              }`}
-            >
-              <span className="material-symbols-outlined">
-                center_focus_weak
-              </span>
-              구역 scan
-            </button>
-          </div>
-        </div>
+						<section>
+							<div className="flex items-center gap-4 rounded-xl bg-[#eceef0] p-4">
+								<div className="rounded-full bg-[#24389c]/10 p-3">
+									<span className="material-symbols-outlined text-[#24389c]">
+										location_on
+									</span>
+								</div>
 
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={handleSaveClick}
-            disabled={!zoneScanCompleted}
-            className={`flex items-center gap-2 rounded-xl px-10 py-4 font-bold transition-all ${
-              zoneScanCompleted
-                ? "bg-[#1a237e] text-white shadow-lg active:scale-95"
-                : "cursor-not-allowed bg-[#e6e8ea] text-slate-500 shadow-sm"
-            }`}
-          >
-            <span className="material-symbols-outlined">save</span>
-            저장
-          </button>
-        </div>
-      </section>
-    </div>
-  </div>
-</main>
+								<div>
+									<p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+										To
+									</p>
+									<p className="text-base font-bold text-slate-900">
+										{detailData.zone}
+										{zoneScanCompleted && displayedZoneScanTime ? (
+											<span className="ml-4 text-xs font-normal text-slate-500">
+												{displayedZoneScanTime}
+											</span>
+										) : null}
+									</p>
+								</div>
+							</div>
+						</section>
 
-      <nav
-        className={`fixed bottom-0 left-0 z-50 flex w-full flex-col items-center rounded-t-xl bg-white shadow-[0_-4px_20px_rgba(25,28,30,0.06)] ${wrapperBlurClass}`}
-      >
-        <button
-          type="button"
-          onClick={handlePrevious}
-          className="mx-6 my-4 flex w-[calc(100%-3rem)] items-center justify-center gap-2 rounded-xl bg-[#24389c]/10 py-4 text-sm font-semibold uppercase tracking-wider text-[#24389c] transition-all active:translate-y-0.5"
-        >
-          <span className="material-symbols-outlined">arrow_back</span>
-          Previous
-        </button>
-      </nav>
+						<section className="flex flex-col items-center py-4">
+							<div className="relative mb-6 flex h-1 w-full max-w-xs items-center rounded-full bg-[#e6e8ea]">
+								<div
+									className={`absolute left-0 top-0 h-full rounded-full bg-[#24389c] ${
+										zoneScanCompleted ? "w-full" : "w-2/3"
+									}`}
+								/>
 
-      {isSavePopupOpen ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-6 backdrop-blur-sm">
-          <div className="flex w-full max-w-sm flex-col items-center rounded-[2rem] bg-white p-8 shadow-2xl">
-            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#3F51B5]/10">
-              <span
-                className="material-symbols-outlined text-4xl text-[#3F51B5]"
-                style={{ fontVariationSettings: '"FILL" 1' }}
-              >
-                check_circle
-              </span>
-            </div>
+								<div className="absolute inset-0 flex items-center justify-between">
+									<div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#24389c]">
+										<span
+											className="material-symbols-outlined text-[14px] text-white"
+											style={{ fontVariationSettings: '"FILL" 1' }}
+										>
+											check
+										</span>
+									</div>
 
-            <h2 className="text-center text-2xl font-extrabold leading-tight text-slate-900">
-              이동이 완료되었습니다
-            </h2>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
+									<div
+										className={`flex h-7 w-7 items-center justify-center rounded-full bg-[#24389c] ${
+											zoneScanCompleted ? "" : "ring-4 ring-[#dee0ff]"
+										}`}
+									>
+										<span
+											className="material-symbols-outlined text-[14px] text-white"
+											style={{ fontVariationSettings: '"FILL" 1' }}
+										>
+											check
+										</span>
+									</div>
+
+									<div
+										className={`flex h-7 w-7 items-center justify-center rounded-full ${
+											zoneScanCompleted
+												? "bg-[#24389c]"
+												: "border-2 border-[#e6e8ea] bg-[#e0e3e5]"
+										}`}
+									>
+										<span
+											className={`material-symbols-outlined text-[14px] ${
+												zoneScanCompleted ? "text-white" : "text-slate-500"
+											}`}
+											style={
+												zoneScanCompleted
+													? { fontVariationSettings: '"FILL" 1' }
+													: undefined
+											}
+										>
+											{zoneScanCompleted ? "check" : "inventory_2"}
+										</span>
+									</div>
+								</div>
+							</div>
+
+							<p className="rounded-full bg-[#24389c]/10 px-4 py-1 text-sm font-bold text-[#24389c]">
+								{zoneScanCompleted ? "이동 완료" : "이동 중"}
+							</p>
+						</section>
+
+						<section className="relative space-y-4">
+							<div className="flex flex-col items-center rounded-2xl bg-white p-8 text-center shadow-[0_20px_40px_rgba(25,28,30,0.06)]">
+								<div className="relative mb-6 flex h-48 w-48 items-center justify-center overflow-hidden rounded-2xl bg-[#f2f4f6]">
+									<div className="absolute inset-0 flex items-center justify-center">
+										<span className="material-symbols-outlined text-5xl text-[#24389c]/30">
+											qr_code_2
+										</span>
+									</div>
+
+									<div className="absolute left-6 top-6 h-8 w-8 rounded-tl-sm border-l-2 border-t-2 border-[#24389c]/40" />
+									<div className="absolute right-6 top-6 h-8 w-8 rounded-tr-sm border-r-2 border-t-2 border-[#24389c]/40" />
+									<div className="absolute bottom-6 left-6 h-8 w-8 rounded-bl-sm border-b-2 border-l-2 border-[#24389c]/40" />
+									<div className="absolute bottom-6 right-6 h-8 w-8 rounded-br-sm border-b-2 border-r-2 border-[#24389c]/40" />
+									<div className="absolute inset-x-10 top-1/2 h-[1px] bg-[#24389c]/20" />
+								</div>
+
+								<div className="w-full">
+									<button
+										type="button"
+										onClick={handleZoneScanClick}
+										disabled={zoneScanCompleted}
+										className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-bold transition-all ${
+											zoneScanCompleted
+												? "cursor-not-allowed bg-[#e6e8ea] text-slate-500 shadow-sm"
+												: "bg-gradient-to-br from-[#24389c] to-[#3f51b5] text-white shadow-lg shadow-[#24389c]/20 active:scale-95"
+										}`}
+									>
+										<span className="material-symbols-outlined">
+											center_focus_weak
+										</span>
+										구역 scan
+									</button>
+								</div>
+							</div>
+
+							<div className="flex justify-end">
+								<button
+									type="button"
+									onClick={handleSaveClick}
+									disabled={!zoneScanCompleted || isSaving}
+									className={`flex items-center gap-2 rounded-xl px-10 py-4 font-bold transition-all ${
+										zoneScanCompleted && !isSaving
+											? "bg-[#1a237e] text-white shadow-lg active:scale-95"
+											: "cursor-not-allowed bg-[#e6e8ea] text-slate-500 shadow-sm"
+									}`}
+								>
+									<span className="material-symbols-outlined">save</span>
+									저장
+								</button>
+							</div>
+						</section>
+					</div>
+				</div>
+			</main>
+
+			<nav
+				className={`fixed bottom-0 left-0 z-50 flex w-full flex-col items-center rounded-t-xl bg-white shadow-[0_-4px_20px_rgba(25,28,30,0.06)] ${wrapperBlurClass}`}
+			>
+				<button
+					type="button"
+					onClick={handlePrevious}
+					className="mx-6 my-4 flex w-[calc(100%-3rem)] items-center justify-center gap-2 rounded-xl bg-[#24389c]/10 py-4 text-sm font-semibold uppercase tracking-wider text-[#24389c] transition-all active:translate-y-0.5"
+				>
+					<span className="material-symbols-outlined">arrow_back</span>
+					Previous
+				</button>
+			</nav>
+
+			{isSavePopupOpen ? (
+				<div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-6 backdrop-blur-sm">
+					<div className="flex w-full max-w-sm flex-col items-center rounded-[2rem] bg-white p-8 shadow-2xl">
+						<div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#3F51B5]/10">
+							<span
+								className="material-symbols-outlined text-4xl text-[#3F51B5]"
+								style={{ fontVariationSettings: '"FILL" 1' }}
+							>
+								check_circle
+							</span>
+						</div>
+
+						<h2 className="text-center text-2xl font-extrabold leading-tight text-slate-900">
+							이동이 완료되었습니다
+						</h2>
+					</div>
+				</div>
+			) : null}
+		</div>
+	);
 };
 
 export default App_ProcessingQrWipPage;
