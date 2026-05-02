@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
 import QrCameraScanner from "../../../components/field/Qr/QrCameraScanner";
@@ -17,6 +17,8 @@ const fallbackRelocation = {
 	},
 };
 
+const ERROR_COOLDOWN_MS = 100;
+
 const formatNowTime = () => {
 	const now = new Date();
 	const hh = String(now.getHours()).padStart(2, "0");
@@ -27,7 +29,27 @@ const formatNowTime = () => {
 const App_RelocateQrWipPage = () => {
 	const navigate = useNavigate();
 	const { state } = useLocation();
+
 	const scannerControlRef = useRef(null);
+	const cooldownTimerRef = useRef(null);
+	const scanBusyRef = useRef(false);
+
+	const [scanStatus, setScanStatus] = useState("idle");
+	const [scanError, setScanError] = useState("");
+	const [scannerVisible, setScannerVisible] = useState(true);
+	const [scannerSessionKey, setScannerSessionKey] = useState(0);
+
+	useEffect(() => {
+		if (!state?.relocation) {
+			navigate("/App/ready", { replace: true });
+		}
+
+		return () => {
+			if (cooldownTimerRef.current) {
+				window.clearTimeout(cooldownTimerRef.current);
+			}
+		};
+	}, [state, navigate]);
 
 	const relocation = state?.relocation ?? fallbackRelocation;
 	const batchItemId = state?.batchItemId ?? null;
@@ -73,13 +95,38 @@ const App_RelocateQrWipPage = () => {
 		forceStopAllVideos();
 	};
 
-	useEffect(() => {
-		if (!state?.relocation) {
-			navigate("/App/ready", { replace: true });
+	const restartScannerAfterCooldown = async (message, stopScanner) => {
+		if (scanBusyRef.current) return;
+		scanBusyRef.current = true;
+
+		setScanError(message);
+		setScanStatus("error");
+
+		try {
+			await stopScanner?.();
+		} catch (_) {}
+
+		await stopCameraSafely();
+
+		setScannerVisible(false);
+
+		if (cooldownTimerRef.current) {
+			window.clearTimeout(cooldownTimerRef.current);
 		}
-	}, [state, navigate]);
+
+		cooldownTimerRef.current = window.setTimeout(() => {
+			setScanStatus("idle");
+			setScannerSessionKey((prev) => prev + 1);
+			setScannerVisible(true);
+			scanBusyRef.current = false;
+		}, ERROR_COOLDOWN_MS);
+	};
 
 	const handlePrevious = async () => {
+		if (cooldownTimerRef.current) {
+			window.clearTimeout(cooldownTimerRef.current);
+		}
+
 		await stopCameraSafely();
 
 		navigate("/App/ready/relocate", {
@@ -91,56 +138,50 @@ const App_RelocateQrWipPage = () => {
 			},
 		});
 	};
+
 	const handleScanSuccess = async (
 		decodedText,
 		_decodedResult,
 		stopScanner,
 	) => {
+		if (scanBusyRef.current || scanStatus === "recognized") return;
+
 		const scannedAt = formatNowTime();
 		const scannedValue = String(decodedText ?? "").trim();
 		const expectedWipQr = String(relocation.wipQr ?? "").trim();
+
+		if (!expectedWipQr) {
+			await restartScannerAfterCooldown(
+				"비교할 재공품 QR 값이 없습니다.",
+				stopScanner,
+			);
+			return;
+		}
+
+		if (scannedValue !== expectedWipQr) {
+			await restartScannerAfterCooldown(
+				"예정된 발생 재공품과 일치하지 않는 QR입니다.",
+				stopScanner,
+			);
+			return;
+		}
+
+		scanBusyRef.current = true;
+		setScanError("");
+		setScanStatus("recognized");
 
 		try {
 			await stopScanner?.();
 		} catch (_) {}
 
-		forceStopAllVideos();
-
-		if (!expectedWipQr) {
-			alert("비교할 wipQr 값이 없습니다.");
-			navigate("/App/ready/relocate", {
-				replace: true,
-				state: {
-					relocation,
-					batchItemId,
-					scanState,
-				},
-			});
-			return;
-		}
-
-		if (scannedValue !== expectedWipQr) {
-			alert(
-				`재공품 QR 불일치\n기대값: ${expectedWipQr}\n스캔값: ${scannedValue}`,
-			);
-
-			navigate("/App/ready/relocate/qr/wip", {
-				replace: true,
-				state: {
-					relocation,
-					batchItemId,
-					scanState,
-				},
-			});
-			return;
-		}
+		await stopCameraSafely();
 
 		navigate("/App/ready/relocate", {
 			replace: true,
 			state: {
 				type: "RELOCATE_WIP_SCAN_SUCCESS",
 				scannedAt,
-				scannedValue: scannedValue,
+				scannedValue,
 				batchItemId,
 				relocation,
 				scanState: {
@@ -183,10 +224,15 @@ const App_RelocateQrWipPage = () => {
 							</div>
 						</section>
 
-						<QrCameraScanner
-							ref={scannerControlRef}
-							onScanSuccess={handleScanSuccess}
-						/>
+						{scannerVisible ? (
+							<QrCameraScanner
+								key={scannerSessionKey}
+								ref={scannerControlRef}
+								onScanSuccess={handleScanSuccess}
+							/>
+						) : (
+							<div className="relative aspect-square w-full max-w-[340px] overflow-hidden rounded-3xl bg-black shadow-2xl" />
+						)}
 
 						<section className="flex w-full items-start gap-4 rounded-xl border-l-4 border-[#3F51B5] bg-white p-5 shadow-[0_12px_24px_-8px_rgba(0,0,0,0.08)]">
 							<div className="rounded-lg bg-[#3F51B5]/20 p-2">
@@ -202,6 +248,11 @@ const App_RelocateQrWipPage = () => {
 								<p className="text-sm leading-relaxed text-[#505F76]">
 									인식이 완료되면 자동으로 다음 단계로 넘어갑니다.
 								</p>
+								{scanError ? (
+									<p className="pt-1 text-sm font-semibold text-red-600">
+										{scanError}
+									</p>
+								) : null}
 							</div>
 						</section>
 					</div>

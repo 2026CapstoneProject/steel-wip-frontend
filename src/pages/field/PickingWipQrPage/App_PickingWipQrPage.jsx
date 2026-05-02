@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
 import QrCameraScanner from "../../../components/field/Qr/QrCameraScanner";
@@ -27,6 +27,8 @@ const fallbackPicking = {
 		equipmentLabel: "설비",
 	},
 };
+
+const ERROR_COOLDOWN_MS = 300;
 
 const extractSlotNumber = (value) => {
 	const match = String(value ?? "").match(/(\d+)/);
@@ -164,7 +166,15 @@ const normalizePickingData = (source = {}) => {
 export default function App_PickingWipQrPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
+
 	const scannerControlRef = useRef(null);
+	const cooldownTimerRef = useRef(null);
+	const scanBusyRef = useRef(false);
+
+	const [scanStatus, setScanStatus] = useState("idle");
+	const [scanError, setScanError] = useState("");
+	const [scannerVisible, setScannerVisible] = useState(true);
+	const [scannerSessionKey, setScannerSessionKey] = useState(0);
 
 	useEffect(() => {
 		if (
@@ -174,6 +184,12 @@ export default function App_PickingWipQrPage() {
 		) {
 			navigate("/App/ready", { replace: true });
 		}
+
+		return () => {
+			if (cooldownTimerRef.current) {
+				window.clearTimeout(cooldownTimerRef.current);
+			}
+		};
 	}, [location.state, navigate]);
 
 	const routeState = location.state || {};
@@ -207,50 +223,70 @@ export default function App_PickingWipQrPage() {
 		forceStopAllVideos();
 	};
 
-	const handleScanSuccess = async (
-		decodedText,
-		_decodedResult,
-		stopScanner,
-	) => {
-		const scannedDate = new Date();
-		const scannedAt = formatTime(scannedDate);
-		const scannedValue = String(decodedText ?? "").trim();
-		const expectedWipQr = String(picking.wipQr ?? "").trim();
+	const restartScannerAfterCooldown = async (message, stopScanner) => {
+		if (scanBusyRef.current) return;
+		scanBusyRef.current = true;
+
+		setScanError(message);
+		setScanStatus("error");
 
 		try {
 			await stopScanner?.();
 		} catch (_) {}
 
-		forceStopAllVideos();
+		await stopCameraSafely();
+
+		setScannerVisible(false);
+
+		if (cooldownTimerRef.current) {
+			window.clearTimeout(cooldownTimerRef.current);
+		}
+
+		cooldownTimerRef.current = window.setTimeout(() => {
+			setScanStatus("idle");
+			setScannerSessionKey((prev) => prev + 1);
+			setScannerVisible(true);
+			scanBusyRef.current = false;
+		}, ERROR_COOLDOWN_MS);
+	};
+
+	const handleScanSuccess = async (
+		decodedText,
+		_decodedResult,
+		stopScanner,
+	) => {
+		if (scanBusyRef.current || scanStatus === "recognized") return;
+
+		const scannedDate = new Date();
+		const scannedAt = formatTime(scannedDate);
+		const scannedValue = String(decodedText ?? "").trim();
+		const expectedWipQr = String(picking.wipQr ?? "").trim();
 
 		if (!expectedWipQr) {
-			alert("비교할 재공품 QR 값이 없습니다.");
-			navigate(returnPath, {
-				replace: true,
-				state: {
-					...routeState,
-					picking,
-					item: picking,
-				},
-			});
+			await restartScannerAfterCooldown(
+				"비교할 재공품 QR 값이 없습니다.",
+				stopScanner,
+			);
 			return;
 		}
 
 		if (scannedValue !== expectedWipQr) {
-			alert(
-				`재공품 QR 불일치\n기대값: ${expectedWipQr}\n스캔값: ${scannedValue}`,
+			await restartScannerAfterCooldown(
+				"예정된 재공품과 일치하지 않는 QR입니다.",
+				stopScanner,
 			);
-
-			navigate("/App/ready/picking/wip/qr", {
-				replace: true,
-				state: {
-					...routeState,
-					picking,
-					item: picking,
-				},
-			});
 			return;
 		}
+
+		scanBusyRef.current = true;
+		setScanError("");
+		setScanStatus("recognized");
+
+		try {
+			await stopScanner?.();
+		} catch (_) {}
+
+		await stopCameraSafely();
 
 		const expectedDurationMinutes = Number.isFinite(
 			picking.expectedDurationMinutes,
@@ -298,6 +334,9 @@ export default function App_PickingWipQrPage() {
 	};
 
 	const handlePrev = async () => {
+		if (cooldownTimerRef.current) {
+			window.clearTimeout(cooldownTimerRef.current);
+		}
 		await stopCameraSafely();
 		navigate(-1);
 	};
@@ -337,10 +376,15 @@ export default function App_PickingWipQrPage() {
 							</div>
 						</div>
 
-						<QrCameraScanner
-							ref={scannerControlRef}
-							onScanSuccess={handleScanSuccess}
-						/>
+						{scannerVisible ? (
+							<QrCameraScanner
+								key={scannerSessionKey}
+								ref={scannerControlRef}
+								onScanSuccess={handleScanSuccess}
+							/>
+						) : (
+							<div className="relative aspect-square w-full max-w-[340px] overflow-hidden rounded-3xl bg-black shadow-2xl" />
+						)}
 
 						<div className="flex w-full items-start gap-4 rounded-xl border-l-4 border-[#3F51B5] bg-white p-5 shadow-[0_12px_24px_-8px_rgba(0,0,0,0.08)]">
 							<div className="rounded-lg bg-[#3F51B5]/10 p-2">
@@ -356,6 +400,11 @@ export default function App_PickingWipQrPage() {
 								<p className="text-sm leading-relaxed text-[#505F76]">
 									인식이 완료되면 자동으로 다음 단계로 넘어갑니다.
 								</p>
+								{scanError ? (
+									<p className="pt-1 text-sm font-semibold text-red-600">
+										{scanError}
+									</p>
+								) : null}
 							</div>
 						</div>
 					</div>
