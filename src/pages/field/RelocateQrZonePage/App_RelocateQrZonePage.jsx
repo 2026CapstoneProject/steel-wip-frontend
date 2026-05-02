@@ -93,6 +93,8 @@ const App_RelocateQrZonePage = () => {
 		stopScanner,
 	) => {
 		const scannedAt = formatNowTime();
+		const scannedValue = String(decodedText ?? "").trim();
+		const expectedLocQr = String(relocation.to?.zone ?? "").trim();
 
 		try {
 			await stopScanner?.();
@@ -100,18 +102,50 @@ const App_RelocateQrZonePage = () => {
 
 		forceStopAllVideos();
 
+		if (!expectedLocQr) {
+			alert("비교할 locQr 값이 없습니다.");
+			navigate("/App/ready/relocate", {
+				replace: true,
+				state: {
+					relocation,
+					batchItemId,
+					scanState,
+				},
+			});
+			return;
+		}
+
+		if (scannedValue !== expectedLocQr) {
+			alert(
+				`구역 QR 불일치\n기대값: ${expectedLocQr}\n스캔값: ${scannedValue}`,
+			);
+
+			navigate("/App/ready/relocate", {
+				replace: true,
+				state: {
+					relocation,
+					batchItemId,
+					scanState,
+				},
+			});
+			return;
+		}
+
+		alert(`구역 QR 일치\n기대값: ${expectedLocQr}\n스캔값: ${scannedValue}`);
+
 		navigate("/App/ready/relocate", {
 			replace: true,
 			state: {
 				type: "RELOCATE_ZONE_SCAN_SUCCESS",
 				scannedAt,
-				scannedValue: decodedText,
+				scannedValue: scannedValue,
 				batchItemId,
 				relocation,
 				scanState: {
 					...scanState,
 					zoneScanned: true,
 					zoneScannedAt: scannedAt,
+					zoneScannedValue: scannedValue,
 				},
 			},
 		});
