@@ -241,7 +241,7 @@ export default function App_PickingWipQrPage() {
 				`재공품 QR 불일치\n기대값: ${expectedWipQr}\n스캔값: ${scannedValue}`,
 			);
 
-			navigate(returnPath, {
+			navigate("/App/ready/picking/wip/qr", {
 				replace: true,
 				state: {
 					...routeState,
@@ -274,8 +274,6 @@ export default function App_PickingWipQrPage() {
 				time: estimatedToTime,
 			},
 		};
-
-		alert(`재공품 QR 일치\n기대값: ${expectedWipQr}\n스캔값: ${scannedValue}`);
 
 		navigate(returnPath, {
 			replace: true,

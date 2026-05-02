@@ -124,7 +124,7 @@ const App_RelocateQrWipPage = () => {
 				`재공품 QR 불일치\n기대값: ${expectedWipQr}\n스캔값: ${scannedValue}`,
 			);
 
-			navigate("/App/ready/relocate", {
+			navigate("/App/ready/relocate/qr/wip", {
 				replace: true,
 				state: {
 					relocation,
@@ -134,8 +134,6 @@ const App_RelocateQrWipPage = () => {
 			});
 			return;
 		}
-
-		alert(`재공품 QR 일치\n기대값: ${expectedWipQr}\n스캔값: ${scannedValue}`);
 
 		navigate("/App/ready/relocate", {
 			replace: true,

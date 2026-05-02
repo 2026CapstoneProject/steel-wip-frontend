@@ -120,7 +120,7 @@ const App_RelocateQrZonePage = () => {
 				`구역 QR 불일치\n기대값: ${expectedLocQr}\n스캔값: ${scannedValue}`,
 			);
 
-			navigate("/App/ready/relocate", {
+			navigate("/App/ready/relocate/qr/zone", {
 				replace: true,
 				state: {
 					relocation,
@@ -130,8 +130,6 @@ const App_RelocateQrZonePage = () => {
 			});
 			return;
 		}
-
-		alert(`구역 QR 일치\n기대값: ${expectedLocQr}\n스캔값: ${scannedValue}`);
 
 		navigate("/App/ready/relocate", {
 			replace: true,
