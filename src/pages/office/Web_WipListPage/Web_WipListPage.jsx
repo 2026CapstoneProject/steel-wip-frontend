@@ -139,7 +139,7 @@ export default function Web_WipListPage() {
 	};
 
 	return (
-		<Web_AppLayout title="재고현황">
+		<Web_AppLayout pageTitle="재고현황">
 			<Web_InventoryFilterSection
 				filters={filters}
 				onFilterChange={handleFilterChange}
