@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
 import Web_InventoryFilterSection from "../../../components/office/Web_InventoryFilterSection/Web_InventoryFilterSection";
 import Web_InventoryTableSection from "../../../components/office/Web_InventoryTableSection/Web_InventoryTableSection";
+import Web_WipImportModal from "../../../components/modal/Web_WipImportModal/Web_WipImportModal";
 import { wipService } from "../../../services/wipService";
 
 const ITEMS_PER_PAGE = 10;
@@ -38,7 +39,6 @@ function parseThicknessRange(value) {
 	if (value === "21+") return [21, 30];
 	if (value === "31+") return [31, 40];
 	if (value === "41+") return [41, null];
-
 	const [min, max] = value.split("-").map(Number);
 	return [min, max || null];
 }
@@ -51,32 +51,26 @@ export default function Web_WipListPage() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 	const [hasFetched, setHasFetched] = useState(false);
+	const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
 	const fetchInventory = useCallback(async (activeFilters) => {
 		setLoading(true);
 		setError(null);
 
 		const params = {};
-
 		if (activeFilters.qrNumber) params.qr = activeFilters.qrNumber;
-		if (activeFilters.manufacturer !== "전체") {
+		if (activeFilters.manufacturer !== "전체")
 			params.manufacturer = activeFilters.manufacturer;
-		}
-		if (activeFilters.material !== "전체") {
+		if (activeFilters.material !== "전체")
 			params.material = activeFilters.material;
-		}
-		if (activeFilters.widthMin) {
+		if (activeFilters.widthMin)
 			params.minWidth = Number(activeFilters.widthMin);
-		}
-		if (activeFilters.widthMax) {
+		if (activeFilters.widthMax)
 			params.maxWidth = Number(activeFilters.widthMax);
-		}
-		if (activeFilters.lengthMin) {
+		if (activeFilters.lengthMin)
 			params.minLength = Number(activeFilters.lengthMin);
-		}
-		if (activeFilters.lengthMax) {
+		if (activeFilters.lengthMax)
 			params.maxLength = Number(activeFilters.lengthMax);
-		}
 
 		try {
 			const response = await wipService.getAll(params);
@@ -92,7 +86,6 @@ export default function Web_WipListPage() {
 			}
 
 			const mapped = data.map(mapWipToRow);
-
 			setRows(mapped);
 			setTotalCount(mapped.length);
 			setCurrentPage(1);
@@ -116,26 +109,27 @@ export default function Web_WipListPage() {
 
 	const paginatedRows = useMemo(() => {
 		const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-		const endIndex = startIndex + ITEMS_PER_PAGE;
-		return rows.slice(startIndex, endIndex);
+		return rows.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 	}, [rows, currentPage]);
 
 	const handleFilterChange = (name, value) => {
 		setFilters((prev) => ({ ...prev, [name]: value }));
 	};
-
 	const handleReset = () => {
 		setFilters(initialFilters);
 		fetchInventory(initialFilters);
 	};
-
 	const handleSearch = () => {
 		fetchInventory(filters);
 	};
-
 	const handlePageChange = (page) => {
 		if (page < 1 || page > totalPages) return;
 		setCurrentPage(page);
+	};
+
+	// Import 완료 후 목록 새로고침
+	const handleImportDone = () => {
+		fetchInventory(filters);
 	};
 
 	return (
@@ -166,6 +160,7 @@ export default function Web_WipListPage() {
 					currentPage={currentPage}
 					totalPages={totalPages}
 					onPageChange={handlePageChange}
+					onImportClick={() => setIsImportModalOpen(true)}
 				/>
 			)}
 
@@ -173,6 +168,13 @@ export default function Web_WipListPage() {
 				<div className="rounded-xl bg-white px-6 py-10 text-center text-gray-500">
 					필터 조건을 설정하고 조회 버튼을 눌러주세요.
 				</div>
+			)}
+
+			{isImportModalOpen && (
+				<Web_WipImportModal
+					onClose={() => setIsImportModalOpen(false)}
+					onImportDone={handleImportDone}
+				/>
 			)}
 		</Web_AppLayout>
 	);
