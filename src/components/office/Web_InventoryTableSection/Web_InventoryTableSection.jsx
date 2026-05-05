@@ -7,9 +7,10 @@ export default function Web_InventoryTableSection({
 	currentPage,
 	totalPages,
 	onPageChange,
+	onImportClick,
 }) {
 	return (
-		<section className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+		<section className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden mt-5">
 			<div className="p-6 flex justify-between items-center bg-surface-container-low">
 				<div className="flex items-center gap-4">
 					<h3 className="font-headline text-lg font-bold text-on-surface">
@@ -18,7 +19,17 @@ export default function Web_InventoryTableSection({
 					<span className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-xs font-bold">
 						{totalCount} Items
 					</span>
-				</div>
+				</div>{" "}
+				<button
+					type="button"
+					onClick={onImportClick}
+					className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-dim active:scale-95 transition-all shadow-sm"
+				>
+					<span className="material-symbols-outlined !text-lg">
+						upload_file
+					</span>
+					Import
+				</button>
 			</div>
 
 			<Web_WipTable rows={rows} />
