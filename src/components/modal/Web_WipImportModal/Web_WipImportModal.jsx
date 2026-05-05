@@ -201,7 +201,7 @@ function StepIndicator({ current }) {
 }
 
 // ── Step 1: 업로드 ────────────────────────────────────────────────────────────
-function UploadStep({ inputRef, selectedFile, onFileSelect }) {
+function UploadStep({ inputRef, selectedFile, onFileSelect, onClearFile }) {
 	return (
 		<div className="space-y-6">
 			<input
@@ -239,7 +239,19 @@ function UploadStep({ inputRef, selectedFile, onFileSelect }) {
 						<span className="material-symbols-outlined text-primary !text-lg">
 							description
 						</span>
-						<p className="font-semibold text-on-surface">{selectedFile.name}</p>
+						<p className="font-semibold text-on-surface flex-1">
+							{selectedFile.name}
+						</p>
+						<button
+							type="button"
+							onClick={onClearFile}
+							className="ml-2 flex items-center justify-center w-6 h-6 rounded-full text-error hover:bg-error/10 transition-colors"
+							title="파일 선택 취소"
+						>
+							<span className="material-symbols-outlined !text-base !text-red-500">
+								close
+							</span>
+						</button>
 					</div>
 				</div>
 			)}
@@ -667,6 +679,10 @@ export default function Web_WipImportModal({ onClose, onImportDone }) {
 							inputRef={inputRef}
 							selectedFile={selectedFile}
 							onFileSelect={handleFileSelect}
+							onClearFile={() => {
+								setSelectedFile(null);
+								if (inputRef.current) inputRef.current.value = "";
+							}}
 						/>
 					)}
 					{step === STEPS.REVIEW && (
