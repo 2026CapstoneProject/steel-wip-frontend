@@ -29,4 +29,10 @@ export const wipService = {
 			},
 		});
 	},
+	exportFile: (format = "xlsx") => {
+		return api.get("/steelWip/file/export", {
+			params: { format },
+			responseType: "blob",
+		});
+	},
 };

@@ -4,6 +4,7 @@ import Web_InventoryFilterSection from "../../../components/office/Web_Inventory
 import Web_InventoryTableSection from "../../../components/office/Web_InventoryTableSection/Web_InventoryTableSection";
 import Web_WipImportModal from "../../../components/modal/Web_WipImportModal/Web_WipImportModal";
 import { wipService } from "../../../services/wipService";
+import Web_WipExportModal from "../../../components/modal/Web_WipExportModal/Web_WipExportModal";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -52,6 +53,7 @@ export default function Web_WipListPage() {
 	const [error, setError] = useState(null);
 	const [hasFetched, setHasFetched] = useState(false);
 	const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+	const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
 	const fetchInventory = useCallback(async (activeFilters) => {
 		setLoading(true);
@@ -161,6 +163,7 @@ export default function Web_WipListPage() {
 					totalPages={totalPages}
 					onPageChange={handlePageChange}
 					onImportClick={() => setIsImportModalOpen(true)}
+					onExportClick={() => setIsExportModalOpen(true)}
 				/>
 			)}
 
@@ -175,6 +178,9 @@ export default function Web_WipListPage() {
 					onClose={() => setIsImportModalOpen(false)}
 					onImportDone={handleImportDone}
 				/>
+			)}
+			{isExportModalOpen && (
+				<Web_WipExportModal onClose={() => setIsExportModalOpen(false)} />
 			)}
 		</Web_AppLayout>
 	);
