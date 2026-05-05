@@ -29,7 +29,7 @@ function TagBadge({ type }) {
 	};
 	return (
 		<span
-			className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${cls}`}
+			className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ${cls}`}
 		>
 			{label}
 		</span>
@@ -70,6 +70,16 @@ function ChangeRow({ item, type, checked, onToggle }) {
 // ── 삭제 행 ───────────────────────────────────────────────────────────────────
 function DeleteRow({ item, checked, onToggle }) {
 	const isInUse = item.status === "CONSUMED" || item.status === "RESERVATED";
+
+	// 추가 행(CreateFieldSummary)과 동일한 형식으로 구성
+	const fields = {
+		material: item.material,
+		thickness: item.thickness,
+		width: item.width,
+		length: item.length,
+		weight: item.weight,
+	};
+
 	return (
 		<tr
 			className={`border-b border-surface-container last:border-0 ${checked ? "bg-red-50/60" : ""} ${isInUse ? "opacity-50" : ""}`}
@@ -95,16 +105,7 @@ function DeleteRow({ item, checked, onToggle }) {
 						생산 투입 중 — 삭제 불가 ({item.status})
 					</span>
 				) : (
-					<span className="text-xs">
-						{[
-							item.material,
-							item.thickness && `${item.thickness}t`,
-							item.width && `${item.width}w`,
-							item.length && `${item.length}l`,
-						]
-							.filter(Boolean)
-							.join(" · ") || "-"}
-					</span>
+					<CreateFieldSummary fields={fields} />
 				)}
 			</td>
 		</tr>
