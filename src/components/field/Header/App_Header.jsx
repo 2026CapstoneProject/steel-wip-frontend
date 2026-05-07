@@ -5,8 +5,13 @@ import steelAllLogo from "../../../assets/Steel_all_CI_align_1st.png";
 const App_Header = ({
   hasUnreadAlert = false,
   onNotificationClick = () => {},
+  showBackButton = false,
 }) => {
   const navigate = useNavigate();
+
+  const handleBackClick = () => {
+    navigate("/App/start");
+  };
 
   const handleLogoClick = () => {
     navigate("/App/ready");
@@ -15,18 +20,33 @@ const App_Header = ({
   return (
     <header className="shrink-0 border-b border-slate-100 bg-white">
       <div className="mx-auto flex h-[72px] w-full max-w-md items-center justify-between px-6">
-        <button
-          type="button"
-          onClick={handleLogoClick}
-          className="flex items-center"
-          aria-label="go to ready page"
-        >
-          <img
-            src={steelAllLogo}
-            alt="Steel-all"
-            className="h-7 w-auto object-contain"
-          />
-        </button>
+        <div className="flex items-center gap-3">
+          {showBackButton && (
+            <button
+              type="button"
+              onClick={handleBackClick}
+              aria-label="go to start page"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 transition active:scale-95"
+            >
+              <span className="material-symbols-outlined text-[26px]">
+                chevron_left
+              </span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleLogoClick}
+            className="flex items-center"
+            aria-label="go to ready page"
+          >
+            <img
+              src={steelAllLogo}
+              alt="Steel-all"
+              className="h-7 w-auto object-contain"
+            />
+          </button>
+        </div>
 
         <div className="flex items-center gap-4">
           <button
