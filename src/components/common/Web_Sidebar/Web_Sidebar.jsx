@@ -31,15 +31,21 @@ export default function Web_Sidebar() {
   return (
     <aside className="fixed left-0 top-0 z-50 flex h-screen w-64 flex-col bg-slate-100 px-4 py-6">
       <div className="mb-10 px-2">
-        <img
-          src={logoImage}
-          alt="Steel-All-CI"
-          className="h-12 w-auto object-contain"
-        />
-        <p className="text-[0.75rem] font-medium text-on-surface-variant opacity-70">
-          Inventory ERP
-        </p>
-      </div>
+  <NavLink
+    to="/office/dashboard"
+    aria-label="대시보드로 이동"
+    className="block w-fit cursor-pointer"
+  >
+    <img
+      src={logoImage}
+      alt="Steel-All-CI"
+      className="h-12 w-auto object-contain"
+    />
+    <p className="text-[0.75rem] font-medium text-on-surface-variant opacity-70">
+      Inventory ERP
+    </p>
+  </NavLink>
+</div>
 
       <nav className="flex-1 space-y-1">
         {WEB_OFFICE_NAV_ITEMS.map((item) => {

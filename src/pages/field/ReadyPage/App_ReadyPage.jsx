@@ -386,7 +386,7 @@ const App_ReadyPage = () => {
 
 	return (
 		<div className="h-[100dvh] overflow-hidden bg-[#f7f9fb] text-slate-900">
-			<App_Header />
+			<App_Header showBackButton />
 
 			<main className="mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col px-4">
 				<div className="shrink-0 bg-[#f7f9fb] pt-3">
