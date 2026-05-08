@@ -1,5 +1,6 @@
 import React from "react";
 
+import App_LoginPage from "../pages/field/LoginPage/App_LoginPage";
 import App_StartPage from "../pages/field/StartPage/App_StartPage";
 import App_ReadyPage from "../pages/field/ReadyPage/App_ReadyPage";
 import App_RelocatePage from "../pages/field/RelocatePage/App_RelocatePage";
@@ -20,6 +21,7 @@ const appRoutes = [
   {
     path: "/App",
     children: [
+      { path: "login", element: <App_LoginPage /> },
       { path: "start", element: <App_StartPage /> },
       { path: "ready", element: <App_ReadyPage /> },
 

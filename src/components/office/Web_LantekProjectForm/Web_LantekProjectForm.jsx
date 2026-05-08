@@ -91,15 +91,17 @@ export default function Web_LantekProjectForm({
         </div>
 
         <div className="col-span-12 md:col-span-6 flex flex-col gap-2">
-          <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
-            설비 명
-          </label>
-          <input
-            className="w-full bg-surface-container-high border-none rounded-lg px-4 py-3 text-sm"
-            value={projectInfo.equipmentName}
-            onChange={(e) => onChange("equipmentName", e.target.value)}
-          />
-        </div>
+  <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
+    설비 명
+  </label>
+
+  <div
+    className="w-full cursor-default select-none bg-surface-container-high border-none rounded-lg px-4 py-3 text-sm text-on-surface"
+    aria-readonly="true"
+  >
+    레이저 1호기
+  </div>
+</div>
 
         <div className="col-span-12 md:col-span-6 flex flex-col gap-2">
           <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">

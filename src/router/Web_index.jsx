@@ -1,6 +1,7 @@
 import React from "react";
 
 // 생산계획자(OFFICE) 페이지
+import Web_LoginPage from "../pages/office/LoginPage/Web_LoginPage";
 import DashboardPage from "../pages/office/DashboardPage/DashboardPage";
 import Web_WipListPage from "../pages/office/Web_WipListPage/Web_WipListPage";
 import Web_LantekInputPage from "../pages/office/Web_LantekInputPage/Web_LantekInputPage";
@@ -15,6 +16,7 @@ const webRoutes = [
   {
     path: "/office",
     children: [
+      { path: "login", element: <Web_LoginPage /> },
       { path: "dashboard", element: <DashboardPage /> },
       { path: "wip", element: <Web_WipListPage /> },
       { path: "scenario/input", element: <Web_LantekInputPage /> },

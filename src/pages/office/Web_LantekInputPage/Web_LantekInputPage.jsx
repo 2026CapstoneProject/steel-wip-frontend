@@ -55,8 +55,12 @@ export default function Web_LantekInputPage() {
   useEffect(() => {
     const cachedData = getScenarioLantekCache();
     if (cachedData?.projectInfo) {
-      setProjectInfo((prev) => ({ ...prev, ...cachedData.projectInfo }));
-    }
+  setProjectInfo((prev) => ({
+    ...prev,
+    ...cachedData.projectInfo,
+    equipmentName: "레이저 1호기",
+  }));
+}
     if (Array.isArray(cachedData?.lantekRows)) {
       setLantekRows(cachedData.lantekRows);
     }
@@ -85,18 +89,22 @@ export default function Web_LantekInputPage() {
   const isScenarioDisabled = lantekRows.length === 0;
 
   const handleProjectInfoChange = (name, value) => {
-    setProjectInfo((prev) => {
-      const next = { ...prev, [name]: value };
-      // 출하일 변경 시 생산계획명 및 시나리오 ID 초기화 (새로 생성해야 하므로)
-      if (name === "shipmentDate") {
-        next.productionPlanName = "";
-        next.scenarioId = null;
-        setShipmentDateError("");
-        setProductionPlanError("");
-      }
-      return next;
-    });
-  };
+  if (name === "equipmentName") return;
+
+  setProjectInfo((prev) => {
+    const next = { ...prev, [name]: value };
+
+    // 출하일 변경 시 생산계획명 및 시나리오 ID 초기화 (새로 생성해야 하므로)
+    if (name === "shipmentDate") {
+      next.productionPlanName = "";
+      next.scenarioId = null;
+      setShipmentDateError("");
+      setProductionPlanError("");
+    }
+
+    return next;
+  });
+};
 
   const handleOpenHistory = () => {
     setIsHistoryModalOpen(true);
