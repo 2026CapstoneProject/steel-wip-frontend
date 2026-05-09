@@ -13,11 +13,13 @@ import Web_ScenarioDetailHisotryPage from "../pages/office/Web_ScenarioReleaseHi
 import Web_ScenarioCreationDetailHistoryPage from "../pages/office/Web_ScenarioCreationHistoryPage/Web_ScenarioCreationDetailHistoryPage";
 import Web_FieldLiveStatusPage from "../pages/office/Web_FieldLiveStatusPage/Web_FieldLiveStatusPage";
 
+import useAuthStore from "../store/useAuthStore";
+
 const P = (element) => (
 	<PrivateRoute
 		element={element}
 		loginPath="/office/login"
-		allowedRole="OFFICE"
+		useStore={useAuthStore}
 	/>
 );
 

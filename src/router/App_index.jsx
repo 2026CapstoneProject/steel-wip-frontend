@@ -18,10 +18,15 @@ import App_EndPage from "../pages/field/EndPage/App_EndPage";
 import App_EndNextPage from "../pages/field/EndNextPage/App_EndNextPage";
 import App_EndNextSelectPage from "../pages/field/EndNextSelectPage/App_EndNextSelectPage";
 
-const P = (element) => (
-	<PrivateRoute element={element} loginPath="/App/login" allowedRole="FIELD" />
-);
+import useAppAuthStore from "../store/useAppAuthStore";
 
+const P = (element) => (
+	<PrivateRoute
+		element={element}
+		loginPath="/App/login"
+		useStore={useAppAuthStore}
+	/>
+);
 const appRoutes = [
 	{
 		path: "/App",

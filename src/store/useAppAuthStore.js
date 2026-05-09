@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-const useAuthStore = create(
+const useAppAuthStore = create(
 	persist(
 		(set) => ({
 			user: null,
@@ -12,7 +12,7 @@ const useAuthStore = create(
 			clearUser: () => set({ user: null, token: null, isLoggedIn: false }),
 		}),
 		{
-			name: "auth-storage-office", // ← OFFICE 전용 키
+			name: "auth-storage-field", // ← FIELD 전용 키
 			partialize: (state) => ({
 				user: state.user,
 				token: state.token,
@@ -22,4 +22,4 @@ const useAuthStore = create(
 	),
 );
 
-export default useAuthStore;
+export default useAppAuthStore;

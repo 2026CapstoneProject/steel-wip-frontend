@@ -1,5 +1,6 @@
 import axios from "axios";
 import useAuthStore from "../store/useAuthStore";
+import useAppAuthStore from "../store/useAppAuthStore";
 
 const api = axios.create({
 	baseURL:
@@ -10,7 +11,10 @@ const api = axios.create({
 
 api.interceptors.request.use(
 	(config) => {
-		const token = useAuthStore.getState().token;
+		const path = window.location.pathname;
+		const token = path.startsWith("/App")
+			? useAppAuthStore.getState().token
+			: useAuthStore.getState().token;
 		if (token) config.headers.Authorization = `Bearer ${token}`;
 		return config;
 	},
@@ -37,11 +41,14 @@ api.interceptors.response.use(
 		if (error.response?.status === 401 && !originalRequest._retry) {
 			// refresh 엔드포인트 자체가 401이면 → 완전 로그아웃
 			if (originalRequest.url?.includes("/auth/refresh")) {
-				useAuthStore.getState().clearUser();
 				const path = window.location.pathname;
-				window.location.href = path.startsWith("/App")
-					? "/App/login"
-					: "/office/login";
+				if (path.startsWith("/App")) {
+					useAppAuthStore.getState().clearUser();
+					window.location.href = "/App/login";
+				} else {
+					useAuthStore.getState().clearUser();
+					window.location.href = "/office/login";
+				}
 				return Promise.reject(error);
 			}
 
@@ -64,19 +71,27 @@ api.interceptors.response.use(
 				const newToken = res.data.accessToken;
 
 				// 스토어 토큰 갱신 (user 정보는 유지)
-				const currentUser = useAuthStore.getState().user;
-				useAuthStore.getState().setUser(currentUser, newToken);
-
+				const path = window.location.pathname;
+				if (path.startsWith("/App")) {
+					const currentUser = useAppAuthStore.getState().user;
+					useAppAuthStore.getState().setUser(currentUser, newToken);
+				} else {
+					const currentUser = useAuthStore.getState().user;
+					useAuthStore.getState().setUser(currentUser, newToken);
+				}
 				processQueue(null, newToken);
 				originalRequest.headers.Authorization = `Bearer ${newToken}`;
 				return api(originalRequest); // 원래 요청 재시도
 			} catch (refreshError) {
 				processQueue(refreshError, null);
-				useAuthStore.getState().clearUser();
 				const path = window.location.pathname;
-				window.location.href = path.startsWith("/App")
-					? "/App/login"
-					: "/office/login";
+				if (path.startsWith("/App")) {
+					useAppAuthStore.getState().clearUser(); // ← FIELD 스토어 클리어
+					window.location.href = "/App/login";
+				} else {
+					useAuthStore.getState().clearUser(); // ← OFFICE 스토어 클리어
+					window.location.href = "/office/login";
+				}
 				return Promise.reject(refreshError);
 			} finally {
 				isRefreshing = false;
