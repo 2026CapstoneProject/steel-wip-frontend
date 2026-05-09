@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import authService from "../../../services/authService";
-import useAuthStore from "../../../store/useAuthStore";
+import useAppAuthStore from "../../../store/useAppAuthStore";
 
 const App_LoginPage = () => {
 	const [showPassword, setShowPassword] = useState(false);
@@ -19,7 +19,7 @@ const App_LoginPage = () => {
 		try {
 			const res = await authService.login(username, password);
 			const { accessToken, user } = res.data;
-			useAuthStore.getState().setUser(user, accessToken);
+			useAppAuthStore.getState().setUser(user, accessToken);
 
 			// role에 따라 이동 경로 분기
 			if (user.role === "OFFICE") navigate("/office/dashboard");
