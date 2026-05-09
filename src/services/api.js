@@ -4,51 +4,97 @@ import useAuthStore from "../store/useAuthStore";
 const api = axios.create({
 	baseURL:
 		(import.meta.env.VITE_API_BASE_URL || "http://localhost:8000") + "/api",
-	headers: {
-		"Content-Type": "application/json",
-	},
+	headers: { "Content-Type": "application/json" },
+	withCredentials: true, // ← HttpOnly Cookie 전송을 위해 필수
 });
 
-// 요청 인터셉터: JWT 토큰 자동 삽입
 api.interceptors.request.use(
 	(config) => {
-		const token = useAuthStore.getState().token; // ← TODO 제거, 실제 구현
+		const token = useAuthStore.getState().token;
 		if (token) config.headers.Authorization = `Bearer ${token}`;
 		return config;
 	},
 	(error) => Promise.reject(error),
 );
 
-// 응답 인터셉터: 공통 에러 처리 + 401 리다이렉트
+// 재시도 중 무한루프 방지 플래그
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+	failedQueue.forEach((prom) => {
+		if (error) prom.reject(error);
+		else prom.resolve(token);
+	});
+	failedQueue = [];
+};
+
 api.interceptors.response.use(
 	(response) => response,
 	async (error) => {
-		// 401 → 로그인 페이지로 이동
-		if (error.response?.status === 401) {
-			useAuthStore.getState().clearUser();
-			const path = window.location.pathname;
-			if (path.startsWith("/App")) {
-				window.location.href = "/App/login";
-			} else {
-				window.location.href = "/office/login";
+		const originalRequest = error.config;
+
+		if (error.response?.status === 401 && !originalRequest._retry) {
+			// refresh 엔드포인트 자체가 401이면 → 완전 로그아웃
+			if (originalRequest.url?.includes("/auth/refresh")) {
+				useAuthStore.getState().clearUser();
+				const path = window.location.pathname;
+				window.location.href = path.startsWith("/App")
+					? "/App/login"
+					: "/office/login";
+				return Promise.reject(error);
 			}
-			return Promise.reject(error);
+
+			if (isRefreshing) {
+				// 이미 refresh 중이면 대기열에 추가
+				return new Promise((resolve, reject) => {
+					failedQueue.push({ resolve, reject });
+				}).then((token) => {
+					originalRequest.headers.Authorization = `Bearer ${token}`;
+					return api(originalRequest);
+				});
+			}
+
+			originalRequest._retry = true;
+			isRefreshing = true;
+
+			try {
+				// Refresh Token으로 새 Access Token 요청
+				const res = await api.post("/auth/refresh");
+				const newToken = res.data.accessToken;
+
+				// 스토어 토큰 갱신 (user 정보는 유지)
+				const currentUser = useAuthStore.getState().user;
+				useAuthStore.getState().setUser(currentUser, newToken);
+
+				processQueue(null, newToken);
+				originalRequest.headers.Authorization = `Bearer ${newToken}`;
+				return api(originalRequest); // 원래 요청 재시도
+			} catch (refreshError) {
+				processQueue(refreshError, null);
+				useAuthStore.getState().clearUser();
+				const path = window.location.pathname;
+				window.location.href = path.startsWith("/App")
+					? "/App/login"
+					: "/office/login";
+				return Promise.reject(refreshError);
+			} finally {
+				isRefreshing = false;
+			}
 		}
 
+		// 401 외 나머지 에러 처리
 		let message = "서버 오류가 발생했습니다.";
-
 		if (error.response?.data instanceof Blob) {
 			const text = await error.response.data.text();
 			try {
-				const json = JSON.parse(text);
-				message = json.message || message;
+				message = JSON.parse(text).message || message;
 			} catch {
 				message = text || message;
 			}
 		} else {
 			message = error.response?.data?.message || message;
 		}
-
 		console.error("[API Error]", message);
 		return Promise.reject(error);
 	},

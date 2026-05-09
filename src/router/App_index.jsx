@@ -19,7 +19,7 @@ import App_EndNextPage from "../pages/field/EndNextPage/App_EndNextPage";
 import App_EndNextSelectPage from "../pages/field/EndNextSelectPage/App_EndNextSelectPage";
 
 const P = (element) => (
-	<PrivateRoute element={element} loginPath="/App/login" />
+	<PrivateRoute element={element} loginPath="/App/login" allowedRole="FIELD" />
 );
 
 const appRoutes = [

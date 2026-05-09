@@ -14,7 +14,11 @@ import Web_ScenarioCreationDetailHistoryPage from "../pages/office/Web_ScenarioC
 import Web_FieldLiveStatusPage from "../pages/office/Web_FieldLiveStatusPage/Web_FieldLiveStatusPage";
 
 const P = (element) => (
-	<PrivateRoute element={element} loginPath="/office/login" />
+	<PrivateRoute
+		element={element}
+		loginPath="/office/login"
+		allowedRole="OFFICE"
+	/>
 );
 
 const webRoutes = [
