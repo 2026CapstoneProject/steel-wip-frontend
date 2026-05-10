@@ -11,6 +11,12 @@ import {
 
 // ─── 헬퍼 함수 ──────────────────────────────────────────────────────
 
+const buildRelocateActionKey = (taskId, itemId) =>
+	`${taskId}-relocate-${itemId}`;
+
+const buildPickingActionKey = (taskId, itemId) =>
+	`${taskId}-picking-${itemId}`;
+
 const extractSlotNumber = (value) => {
 	const match = String(value ?? "").match(/(\d+)/);
 	return match ? match[1] : "";
@@ -76,6 +82,7 @@ function mapBatchesToTasks(batchGroups) {
 		}),
 	}));
 }
+
 // ─── 서브 컴포넌트 ──────────────────────────────────────────────────
 
 const SummarySection = ({
@@ -138,7 +145,7 @@ const RelocateCard = ({ item, onQrClick }) => (
 			</div>
 			<button
 				type="button"
-				onClick={() => onQrClick(item)}
+				onClick={onQrClick}
 				className="rounded-lg border border-indigo-200 bg-white p-2 shadow-sm transition active:scale-95"
 			>
 				<span className="material-symbols-outlined block text-4xl text-indigo-700">
@@ -194,7 +201,7 @@ const PickingCard = ({ item, onActionClick, onWorkOrderClick }) => {
 						onClick={() => onWorkOrderClick(item)}
 						className="p-1"
 					>
-						<span className="material-symbols-outlined text-2xl text-slate-500">
+						<span className="material-symbols-outlined text-[21px] text-slate-500">
 							description
 						</span>
 					</button>
@@ -221,6 +228,7 @@ const PickingCard = ({ item, onActionClick, onWorkOrderClick }) => {
 
 const TaskSection = ({
 	task,
+	activeActionKey,
 	onRelocateQrClick,
 	onPickingActionClick,
 	onWorkOrderClick,
@@ -230,29 +238,39 @@ const TaskSection = ({
 			<div className="h-5 w-1.5 rounded-full bg-indigo-700" />
 			<h2 className="text-lg font-bold text-slate-900">{task.title}</h2>
 		</div>
+
 		{task.relocations?.length > 0 && (
 			<div className="space-y-3">
-				{task.relocations.map((item) => (
-					<RelocateCard
-						key={item.id}
-						item={item}
-						onQrClick={onRelocateQrClick}
-					/>
-				))}
+				{task.relocations.map((item) => {
+					const actionKey = buildRelocateActionKey(task.id, item.id);
+
+					return (
+						<RelocateCard
+							key={item.id}
+							item={item}
+							onQrClick={() => onRelocateQrClick(item, actionKey)}
+						/>
+					);
+				})}
 			</div>
 		)}
+
 		{task.pickings?.length > 0 && (
 			<div className="mt-4 space-y-3">
-				{task.pickings.map((item, index) => (
-					<PickingCard
-						key={item.id}
-						item={item}
-						onActionClick={() =>
-							onPickingActionClick(item, index, task.pickings)
-						}
-						onWorkOrderClick={onWorkOrderClick}
-					/>
-				))}
+				{task.pickings.map((item, index) => {
+					const actionKey = buildPickingActionKey(task.id, item.id);
+
+					return (
+						<PickingCard
+							key={item.id}
+							item={item}
+							onActionClick={() =>
+								onPickingActionClick(item, index, task.pickings, actionKey)
+							}
+							onWorkOrderClick={onWorkOrderClick}
+						/>
+					);
+				})}
 			</div>
 		)}
 	</section>
@@ -268,6 +286,7 @@ const App_ReadyPage = () => {
 
 	const [readyData, setReadyData] = useState(null);
 	const [loading, setLoading] = useState(true);
+	const [isOrderPopupOpen, setIsOrderPopupOpen] = useState(false);
 
 	useEffect(() => {
 		if (location.state?.selectedScenarioId) {
@@ -278,6 +297,16 @@ const App_ReadyPage = () => {
 	useEffect(() => {
 		fetchReadyData();
 	}, [selectedScenarioId]);
+
+	useEffect(() => {
+		if (!isOrderPopupOpen) return;
+
+		const timer = window.setTimeout(() => {
+			setIsOrderPopupOpen(false);
+		}, 1200);
+
+		return () => window.clearTimeout(timer);
+	}, [isOrderPopupOpen]);
 
 	const fetchReadyData = async () => {
 		setLoading(true);
@@ -316,7 +345,31 @@ const App_ReadyPage = () => {
 			? visibleReadyTaskCount
 			: hiddenCurrentBatchTaskCount;
 
-	const handleRelocateQrClick = (item) => {
+	const orderedActionKeys = tasks.flatMap((task) => [
+		...(task.relocations ?? []).map((item) =>
+			buildRelocateActionKey(task.id, item.id),
+		),
+		...(task.pickings ?? []).map((item) =>
+			buildPickingActionKey(task.id, item.id),
+		),
+	]);
+
+	const activeActionKey = orderedActionKeys[0] ?? "";
+
+	const isActionAllowed = (actionKey) => {
+		return !activeActionKey || activeActionKey === actionKey;
+	};
+
+	const openOrderPopup = () => {
+		setIsOrderPopupOpen(true);
+	};
+
+	const handleRelocateQrClick = (item, actionKey) => {
+		if (!isActionAllowed(actionKey)) {
+			openOrderPopup();
+			return;
+		}
+
 		navigate("/App/ready/relocate", {
 			state: {
 				batchItemId: item.batchItemId,
@@ -334,7 +387,12 @@ const App_ReadyPage = () => {
 		});
 	};
 
-	const handlePickingActionClick = (item, index, pickingList) => {
+	const handlePickingActionClick = (item, index, pickingList, actionKey) => {
+		if (!isActionAllowed(actionKey)) {
+			openOrderPopup();
+			return;
+		}
+
 		const order = index + 1;
 		const totalCount = pickingList.length;
 		const targetPosition = item?.targetPositionLabel || `Position ${order}`;
@@ -385,10 +443,14 @@ const App_ReadyPage = () => {
 	};
 
 	return (
-		<div className="h-[100dvh] overflow-hidden bg-[#f7f9fb] text-slate-900">
+		<div className="relative h-[100dvh] overflow-hidden bg-[#f7f9fb] text-slate-900">
 			<App_Header showBackButton />
 
-			<main className="mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col px-4">
+			<main
+				className={`mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col px-4 ${
+					isOrderPopupOpen ? "blur-sm" : ""
+				}`}
+			>
 				<div className="shrink-0 bg-[#f7f9fb] pt-3">
 					<App_ProcessTabs activeKey="ready" className="mb-0" />
 
@@ -406,6 +468,7 @@ const App_ReadyPage = () => {
 							데이터를 불러오는 중...
 						</div>
 					)}
+
 					{!loading &&
 						tasks.length === 0 &&
 						(hiddenCurrentBatchTaskCount > 0 ? (
@@ -424,12 +487,14 @@ const App_ReadyPage = () => {
 								준비 중인 작업이 없습니다.
 							</div>
 						))}
+
 					{!loading && tasks.length > 0 && (
 						<div className="space-y-8 pb-2">
 							{tasks.map((task) => (
 								<TaskSection
 									key={task.id}
 									task={task}
+									activeActionKey={activeActionKey}
 									onRelocateQrClick={handleRelocateQrClick}
 									onPickingActionClick={handlePickingActionClick}
 									onWorkOrderClick={handleWorkOrderClick}
@@ -439,6 +504,25 @@ const App_ReadyPage = () => {
 					)}
 				</div>
 			</main>
+
+			{isOrderPopupOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6 backdrop-blur-sm">
+					<div className="flex w-full max-w-sm flex-col items-center rounded-[2rem] bg-white p-8 shadow-2xl">
+						<div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#3F51B5]/10">
+							<span
+								className="material-symbols-outlined text-4xl text-[#3F51B5]"
+								style={{ fontVariationSettings: '"FILL" 1' }}
+							>
+								info
+							</span>
+						</div>
+
+						<h2 className="text-center text-2xl font-extrabold leading-tight text-slate-900">
+							이전 작업을 먼저 진행해주세요
+						</h2>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };
