@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
+import App_EquipmentLayout from "../../../components/modal/App_EquipmentLayout/App_EquipmentLayout";
 import { saveBatchItem } from "../../../services/fieldService";
 
 const fallbackPicking = {
@@ -17,7 +18,9 @@ const fallbackPicking = {
     time: "",
   },
   layout: {
+    type: "case4",
     highlightedSlot: "2",
+    highlightedPieceId: "2",
     slots: ["1", "2", "3", "4"],
     wallLabel: "벽",
     equipmentLabel: "설비",
@@ -103,6 +106,22 @@ const normalizePickingData = (source = {}) => {
       fallbackPicking.layout.highlightedSlot
   );
 
+  const layoutType =
+    source?.layout?.type ||
+    source?.layout?.layoutType ||
+    source?.layoutType ||
+    source?.equipmentLayoutType ||
+    source?.layoutCase ||
+    fallbackPicking.layout.type;
+
+  const highlightedPieceId = String(
+    source?.layout?.highlightedPieceId ||
+      source?.highlightedPieceId ||
+      source?.layout?.targetPieceId ||
+      source?.targetPieceId ||
+      highlightedSlot
+  );
+
   const toZone =
     formatPositionLabel(rawPosition) || `Position ${highlightedSlot}`;
 
@@ -141,7 +160,9 @@ const normalizePickingData = (source = {}) => {
     layout: {
       ...fallbackPicking.layout,
       ...(source?.layout ?? {}),
+      type: layoutType,
       highlightedSlot,
+      highlightedPieceId,
     },
     pickingOrder:
       source?.pickingOrder ?? source?.order ?? fallbackPicking.pickingOrder,
@@ -215,59 +236,6 @@ const StepCircle = ({ type = "inactive" }) => {
         inventory_2
       </span>
     </div>
-  );
-};
-
-const LayoutCard = ({ layout, highlightedSlot }) => {
-  const slots = layout?.slots ?? ["1", "2", "3", "4"];
-  const wallLabel = layout?.wallLabel ?? "벽";
-  const equipmentLabel = layout?.equipmentLabel ?? "설비";
-
-  return (
-    <section className="rounded-2xl bg-white p-6 shadow-[0_20px_40px_rgba(25,28,30,0.06)]">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-[#191C1E]">레이아웃</h2>
-      </div>
-
-      <div className="flex justify-center">
-        <div className="relative inline-block min-w-[280px] rounded-lg bg-[#E0E0E0] p-6 pb-12 pr-16">
-          <div className="absolute left-0 right-16 top-0 flex h-12 items-center justify-center rounded-t-lg bg-[#9E9E9E] text-base font-bold text-white">
-            {equipmentLabel}
-          </div>
-
-          <div className="mt-12 grid grid-cols-2 gap-6">
-            {slots.map((slot) => {
-              const isHighlighted = String(slot) === String(highlightedSlot);
-
-              return (
-                <div
-                  key={slot}
-                  className={`flex h-32 w-24 items-center justify-center border text-2xl font-extrabold shadow-sm ${
-                    isHighlighted
-                      ? "border-transparent text-white shadow-md"
-                      : "border-[#BDBDBD] bg-white text-[#191C1E]"
-                  }`}
-                  style={
-                    isHighlighted
-                      ? { backgroundColor: "rgba(54, 73, 172, 0.86)" }
-                      : undefined
-                  }
-                >
-                  {slot}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="absolute bottom-0 right-0 top-0 flex w-16 flex-col items-center justify-center">
-            <div className="h-full w-4 bg-[#191C1E]" />
-            <div className="absolute rounded bg-[#424242] px-2 py-3 text-xs font-bold text-white shadow-sm">
-              {wallLabel}
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
   );
 };
 
@@ -368,11 +336,16 @@ const App_PickingRawPage = () => {
 
   const highlightedSlot = useMemo(() => {
     return (
+      picking.layout?.highlightedPieceId ||
       picking.layout?.highlightedSlot ||
       extractSlotNumber(picking.to?.zone) ||
       "1"
     );
-  }, [picking.layout?.highlightedSlot, picking.to?.zone]);
+  }, [
+    picking.layout?.highlightedPieceId,
+    picking.layout?.highlightedSlot,
+    picking.to?.zone,
+  ]);
 
   const toDisplayTime = movementState.toTime || "";
 
@@ -529,7 +502,7 @@ const App_PickingRawPage = () => {
       </section>
 
       <section className="space-y-4">
-        <LayoutCard
+        <App_EquipmentLayout
           layout={picking.layout}
           highlightedSlot={highlightedSlot}
         />
