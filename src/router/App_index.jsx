@@ -14,7 +14,6 @@ import App_ProcessingQrPage from "../pages/field/ProcessingQrPage/App_Processing
 import App_ProcessingQrWipPage from "../pages/field/ProcessingQrWipPage/App_ProcessingQrWipPage";
 import App_ProcessingQrWipZonePage from "../pages/field/ProcessingQrWipZonePage/App_ProcessingQrWipZonePage";
 import App_EndPage from "../pages/field/EndPage/App_EndPage";
-import App_NextScenarioTest from "../pages/field/NextScenarioTestPage/App_NextScenarioTest";
 
 const appRoutes = [
   {
@@ -39,7 +38,6 @@ const appRoutes = [
       { path: "processing/qr/wip/zone", element: <App_ProcessingQrWipZonePage /> },
 
       { path: "end", element: <App_EndPage /> },
-      { path: "test/next-scenario", element: <App_NextScenarioTest /> },
 
     ],
   },
