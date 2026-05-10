@@ -129,14 +129,14 @@ export default function Web_LoginPage() {
 									</div>
 								</div>
 
-								<div className="-mt-2 flex justify-end px-1">
+								{/* <div className="-mt-2 flex justify-end px-1">
 									<button
 										type="button"
 										className="font-label text-xs font-medium text-on-surface-variant transition-colors hover:text-[#24389c]"
 									>
 										Forgot Password?
 									</button>
-								</div>
+								</div> */}
 
 								<button
 									type="submit"
@@ -150,7 +150,7 @@ export default function Web_LoginPage() {
 								</button>
 							</form>
 
-							<p className="mt-8 text-center font-label text-[13px] text-on-surface-variant">
+							{/* <p className="mt-8 text-center font-label text-[13px] text-on-surface-variant">
 								Don&apos;t have an account?{" "}
 								<button
 									type="button"
@@ -158,7 +158,7 @@ export default function Web_LoginPage() {
 								>
 									Register Now
 								</button>
-							</p>
+							</p> */}
 						</div>
 					</div>
 				</div>

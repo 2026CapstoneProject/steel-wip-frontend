@@ -135,14 +135,14 @@ const App_LoginPage = () => {
 						</div>
 
 						{/* Forgot Password */}
-						<div className="-mt-3 flex justify-end">
+						{/* <div className="-mt-3 flex justify-end">
 							<button
 								type="button"
 								className="text-[11px] font-medium text-[#505F76] transition-colors hover:text-[#24389C]"
 							>
 								Forgot Password?
 							</button>
-						</div>
+						</div> */}
 						{errorMsg && <p className="error">{errorMsg}</p>}
 						{/* Login Button */}
 						<button
@@ -159,7 +159,7 @@ const App_LoginPage = () => {
 				</div>
 
 				{/* Footer */}
-				<p className="mt-8 text-center text-[13px] text-[#505F76]">
+				{/* <p className="mt-8 text-center text-[13px] text-[#505F76]">
 					Don&apos;t have an account?{" "}
 					<button
 						type="button"
@@ -167,7 +167,7 @@ const App_LoginPage = () => {
 					>
 						Register Now
 					</button>
-				</p>
+				</p> */}
 			</main>
 		</div>
 	);
