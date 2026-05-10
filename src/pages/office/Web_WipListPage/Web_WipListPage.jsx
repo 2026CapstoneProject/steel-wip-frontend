@@ -138,7 +138,7 @@ export default function Web_WipListPage() {
 		<Web_AppLayout pageTitle="재고현황">
 			<Web_InventoryFilterSection
 				filters={filters}
-				onFilterChange={handleFilterChange}
+				onChange={handleFilterChange}
 				onReset={handleReset}
 				onSearch={handleSearch}
 			/>

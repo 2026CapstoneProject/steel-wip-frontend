@@ -126,7 +126,7 @@ export default function DashboardPage() {
       {
         label: "발행된 시나리오",
         value: String(sentScenarioCount),
-        sub: `투입 자재 합계 ${sumSentInputWips(sentProjects)} EA`,
+        sub: `투입 자재 합계 ${sumSentInputWips(sentProjects)}개`,
       },
       {
         label: "재고 잔재 수",
