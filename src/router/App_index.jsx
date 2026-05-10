@@ -15,8 +15,6 @@ import App_ProcessingQrPage from "../pages/field/ProcessingQrPage/App_Processing
 import App_ProcessingQrWipPage from "../pages/field/ProcessingQrWipPage/App_ProcessingQrWipPage";
 import App_ProcessingQrWipZonePage from "../pages/field/ProcessingQrWipZonePage/App_ProcessingQrWipZonePage";
 import App_EndPage from "../pages/field/EndPage/App_EndPage";
-import App_EndNextPage from "../pages/field/EndNextPage/App_EndNextPage";
-import App_EndNextSelectPage from "../pages/field/EndNextSelectPage/App_EndNextSelectPage";
 
 import useAppAuthStore from "../store/useAppAuthStore";
 
@@ -54,13 +52,9 @@ const appRoutes = [
 				path: "processing/qr/wip/zone",
 				element: P(<App_ProcessingQrWipZonePage />),
 			},
-
-			{ path: "end", element: P(<App_EndPage />) },
-
-			{ path: "end/next", element: P(<App_EndNextPage />) },
-			{ path: "end/next/select", element: P(<App_EndNextSelectPage />) },
-		],
-	},
+      { path: "end", element: P(<App_EndPage />) },
+    ],
+  },
 ];
 
 export default appRoutes;
