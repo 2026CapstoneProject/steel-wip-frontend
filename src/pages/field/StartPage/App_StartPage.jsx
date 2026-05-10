@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import steelAllLogo from "../../../assets/Steel_all_CI_align_1st.png";
 import { getFieldReady } from "../../../services/fieldService";
 import { setSelectedFieldScenarioId } from "../../../utils/App/selectedScenario";
-import App_UserDropdown from "../../../components/field/UserDropdown/App_UserDropdown";
+import App_UserDropdown from "../../../components/field/Header/App_UserDropdown";
 
 // FieldReadyData → 화면용 scenario 항목으로 변환
 function mapReadyDataToEquipment(readyDataList) {
