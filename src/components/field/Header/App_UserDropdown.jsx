@@ -1,24 +1,38 @@
-// src/components/field/Header/App_UserDropdown.jsx
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import useAuthStore from "../../../store/useAuthStore";
+import useAppAuthStore from "../../../store/useAppAuthStore";
 
 const App_UserDropdown = () => {
 	const [isOpen, setIsOpen] = useState(false);
-	const dropdownRef = useRef(null);
+	const [panelPos, setPanelPos] = useState({ top: 0, right: 0 });
+	const btnRef = useRef(null);
 	const navigate = useNavigate();
-	const { user, clearUser } = useAuthStore();
+	const { user, clearUser } = useAppAuthStore();
+
+	// 버튼 위치 계산해서 패널 좌표 저장
+	const handleToggle = () => {
+		if (!isOpen && btnRef.current) {
+			const rect = btnRef.current.getBoundingClientRect();
+			setPanelPos({
+				top: rect.bottom + 8,
+				right: window.innerWidth - rect.right,
+			});
+		}
+		setIsOpen((prev) => !prev);
+	};
 
 	// 외부 클릭 시 닫기
 	useEffect(() => {
+		if (!isOpen) return;
 		const handleClickOutside = (e) => {
-			if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+			if (btnRef.current && !btnRef.current.contains(e.target)) {
 				setIsOpen(false);
 			}
 		};
 		document.addEventListener("mousedown", handleClickOutside);
 		return () => document.removeEventListener("mousedown", handleClickOutside);
-	}, []);
+	}, [isOpen]);
 
 	const handleLogout = () => {
 		clearUser();
@@ -26,11 +40,12 @@ const App_UserDropdown = () => {
 	};
 
 	return (
-		<div className="relative" ref={dropdownRef}>
+		<>
 			{/* 트리거 버튼 */}
 			<button
+				ref={btnRef}
 				type="button"
-				onClick={() => setIsOpen((prev) => !prev)}
+				onClick={handleToggle}
 				aria-label="account menu"
 				aria-expanded={isOpen}
 				className="flex h-11 w-11 items-center justify-center"
@@ -40,33 +55,35 @@ const App_UserDropdown = () => {
 				</span>
 			</button>
 
-			{/* 드롭다운 패널 */}
-			{isOpen && (
-				<div className="absolute right-0 top-full z-50 mt-2 w-44 rounded-xl border border-slate-100 bg-white shadow-lg">
-					{/* 사용자 정보 */}
-					<div className="border-b border-slate-100 px-4 py-3">
-						<p className="text-sm font-semibold text-slate-800">
-							{user?.name ?? user?.username ?? "사용자"}
-						</p>
-						<p className="mt-0.5 text-xs text-slate-400">
-							{user?.role ?? "현장 작업자"}
-						</p>
-					</div>
-
-					{/* 로그아웃 */}
-					<button
-						type="button"
-						onClick={handleLogout}
-						className="flex w-full items-center gap-2 px-4 py-3 text-sm text-red-500 transition hover:bg-red-50 active:bg-red-100 rounded-b-xl"
+			{/* 드롭다운 패널 — overflow-hidden 밖으로 portal */}
+			{isOpen &&
+				createPortal(
+					<div
+						className="fixed z-[9999] w-44 rounded-xl border border-slate-100 bg-white shadow-lg"
+						style={{ top: panelPos.top, right: panelPos.right }}
 					>
-						<span className="material-symbols-outlined text-[18px] leading-none">
-							logout
-						</span>
-						로그아웃
-					</button>
-				</div>
-			)}
-		</div>
+						<div className="border-b border-slate-100 px-4 py-3">
+							<p className="text-sm font-semibold text-slate-800">
+								{user?.name ?? user?.username ?? "사용자"}
+							</p>
+							<p className="mt-0.5 text-xs text-slate-400">
+								{user?.role ?? "현장 작업자"}
+							</p>
+						</div>
+						<button
+							type="button"
+							onClick={handleLogout}
+							className="flex w-full items-center gap-2 px-4 py-3 text-sm text-red-500 transition hover:bg-red-50 active:bg-red-100 rounded-b-xl"
+						>
+							<span className="material-symbols-outlined text-[18px] leading-none">
+								logout
+							</span>
+							로그아웃
+						</button>
+					</div>,
+					document.body,
+				)}
+		</>
 	);
 };
 
