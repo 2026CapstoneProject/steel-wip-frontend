@@ -7,10 +7,10 @@ const App_UserDropdown = () => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [panelPos, setPanelPos] = useState({ top: 0, right: 0 });
 	const btnRef = useRef(null);
+	const panelRef = useRef(null); // ← 추가
 	const navigate = useNavigate();
 	const { user, clearUser } = useAppAuthStore();
 
-	// 버튼 위치 계산해서 패널 좌표 저장
 	const handleToggle = () => {
 		if (!isOpen && btnRef.current) {
 			const rect = btnRef.current.getBoundingClientRect();
@@ -22,11 +22,16 @@ const App_UserDropdown = () => {
 		setIsOpen((prev) => !prev);
 	};
 
-	// 외부 클릭 시 닫기
 	useEffect(() => {
 		if (!isOpen) return;
 		const handleClickOutside = (e) => {
-			if (btnRef.current && !btnRef.current.contains(e.target)) {
+			// 트리거 버튼도, 패널도 아닌 곳을 클릭했을 때만 닫기
+			if (
+				btnRef.current &&
+				!btnRef.current.contains(e.target) &&
+				panelRef.current &&
+				!panelRef.current.contains(e.target)
+			) {
 				setIsOpen(false);
 			}
 		};
@@ -35,13 +40,13 @@ const App_UserDropdown = () => {
 	}, [isOpen]);
 
 	const handleLogout = () => {
+		setIsOpen(false);
 		clearUser();
 		navigate("/App/login");
 	};
 
 	return (
 		<>
-			{/* 트리거 버튼 */}
 			<button
 				ref={btnRef}
 				type="button"
@@ -55,10 +60,10 @@ const App_UserDropdown = () => {
 				</span>
 			</button>
 
-			{/* 드롭다운 패널 — overflow-hidden 밖으로 portal */}
 			{isOpen &&
 				createPortal(
 					<div
+						ref={panelRef} // ← 추가
 						className="fixed z-[9999] w-44 rounded-xl border border-slate-100 bg-white shadow-lg"
 						style={{ top: panelPos.top, right: panelPos.right }}
 					>
