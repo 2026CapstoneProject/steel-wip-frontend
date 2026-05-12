@@ -26,6 +26,7 @@ const ACTION_META = {
 
 function mapLocationLabel(value) {
   const raw = String(value ?? "").trim();
+
   if (!raw) return "-";
   if (raw === "설비") return raw;
 
@@ -65,12 +66,23 @@ function createBatchItemLookup(batchItems = []) {
 
 function findMatchingBatchItem(batchItems, action, steelWipId) {
   const batchAction = mapCraneActionToBatchAction(action);
+
   return (
     batchItems.find(
       (item) =>
         item.batchItemAction === batchAction &&
-        Number(item.steelWipId) === Number(steelWipId),
+        Number(item.steelWipId) === Number(steelWipId)
     ) ?? null
+  );
+}
+
+function createMockNcCode(row, itemDetail) {
+  return (
+    row.ncCode ||
+    itemDetail?.ncCode ||
+    `NC-${String(row.steelWipId ?? "000").padStart(3, "0")}-${String(
+      row.order ?? 1
+    ).padStart(2, "0")}`
   );
 }
 
@@ -81,9 +93,11 @@ function buildSequentialGroups(craneSchedule = [], batchItems = []) {
   craneSchedule.forEach((row) => {
     const action = String(row.action ?? "").trim();
     const meta = ACTION_META[action];
+
     if (!meta) return;
 
     const itemDetail = findMatchingBatchItem(details, action, row.steelWipId);
+
     const nextRow = {
       qrNumber: row?.qrCode
         ? formatScenarioQr(row, row.steelWipId)
@@ -93,12 +107,18 @@ function buildSequentialGroups(craneSchedule = [], batchItems = []) {
       length: row?.length ?? itemDetail?.length ?? "-",
       from: mapLocationLabel(row.fromLocation ?? itemDetail?.fromLocation),
       to: mapLocationLabel(row.toLocation ?? itemDetail?.toLocation),
+
+      ...(action === "PICK" && {
+        ncCode: createMockNcCode(row, itemDetail),
+      }),
+
       estimatedTime: Number(row.eventMinute ?? 0).toFixed(2),
       status: row.moveType ?? "-",
       statusClass: "bg-surface-container-highest text-on-surface-variant",
     };
 
     const currentGroup = groups[groups.length - 1];
+
     if (currentGroup && currentGroup.action === action) {
       currentGroup.rows.push(nextRow);
       currentGroup.subLabel = `${currentGroup.rows.length}건`;
@@ -153,8 +173,7 @@ export default function Web_SolverTimelineSection({
             <Web_ScenarioTaskTable
               rows={item.rows}
               accentTextClass={item.accentTextClass}
-              timeHeaderLabel="c[t](min)"
-              statusHeaderLabel="Type"
+              timeHeaderLabel="예상 소요시간(분)"
             />
           </div>
         ))}

@@ -15,13 +15,28 @@ function formatScenarioQr(item) {
   return `QR-WIP-${String(item?.steelWipId ?? "").padStart(3, "0")}`;
 }
 
+function isPickingAction(action) {
+  return action === "PICKING" || action === "피킹";
+}
+
+function createMockNcCode(item, index) {
+  return (
+    item.ncCode ||
+    `NC-${String(item.scenarioId ?? item.batchItemId ?? "000").padStart(
+      3,
+      "0"
+    )}-${String(index + 1).padStart(2, "0")}`
+  );
+}
+
 function mapBatchItemsToTimeline(batchItems) {
   const RELOCATION = [];
   const PICKING = [];
   const INBOUND = [];
 
-  (batchItems ?? []).forEach((item) => {
+  (batchItems ?? []).forEach((item, index) => {
     const action = String(item.batchItemAction ?? "").trim();
+
     const row = {
       qrNumber: formatScenarioQr(item),
       thickness: String(item.thickness ?? ""),
@@ -29,14 +44,29 @@ function mapBatchItemsToTimeline(batchItems) {
       length: String(item.length ?? ""),
       from: item.fromLocation || "-",
       to: item.toLocation || "-",
+
+      ...(isPickingAction(action) && {
+        ncCode: createMockNcCode(item, index),
+      }),
+
       estimatedTime: String(item.expectedStartTime ?? ""),
     };
-    if (action === "RELOCATION" || action === "RELOCATE" || action === "재배치") RELOCATION.push(row);
-    else if (action === "PICKING" || action === "피킹") PICKING.push(row);
-    else if (action === "INBOUND" || action === "적재") INBOUND.push(row);
+
+    if (
+      action === "RELOCATION" ||
+      action === "RELOCATE" ||
+      action === "재배치"
+    ) {
+      RELOCATION.push(row);
+    } else if (isPickingAction(action)) {
+      PICKING.push(row);
+    } else if (action === "INBOUND" || action === "적재") {
+      INBOUND.push(row);
+    }
   });
 
   const items = [];
+
   if (RELOCATION.length > 0) {
     items.push({
       id: 1,
@@ -47,6 +77,7 @@ function mapBatchItemsToTimeline(batchItems) {
       rows: RELOCATION,
     });
   }
+
   if (PICKING.length > 0) {
     items.push({
       id: 2,
@@ -57,6 +88,7 @@ function mapBatchItemsToTimeline(batchItems) {
       rows: PICKING,
     });
   }
+
   if (INBOUND.length > 0) {
     items.push({
       id: 3,
@@ -67,6 +99,7 @@ function mapBatchItemsToTimeline(batchItems) {
       rows: INBOUND,
     });
   }
+
   return items;
 }
 
@@ -80,12 +113,14 @@ export default function Web_ScenarioCreationDetailHistoryPage() {
   const [scenarioData, setScenarioData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
   // state 없이 직접 접근 시 생성 이력 목록으로 리다이렉트
   useEffect(() => {
     if (!scenarioId && !projectInfo) {
       navigate("/office/scenario/creationhistory", { replace: true });
       return;
     }
+
     if (scenarioId) {
       fetchScenarioDetail(scenarioId);
     } else {
@@ -96,10 +131,12 @@ export default function Web_ScenarioCreationDetailHistoryPage() {
   const fetchScenarioDetail = async (id) => {
     setLoading(true);
     setError(null);
+
     try {
       const response = await getScenarioDetail(id);
       const dataList = response.data?.data ?? [];
       const nextScenario = dataList[0] ?? null;
+
       setScenarioData(nextScenario);
 
       if (!nextScenario) {
@@ -121,7 +158,8 @@ export default function Web_ScenarioCreationDetailHistoryPage() {
       ? `#${String(scenarioData.scenarioId).padStart(5, "0")}`
       : projectInfo?.scenarioId || "-",
     projectName: scenarioData?.projectTitle || projectInfo?.projectName || "-",
-    productionPlanName: scenarioData?.scenarioTitle || projectInfo?.productionPlanName || "-",
+    productionPlanName:
+      scenarioData?.scenarioTitle || projectInfo?.productionPlanName || "-",
     shipmentDate: scenarioData?.scenarioDue || projectInfo?.shipmentDate || "-",
     equipmentName: scenarioData?.lazerName || projectInfo?.equipmentName || "-",
     status: projectInfo?.statusLabel || "미발행",
@@ -129,9 +167,21 @@ export default function Web_ScenarioCreationDetailHistoryPage() {
 
   const metrics = scenarioData
     ? [
-        { label: "재공품 수", value: String(scenarioData.totalWipNum ?? 0), unit: "EA" },
-        { label: "크레인 이동 횟수", value: String(scenarioData.totalCraneMove ?? 0), unit: "Times" },
-        { label: "이동 횟수", value: String(scenarioData.totalMoveNum ?? 0), unit: "Times" },
+        {
+          label: "재공품 수",
+          value: String(scenarioData.totalWipNum ?? 0),
+          unit: "EA",
+        },
+        {
+          label: "크레인 이동 횟수",
+          value: String(scenarioData.totalCraneMove ?? 0),
+          unit: "Times",
+        },
+        {
+          label: "이동 횟수",
+          value: String(scenarioData.totalMoveNum ?? 0),
+          unit: "Times",
+        },
         {
           label: "총 소요 시간",
           value: `${Math.floor((scenarioData.totalCuttingTime ?? 0) / 60)
@@ -150,7 +200,9 @@ export default function Web_ScenarioCreationDetailHistoryPage() {
         { label: "총 소요 시간", value: "-", unit: "HR", highlight: true },
       ];
 
-  const timelineItems = scenarioData ? mapBatchItemsToTimeline(scenarioData.batchItems) : [];
+  const timelineItems = scenarioData
+    ? mapBatchItemsToTimeline(scenarioData.batchItems)
+    : [];
 
   return (
     <Web_AppLayout pageTitle="시나리오 생성 이력 상세">
@@ -189,6 +241,7 @@ export default function Web_ScenarioCreationDetailHistoryPage() {
                 status={scenarioSummary.status}
               />
             </div>
+
             {scenarioData?.solverSummary ? (
               <Web_SolverTimelineSection
                 craneSchedule={scenarioData.craneSchedule}

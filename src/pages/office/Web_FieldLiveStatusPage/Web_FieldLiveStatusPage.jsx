@@ -9,61 +9,82 @@ const EQUIPMENT_TABS = [
   { id: "LAZER1", label: "레이저 설비 1" },
   { id: "LAZER2", label: "레이저 설비 2" },
   { id: "LAZER3", label: "레이저 설비 3" },
-  { id: "all",    label: "전체 보기" },
+  { id: "all", label: "전체 보기" },
 ];
 
 const LAZER_IDS = ["LAZER1", "LAZER2", "LAZER3"];
 
 const INITIAL_FILTERS = {
-  actionType:  "",
-  minMinutes:  "",
-  maxMinutes:  "",
+  actionType: "",
+  minMinutes: "",
+  maxMinutes: "",
 };
 
 // ─── 매핑 헬퍼 ────────────────────────────────────────────
 function mapActionLabel(action) {
   switch (action) {
-    case "RELOCATE": return "재배치 (Relocation)";
-    case "PICKING":  return "피킹 (Picking)";
-    case "INBOUND":  return "적재 (Loading)";
-    default:         return action ?? "-";
+    case "RELOCATE":
+      return "재배치 (Relocation)";
+    case "PICKING":
+      return "피킹 (Picking)";
+    case "INBOUND":
+      return "적재 (Loading)";
+    default:
+      return action ?? "-";
   }
 }
 
 function mapActionIcon(action) {
   switch (action) {
-    case "RELOCATE": return "sync_alt";
-    case "PICKING":  return "inventory";
-    case "INBOUND":  return "layers";
-    default:         return "task";
+    case "RELOCATE":
+      return "sync_alt";
+    case "PICKING":
+      return "inventory";
+    case "INBOUND":
+      return "layers";
+    default:
+      return "task";
   }
 }
 
 function mapActionColor(action) {
   switch (action) {
-    case "RELOCATE": return "bg-primary ring-surface";
-    case "PICKING":  return "bg-red-500 ring-surface";
-    case "INBOUND":  return "bg-emerald-500 ring-surface";
-    default:         return "bg-surface-container ring-surface";
+    case "RELOCATE":
+      return "bg-primary ring-surface";
+    case "PICKING":
+      return "bg-red-500 ring-surface";
+    case "INBOUND":
+      return "bg-emerald-500 ring-surface";
+    default:
+      return "bg-surface-container ring-surface";
   }
 }
 
 function mapStatusLabel(status) {
   switch (status) {
-    case "BEFORE_PENDING": return "대기";
-    case "PENDING":     return "대기";
-    case "IN_PROGRESS": return "이동중";
-    case "COMPLETED":   return "완료";
-    default:            return status ?? "-";
+    case "BEFORE_PENDING":
+      return "대기";
+    case "PENDING":
+      return "대기";
+    case "IN_PROGRESS":
+      return "이동중";
+    case "COMPLETED":
+      return "완료";
+    default:
+      return status ?? "-";
   }
 }
 
 function mapStatusClass(status) {
   switch (status) {
-    case "BEFORE_PENDING": return "bg-surface-container-highest text-on-surface-variant";
-    case "IN_PROGRESS": return "bg-secondary-container text-on-secondary-container";
-    case "COMPLETED":   return "bg-emerald-100 text-emerald-700";
-    default:            return "bg-surface-container-highest text-on-surface-variant";
+    case "BEFORE_PENDING":
+      return "bg-surface-container-highest text-on-surface-variant";
+    case "IN_PROGRESS":
+      return "bg-secondary-container text-on-secondary-container";
+    case "COMPLETED":
+      return "bg-emerald-100 text-emerald-700";
+    default:
+      return "bg-surface-container-highest text-on-surface-variant";
   }
 }
 
@@ -79,7 +100,9 @@ function summarizeEquipment(items, equipmentId) {
   }
 
   const first = items[0];
-  const actionSet = [...new Set(items.map((item) => mapActionLabel(item.batchItemAction)))];
+  const actionSet = [
+    ...new Set(items.map((item) => mapActionLabel(item.batchItemAction))),
+  ];
 
   return {
     equipmentId,
@@ -93,68 +116,92 @@ function summarizeEquipment(items, equipmentId) {
   };
 }
 
+function createMockNcCode(item, wip, index) {
+  return (
+    wip.ncCode ||
+    item.ncCode ||
+    `NC-${String(item.scenarioId ?? "000").padStart(3, "0")}-${String(
+      item.batchOrder ?? 1
+    ).padStart(2, "0")}-${String(index + 1).padStart(2, "0")}`
+  );
+}
+
 // FieldBatchItem → timeline 아이템 형태로 변환
 function mapBatchItemToTimeline(item, equipmentId) {
   return {
     id: item.batchItemId,
     equipmentId,
-    type:          mapActionLabel(item.batchItemAction),
-    _actionRaw:    item.batchItemAction,  // 필터용 원본 값
-    icon:          mapActionIcon(item.batchItemAction),
-    colorClass:    mapActionColor(item.batchItemAction),
+    type: mapActionLabel(item.batchItemAction),
+    _actionRaw: item.batchItemAction,
+    icon: mapActionIcon(item.batchItemAction),
+    colorClass: mapActionColor(item.batchItemAction),
     iconColorClass: "",
-    subLabel:
-      item.batchOrder
-        ? `${item.scenarioTitle || "-"} · Batch ${String(item.batchOrder).padStart(2, "0")}`
-        : item.scenarioTitle || "",
-    rows: (item.wip ?? []).map((w) => ({
-      qrNumber:      w.qrId || "-",
-      thickness:     w.thickness,
-      width:         w.width,
-      length:        w.length,
-      from:          item.fromLocationName || "-",
-      to:            item.toLocationName   || "-",
+    subLabel: item.batchOrder
+      ? `${item.scenarioTitle || "-"} · Batch ${String(item.batchOrder).padStart(
+          2,
+          "0"
+        )}`
+      : item.scenarioTitle || "",
+    rows: (item.wip ?? []).map((w, index) => ({
+      qrNumber: w.qrId || "-",
+      thickness: w.thickness,
+      width: w.width,
+      length: w.length,
+      from: item.fromLocationName || "-",
+      to: item.toLocationName || "-",
+
+      ...(item.batchItemAction === "PICKING" && {
+        ncCode: createMockNcCode(item, w, index),
+      }),
+
       estimatedTime: item.expectedRunningTime,
-      status:        mapStatusLabel(item.status),
-      statusClass:   mapStatusClass(item.status),
+      status: mapStatusLabel(item.status),
+      statusClass: mapStatusClass(item.status),
     })),
   };
 }
 
 // ─── 컴포넌트 ─────────────────────────────────────────────
 export default function Web_FieldLiveStatusPage() {
-  const [filters, setFilters]               = useState(INITIAL_FILTERS);
-  const [searchFilters, setSearchFilters]   = useState(INITIAL_FILTERS);
+  const [filters, setFilters] = useState(INITIAL_FILTERS);
+  const [searchFilters, setSearchFilters] = useState(INITIAL_FILTERS);
   const [selectedEquipment, setSelectedEquipment] = useState("LAZER1");
-  const [timelineItems, setTimelineItems]   = useState([]);
+  const [timelineItems, setTimelineItems] = useState([]);
   const [equipmentSummaries, setEquipmentSummaries] = useState([]);
-  const [loading, setLoading]               = useState(true);
-  const [error, setError]                   = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // 탭 또는 장비 선택이 바뀔 때 API 호출
   const fetchLiveData = async (equipmentId) => {
     setLoading(true);
     setError(null);
+
     try {
       if (equipmentId === "all") {
         // 전체 보기: 3개 레이저 동시 조회 후 합산
         const results = await Promise.all(
           LAZER_IDS.map((id) => getLiveField(id))
         );
+
         const summaries = LAZER_IDS.map((id, idx) =>
           summarizeEquipment(results[idx].data?.data ?? [], id)
         );
+
         const allItems = LAZER_IDS.flatMap((id, idx) =>
-          (results[idx].data?.data ?? []).map((item) => mapBatchItemToTimeline(item, id))
+          (results[idx].data?.data ?? []).map((item) =>
+            mapBatchItemToTimeline(item, id)
+          )
         );
+
         setEquipmentSummaries(summaries);
         setTimelineItems(allItems);
       } else {
         const response = await getLiveField(equipmentId);
         const itemsRaw = response.data?.data ?? [];
-        const items = (response.data?.data ?? []).map((item) =>
+        const items = itemsRaw.map((item) =>
           mapBatchItemToTimeline(item, equipmentId)
         );
+
         setEquipmentSummaries([summarizeEquipment(itemsRaw, equipmentId)]);
         setTimelineItems(items);
       }
@@ -182,7 +229,7 @@ export default function Web_FieldLiveStatusPage() {
     fetchLiveData(selectedEquipment);
   };
 
-  // 조회: 클라이언트사이드 필터 적용 (actionType, 소요 시간)
+  // 조회: 클라이언트사이드 필터 적용
   const handleSearch = () => {
     setSearchFilters(filters);
   };
@@ -196,21 +243,42 @@ export default function Web_FieldLiveStatusPage() {
           item._actionRaw === searchFilters.actionType;
 
         const filteredRows = item.rows.filter((row) => {
-          const t       = Number(row.estimatedTime);
-          const minVal  = searchFilters.minMinutes === "" ? null : Number(searchFilters.minMinutes);
-          const maxVal  = searchFilters.maxMinutes === "" ? null : Number(searchFilters.maxMinutes);
-          return (minVal === null || t >= minVal) && (maxVal === null || t <= maxVal);
+          const t = Number(row.estimatedTime);
+          const minVal =
+            searchFilters.minMinutes === ""
+              ? null
+              : Number(searchFilters.minMinutes);
+          const maxVal =
+            searchFilters.maxMinutes === ""
+              ? null
+              : Number(searchFilters.maxMinutes);
+
+          return (
+            (minVal === null || t >= minVal) &&
+            (maxVal === null || t <= maxVal)
+          );
         });
 
         return isActionMatched && filteredRows.length > 0;
       })
       .map((item) => {
-        const minVal = searchFilters.minMinutes === "" ? null : Number(searchFilters.minMinutes);
-        const maxVal = searchFilters.maxMinutes === "" ? null : Number(searchFilters.maxMinutes);
+        const minVal =
+          searchFilters.minMinutes === ""
+            ? null
+            : Number(searchFilters.minMinutes);
+        const maxVal =
+          searchFilters.maxMinutes === ""
+            ? null
+            : Number(searchFilters.maxMinutes);
+
         const filteredRows = item.rows.filter((row) => {
           const t = Number(row.estimatedTime);
-          return (minVal === null || t >= minVal) && (maxVal === null || t <= maxVal);
+          return (
+            (minVal === null || t >= minVal) &&
+            (maxVal === null || t <= maxVal)
+          );
         });
+
         return { ...item, rows: filteredRows };
       });
   }, [timelineItems, searchFilters]);
@@ -234,7 +302,9 @@ export default function Web_FieldLiveStatusPage() {
               </label>
               <select
                 value={filters.actionType}
-                onChange={(e) => handleChangeFilter("actionType", e.target.value)}
+                onChange={(e) =>
+                  handleChangeFilter("actionType", e.target.value)
+                }
                 className="w-full h-12 px-4 bg-surface-container-high border-none rounded-lg focus:ring-2 focus:ring-primary focus:bg-white text-sm"
               >
                 <option value="">전체</option>
@@ -253,7 +323,9 @@ export default function Web_FieldLiveStatusPage() {
                   type="number"
                   min="0"
                   value={filters.minMinutes}
-                  onChange={(e) => handleChangeFilter("minMinutes", e.target.value)}
+                  onChange={(e) =>
+                    handleChangeFilter("minMinutes", e.target.value)
+                  }
                   placeholder="최소 시간"
                   className="w-1/2 h-12 px-4 bg-surface-container-high border-none rounded-lg focus:ring-2 focus:ring-primary focus:bg-white text-sm"
                 />
@@ -262,7 +334,9 @@ export default function Web_FieldLiveStatusPage() {
                   type="number"
                   min="0"
                   value={filters.maxMinutes}
-                  onChange={(e) => handleChangeFilter("maxMinutes", e.target.value)}
+                  onChange={(e) =>
+                    handleChangeFilter("maxMinutes", e.target.value)
+                  }
                   placeholder="최대 시간"
                   className="w-1/2 h-12 px-4 bg-surface-container-high border-none rounded-lg focus:ring-2 focus:ring-primary focus:bg-white text-sm"
                 />
@@ -293,6 +367,7 @@ export default function Web_FieldLiveStatusPage() {
         <div className="flex gap-4 mb-8">
           {EQUIPMENT_TABS.map((tab) => {
             const isActive = selectedEquipment === tab.id;
+
             return (
               <button
                 key={tab.id}
