@@ -154,7 +154,6 @@ export default function Web_LantekUploadModal({
 							파일 선택
 						</button>
 					</div>
-					// 선택 파일 목록 UI — 현재 단일 파일 표시 부분을 목록으로 교체
 					{selectedFiles.length > 0 && (
 						<div className="rounded-xl border border-primary/20 bg-primary-container/30 px-4 py-4 space-y-2">
 							<p className="text-sm text-on-surface-variant mb-1">
