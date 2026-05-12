@@ -126,6 +126,7 @@ export default function Web_LantekUploadModal({
 						type="file"
 						accept=".pdf,application/pdf"
 						multiple
+						className="hidden"
 						onChange={(e) => handleFilesSelect(Array.from(e.target.files))}
 					/>
 					<div
