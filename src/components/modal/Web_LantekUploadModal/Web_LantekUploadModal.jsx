@@ -204,7 +204,7 @@ export default function Web_LantekUploadModal({
 							type="button"
 							disabled={selectedFiles.length === 0 || uploading}
 							className={`px-5 py-3 rounded-lg font-semibold ${
-								selectedFile && !uploading
+								selectedFiles.length > 0 && !uploading
 									? "bg-primary text-white hover:bg-primary-dim"
 									: "bg-surface-container-high text-on-surface-variant cursor-not-allowed opacity-60"
 							}`}

@@ -6,7 +6,7 @@ export const importLantekData = (scenarioId, files) => {
 	const formData = new FormData();
 	formData.append("scenario_id", scenarioId);
 	files.forEach((file) => formData.append("files", file)); // 백엔드 파라미터명 "files"
-	return apiClient.post("/lantek/import", formData, {
+	return api.post("/lantek/import", formData, {
 		headers: { "Content-Type": "multipart/form-data" },
 	});
 };
