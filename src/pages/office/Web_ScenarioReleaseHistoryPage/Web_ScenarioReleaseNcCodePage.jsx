@@ -31,16 +31,6 @@ function mapLocationLabel(value) {
 	return zoneMap[raw] ?? raw;
 }
 
-function createMockNcCode(item, index) {
-	return (
-		item?.ncCode ||
-		`NC-${String(item?.steelWipId ?? item?.batchItemId ?? index + 1).padStart(
-			3,
-			"0",
-		)}-${String(item?.ncOrder ?? index + 1).padStart(2, "0")}`
-	);
-}
-
 function mapBatchItemsToPickingRows(batchItems = []) {
 	return batchItems
 		.filter((item) => isPickingAction(item.batchItemAction))
@@ -51,7 +41,7 @@ function mapBatchItemsToPickingRows(batchItems = []) {
 			length: item.length ?? "-",
 			from: item.fromLocation || "-",
 			to: item.toLocation || "-",
-			ncCode: createMockNcCode(item, index),
+			ncCode: item.ncCode ?? "-",
 			estimatedTime: String(
 				item.expectedStartTime ?? item.expectedRunningTime ?? "-",
 			),
@@ -83,10 +73,7 @@ function mapCraneScheduleToPickingRows(craneSchedule = [], batchItems = []) {
 				length: row?.length ?? itemDetail?.length ?? "-",
 				from: mapLocationLabel(row.fromLocation ?? itemDetail?.fromLocation),
 				to: mapLocationLabel(row.toLocation ?? itemDetail?.toLocation),
-				ncCode: createMockNcCode(
-					row?.ncCode ? row : (itemDetail ?? row),
-					index,
-				),
+				ncCode: row?.ncCode ?? itemDetail?.ncCode ?? "-",
 				estimatedTime: Number(row.eventMinute ?? 0).toFixed(2),
 			};
 		});
