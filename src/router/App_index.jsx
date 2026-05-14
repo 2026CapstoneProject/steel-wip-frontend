@@ -16,6 +16,7 @@ import App_ProcessingQrWipPage from "../pages/field/ProcessingQrWipPage/App_Proc
 import App_ProcessingQrWipZonePage from "../pages/field/ProcessingQrWipZonePage/App_ProcessingQrWipZonePage";
 import App_EndPage from "../pages/field/EndPage/App_EndPage";
 
+import App_NextScenarioProvider from "../components/field/NextScenario/App_NextScenarioProvider";
 import useAppAuthStore from "../store/useAppAuthStore";
 
 const P = (element) => (
@@ -25,9 +26,11 @@ const P = (element) => (
 		useStore={useAppAuthStore}
 	/>
 );
+
 const appRoutes = [
 	{
 		path: "/App",
+		element: <App_NextScenarioProvider />,
 		children: [
 			{ path: "login", element: <App_LoginPage /> },
 			{ path: "start", element: P(<App_StartPage />) },
@@ -52,9 +55,10 @@ const appRoutes = [
 				path: "processing/qr/wip/zone",
 				element: P(<App_ProcessingQrWipZonePage />),
 			},
-      { path: "end", element: P(<App_EndPage />) },
-    ],
-  },
+
+			{ path: "end", element: P(<App_EndPage />) },
+		],
+	},
 ];
 
 export default appRoutes;

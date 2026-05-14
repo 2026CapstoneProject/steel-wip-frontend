@@ -4,6 +4,7 @@ import App_ProcessTabs from "../../../components/field/ProcessTabs/App_ProcessTa
 import App_Header from "../../../components/field/Header/App_Header";
 import workOrderPdf from "../../../assets/Steel_all_Work_instruction.pdf";
 import { getFieldReady } from "../../../services/fieldService";
+import { useNextScenario } from "../../../components/field/NextScenario/App_NextScenarioProvider";
 import {
 	getSelectedFieldScenarioId,
 	setSelectedFieldScenarioId,
@@ -276,6 +277,8 @@ const TaskSection = ({
 const App_ReadyPage = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const { notifyNextScenarioProgress } = useNextScenario();
+
 	const selectedScenarioId =
 		location.state?.selectedScenarioId ?? getSelectedFieldScenarioId();
 
@@ -312,9 +315,18 @@ const App_ReadyPage = () => {
 				dataList.find((item) => item.scenarioId === selectedScenarioId) ??
 				dataList[0] ??
 				null;
+
 			if (matchedData?.scenarioId) {
 				setSelectedFieldScenarioId(matchedData.scenarioId);
 			}
+
+			if (matchedData) {
+				notifyNextScenarioProgress({
+					scenarioId: matchedData.scenarioId,
+					progressRate: matchedData.scenarioProgressRate,
+				});
+			}
+
 			setReadyData(matchedData);
 		} catch (err) {
 			console.error("생산 준비 데이터 조회 실패:", err);
