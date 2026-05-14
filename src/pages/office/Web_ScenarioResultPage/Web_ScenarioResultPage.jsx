@@ -286,7 +286,8 @@ export default function Web_ScenarioResultPage() {
 								status={scenarioSummary.status}
 							/>
 						</div>
-						{scenarioData?.solverSummary ? (
+						{scenarioData?.solverSummary &&
+						(scenarioData.craneSchedule ?? []).length > 0 ? (
 							<Web_SolverTimelineSection
 								craneSchedule={scenarioData.craneSchedule}
 								batchItems={scenarioData.batchItems}
