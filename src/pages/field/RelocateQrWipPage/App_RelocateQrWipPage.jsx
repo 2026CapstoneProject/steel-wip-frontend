@@ -62,20 +62,25 @@ const App_RelocateQrWipPage = () => {
 	};
 
 	const badgeItems = useMemo(
-		() => [
-			{
-				key: "material",
-				icon: "inventory_2",
-				label: relocation.material || relocation.wipCode || "SM355A",
-			},
-			{
-				key: "fromZone",
-				icon: "location_on",
-				label: relocation.from?.zone || relocation.fromZone || "Zone A-1",
-			},
-		],
-		[relocation],
-	);
+	() => [
+		{
+			key: "wipQr",
+			icon: "qr_code_2",
+			label:
+				relocation.wipQr ||
+				relocation.wipQR ||
+				relocation.qr ||
+				relocation.qrCode ||
+				"-",
+		},
+		{
+			key: "fromZone",
+			icon: "location_on",
+			label: relocation.from?.zone || relocation.fromZone || "Zone A-1",
+		},
+	],
+	[relocation],
+);
 
 	const forceStopAllVideos = () => {
 		document.querySelectorAll("video").forEach((video) => {

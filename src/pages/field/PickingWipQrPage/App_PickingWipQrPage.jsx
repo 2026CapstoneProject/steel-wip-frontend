@@ -126,41 +126,48 @@ const normalizePickingData = (source = {}) => {
 			: parseDurationMinutes(expectedDurationText);
 
 	return {
-		...fallbackPicking,
-		...source,
-		manufacturer:
-			source?.manufacturer ||
-			source?.maker ||
-			source?.company ||
-			fallbackPicking.manufacturer,
-		material: source?.material || source?.grade || fallbackPicking.material,
-		specText: buildSpecText(source),
-		weightText:
-			source?.weightText ||
-			source?.weight ||
-			source?.weightKg ||
-			fallbackPicking.weightText,
-		duration: source?.duration || expectedDurationText,
-		expectedDurationText,
-		expectedDurationMinutes,
-		from: {
-			...fallbackPicking.from,
-			...(source?.from ?? {}),
-			zone: currentZone,
-			time: source?.from?.time || source?.fromTime || "",
-		},
-		to: {
-			...fallbackPicking.to,
-			...(source?.to ?? {}),
-			zone: toZone,
-			time: source?.to?.time || source?.toTime || "",
-		},
-		layout: {
-			...fallbackPicking.layout,
-			...(source?.layout ?? {}),
-			highlightedSlot,
-		},
-	};
+	...fallbackPicking,
+	...source,
+	manufacturer:
+		source?.manufacturer ||
+		source?.maker ||
+		source?.company ||
+		fallbackPicking.manufacturer,
+	material: source?.material || source?.grade || fallbackPicking.material,
+	wipQr:
+		source?.wipQr ||
+		source?.wipQR ||
+		source?.qr ||
+		source?.qrCode ||
+		source?.qrCodeText ||
+		"",
+	specText: buildSpecText(source),
+	weightText:
+		source?.weightText ||
+		source?.weight ||
+		source?.weightKg ||
+		fallbackPicking.weightText,
+	duration: source?.duration || expectedDurationText,
+	expectedDurationText,
+	expectedDurationMinutes,
+	from: {
+		...fallbackPicking.from,
+		...(source?.from ?? {}),
+		zone: currentZone,
+		time: source?.from?.time || source?.fromTime || "",
+	},
+	to: {
+		...fallbackPicking.to,
+		...(source?.to ?? {}),
+		zone: toZone,
+		time: source?.to?.time || source?.toTime || "",
+	},
+	layout: {
+		...fallbackPicking.layout,
+		...(source?.layout ?? {}),
+		highlightedSlot,
+	},
+};
 };
 
 export default function App_PickingWipQrPage() {
@@ -356,12 +363,12 @@ export default function App_PickingWipQrPage() {
 							<div className="flex flex-wrap items-center justify-center gap-3">
 								<div className="inline-flex items-center gap-1.5 rounded-full bg-[#D0E1FB]/30 px-4 py-2 text-sm font-bold text-[#24389C]">
 									<span
-										className="material-symbols-outlined text-sm"
-										style={{ fontVariationSettings: '"FILL" 1' }}
-									>
-										inventory_2
-									</span>
-									{picking.material}
+	className="material-symbols-outlined text-sm"
+	style={{ fontVariationSettings: '"FILL" 1' }}
+>
+	qr_code_2
+</span>
+{picking.wipQr || "-"}
 								</div>
 
 								<div className="inline-flex items-center gap-1.5 rounded-full bg-[#D0E1FB]/30 px-4 py-2 text-sm font-bold text-[#24389C]">
