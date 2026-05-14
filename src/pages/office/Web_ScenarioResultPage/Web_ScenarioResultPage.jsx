@@ -128,7 +128,9 @@ export default function Web_ScenarioResultPage() {
 			const dataList = response.data?.data ?? [];
 			const nextScenario = dataList[0] ?? null;
 			setScenarioData(nextScenario);
-
+			// ✅ 여기에 추가
+			console.log("scenarioId:", id);
+			console.log("batchItems[0]:", nextScenario?.batchItems?.[0]);
 			if (!nextScenario) {
 				setError("시나리오 결과를 불러오는 데 실패했습니다.");
 				return;
