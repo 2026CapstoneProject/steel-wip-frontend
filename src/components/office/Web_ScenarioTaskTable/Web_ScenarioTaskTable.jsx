@@ -44,6 +44,11 @@ export default function Web_ScenarioTaskTable({
 
 	const handleConfirmEdit = async (row, rowKey) => {
 		const trimmed = ncDraft.trim();
+		console.log("확인 클릭:", {
+			trimmed,
+			batchItemId: row.batchItemId,
+			scenarioId,
+		});
 		if (!trimmed || !row.batchItemId || !scenarioId) return;
 
 		try {
@@ -128,7 +133,7 @@ export default function Web_ScenarioTaskTable({
 											<div className="relative inline-flex justify-center">
 												<button
 													type="button"
-													onClick={() => handleConfirmEdit(row, rowKey)}
+													onClick={() => handleOpenNcMenu(row, rowKey)}
 													className="font-semibold text-primary underline underline-offset-4 transition-colors hover:text-primary-dim"
 												>
 													{ncCodeValue}
@@ -160,7 +165,9 @@ export default function Web_ScenarioTaskTable({
 																	</button>
 																	<button
 																		type="button"
-																		onClick={() => handleConfirmEdit(rowKey)}
+																		onClick={() =>
+																			handleConfirmEdit(row, rowKey)
+																		}
 																		className="rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-primary-dim"
 																	>
 																		확인
