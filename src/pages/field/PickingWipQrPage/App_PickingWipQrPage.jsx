@@ -465,8 +465,8 @@ export default function App_PickingWipQrPage() {
 			</nav>
 
 			<App_ScanIssue
-				isOpen={isScanIssueOpen}
-				details={[
+	isOpen={isScanIssueOpen}
+	details={[
 					{ label: "제조사", value: picking.manufacturer },
 					{ label: "재질", value: picking.material },
 					{ label: "규격", value: picking.specText },

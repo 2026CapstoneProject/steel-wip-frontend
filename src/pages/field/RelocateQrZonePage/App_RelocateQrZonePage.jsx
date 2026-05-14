@@ -302,7 +302,7 @@ const App_RelocateQrZonePage = () => {
 
 			<App_ScanIssue
 				isOpen={isScanIssueOpen}
-				title="구역 QR 정보 확인"
+				title="QR 정보 확인"
 				description="아래 위치 정보와 스캔하려는 구역 QR 정보가 맞나요?"
 				details={[
 					{ label: "이동 위치", value: relocation.to?.zone || relocation.toZone || "-" },

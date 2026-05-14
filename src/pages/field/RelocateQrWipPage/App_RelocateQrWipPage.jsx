@@ -312,8 +312,9 @@ const App_RelocateQrWipPage = () => {
 			</nav>
 
 			<App_ScanIssue
-				isOpen={isScanIssueOpen}
-				details={[
+	isOpen={isScanIssueOpen}
+	description="아래 상세 정보와 스캔하려는 재공품 QR 정보가 맞나요?"
+	details={[
 					{ label: "제조사", value: relocation.manufacturer },
 					{ label: "재질", value: relocation.material },
 					{ label: "규격", value: relocation.specText },
