@@ -25,7 +25,12 @@ import {
 // 백엔드 ScenarioResultData → timelineItems 형태로 변환
 function formatScenarioQr(item) {
 	if (item?.qrCode) return item.qrCode;
-	return `QR-WIP-${String(item?.steelWipId ?? "").padStart(3, "0")}`;
+
+	const action = String(item?.batchItemAction ?? "").trim();
+	const isPicking = action === "PICKING" || action === "피킹";
+
+	if (isPicking) return "원자재";
+	return "-";
 }
 
 function mapBatchItemsToTimeline(batchItems) {
