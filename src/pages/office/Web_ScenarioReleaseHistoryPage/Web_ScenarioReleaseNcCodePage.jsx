@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
 import Web_ScenarioTaskTable from "../../../components/office/Web_ScenarioTaskTable/Web_ScenarioTaskTable";
 import { getScenarioDetail } from "../../../services/scenarioService";
+import { updateNcCode } from "../../../services/scenarioService";
 
 function formatScenarioQr(item) {
 	if (item?.qrCode) return item.qrCode;
@@ -133,6 +134,17 @@ export default function Web_ScenarioReleaseNcCodePage() {
 			setLoading(false);
 		}
 	};
+	// 핸들러 추가
+	const handleNcCodeUpdate = async (batchItemId, newNcCode) => {
+		try {
+			await updateNcCode(scenarioId, batchItemId, newNcCode);
+			// 수정 후 테이블 갱신
+			await fetchScenarioDetail(scenarioId);
+		} catch (err) {
+			console.error("NC Code 수정 실패:", err);
+			alert("NC Code 수정에 실패했습니다.");
+		}
+	};
 
 	if (!scenarioId && !projectInfo) return null;
 
@@ -246,6 +258,8 @@ export default function Web_ScenarioReleaseNcCodePage() {
 											rows={pickingRows}
 											accentTextClass="text-secondary"
 											timeHeaderLabel="예상 소요시간(분)"
+											scenarioId={scenarioId} // ← 추가
+											onNcCodeUpdate={handleNcCodeUpdate} // ← 추가
 										/>
 									</div>
 								</div>

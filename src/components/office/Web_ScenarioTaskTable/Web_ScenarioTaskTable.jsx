@@ -6,6 +6,7 @@ export default function Web_ScenarioTaskTable({
 	accentTextClass = "text-primary",
 	timeHeaderLabel = "예상 소요시간(분)",
 	scenarioId,
+	onNcCodeUpdate,
 }) {
 	const [openNcMenuKey, setOpenNcMenuKey] = useState(null);
 	const [editingNcKey, setEditingNcKey] = useState(null);
@@ -44,11 +45,7 @@ export default function Web_ScenarioTaskTable({
 
 	const handleConfirmEdit = async (row, rowKey) => {
 		const trimmed = ncDraft.trim();
-		console.log("확인 클릭:", {
-			trimmed,
-			batchItemId: row.batchItemId,
-			scenarioId,
-		});
+		const sid = row.scenarioId ?? scenarioId;
 		if (!trimmed || !row.batchItemId || !scenarioId) return;
 
 		try {

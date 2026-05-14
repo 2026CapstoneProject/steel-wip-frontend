@@ -220,7 +220,10 @@ export default function Web_ScenarioDetailHistoryPage() {
 								batchItems={scenarioData.batchItems}
 							/>
 						) : (
-							<Web_ScenarioTimelineSection items={timelineItems} />
+							<Web_ScenarioTimelineSection
+								items={timelineItems}
+								scenarioId={scenarioId}
+							/>
 						)}
 					</>
 				)}
