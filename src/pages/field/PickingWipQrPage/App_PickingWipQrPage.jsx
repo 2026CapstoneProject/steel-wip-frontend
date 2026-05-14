@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
 import QrCameraScanner from "../../../components/field/Qr/QrCameraScanner";
+import App_ScanIssue from "../../../components/modal/App_ScanIssue/App_ScanIssue";
 
 const fallbackPicking = {
 	id: "picking-wip-01",
@@ -112,8 +113,7 @@ const normalizePickingData = (source = {}) => {
 			fallbackPicking.layout.highlightedSlot,
 	);
 
-	const toZone =
-		formatPositionLabel(rawPosition) || `Position ${highlightedSlot}`;
+	const toZone = formatPositionLabel(rawPosition) || `Position ${highlightedSlot}`;
 
 	const expectedDurationText =
 		source?.expectedDurationText ||
@@ -134,6 +134,13 @@ const normalizePickingData = (source = {}) => {
 			source?.company ||
 			fallbackPicking.manufacturer,
 		material: source?.material || source?.grade || fallbackPicking.material,
+		wipQr:
+			source?.wipQr ||
+			source?.wipQR ||
+			source?.qr ||
+			source?.qrCode ||
+			source?.qrCodeText ||
+			"",
 		specText: buildSpecText(source),
 		weightText:
 			source?.weightText ||
@@ -175,6 +182,7 @@ export default function App_PickingWipQrPage() {
 	const [scanError, setScanError] = useState("");
 	const [scannerVisible, setScannerVisible] = useState(true);
 	const [scannerSessionKey, setScannerSessionKey] = useState(0);
+	const [isScanIssueOpen, setIsScanIssueOpen] = useState(false);
 
 	useEffect(() => {
 		if (
@@ -223,60 +231,12 @@ export default function App_PickingWipQrPage() {
 		forceStopAllVideos();
 	};
 
-	const restartScannerAfterCooldown = async (message, stopScanner) => {
-		if (scanBusyRef.current) return;
-		scanBusyRef.current = true;
-
-		setScanError(message);
-		setScanStatus("error");
-
-		try {
-			await stopScanner?.();
-		} catch (_) {}
-
-		await stopCameraSafely();
-
-		setScannerVisible(false);
-
-		if (cooldownTimerRef.current) {
-			window.clearTimeout(cooldownTimerRef.current);
-		}
-
-		cooldownTimerRef.current = window.setTimeout(() => {
-			setScanStatus("idle");
-			setScannerSessionKey((prev) => prev + 1);
-			setScannerVisible(true);
-			scanBusyRef.current = false;
-		}, ERROR_COOLDOWN_MS);
-	};
-
-	const handleScanSuccess = async (
-		decodedText,
-		_decodedResult,
+	const completePickingWipScan = async (
+		scannedValue,
 		stopScanner,
+		scannedDate = new Date(),
 	) => {
-		if (scanBusyRef.current || scanStatus === "recognized") return;
-
-		const scannedDate = new Date();
 		const scannedAt = formatTime(scannedDate);
-		const scannedValue = String(decodedText ?? "").trim();
-		const expectedWipQr = String(picking.wipQr ?? "").trim();
-
-		if (!expectedWipQr) {
-			await restartScannerAfterCooldown(
-				"비교할 재공품 QR 값이 없습니다.",
-				stopScanner,
-			);
-			return;
-		}
-
-		if (scannedValue !== expectedWipQr) {
-			await restartScannerAfterCooldown(
-				"예정된 재공품과 일치하지 않는 QR입니다.",
-				stopScanner,
-			);
-			return;
-		}
 
 		scanBusyRef.current = true;
 		setScanError("");
@@ -333,6 +293,76 @@ export default function App_PickingWipQrPage() {
 		});
 	};
 
+	const handleScanIssueConfirm = async () => {
+		const expectedWipQr = String(picking.wipQr ?? "").trim();
+
+		if (!expectedWipQr) {
+			setIsScanIssueOpen(false);
+			setScanError("비교할 재공품 QR 값이 없습니다.");
+			return;
+		}
+
+		setIsScanIssueOpen(false);
+		await completePickingWipScan(expectedWipQr);
+	};
+
+	const restartScannerAfterCooldown = async (message, stopScanner) => {
+		if (scanBusyRef.current) return;
+		scanBusyRef.current = true;
+
+		setScanError(message);
+		setScanStatus("error");
+
+		try {
+			await stopScanner?.();
+		} catch (_) {}
+
+		await stopCameraSafely();
+
+		setScannerVisible(false);
+
+		if (cooldownTimerRef.current) {
+			window.clearTimeout(cooldownTimerRef.current);
+		}
+
+		cooldownTimerRef.current = window.setTimeout(() => {
+			setScanStatus("idle");
+			setScannerSessionKey((prev) => prev + 1);
+			setScannerVisible(true);
+			scanBusyRef.current = false;
+		}, ERROR_COOLDOWN_MS);
+	};
+
+	const handleScanSuccess = async (
+		decodedText,
+		_decodedResult,
+		stopScanner,
+	) => {
+		if (scanBusyRef.current || scanStatus === "recognized") return;
+
+		const scannedDate = new Date();
+		const scannedValue = String(decodedText ?? "").trim();
+		const expectedWipQr = String(picking.wipQr ?? "").trim();
+
+		if (!expectedWipQr) {
+			await restartScannerAfterCooldown(
+				"비교할 재공품 QR 값이 없습니다.",
+				stopScanner,
+			);
+			return;
+		}
+
+		if (scannedValue !== expectedWipQr) {
+			await restartScannerAfterCooldown(
+				"예정된 재공품과 일치하지 않는 QR입니다.",
+				stopScanner,
+			);
+			return;
+		}
+
+		await completePickingWipScan(scannedValue, stopScanner, scannedDate);
+	};
+
 	const handlePrev = async () => {
 		if (cooldownTimerRef.current) {
 			window.clearTimeout(cooldownTimerRef.current);
@@ -359,9 +389,9 @@ export default function App_PickingWipQrPage() {
 										className="material-symbols-outlined text-sm"
 										style={{ fontVariationSettings: '"FILL" 1' }}
 									>
-										inventory_2
+										qr_code_2
 									</span>
-									{picking.material}
+									{picking.wipQr || "-"}
 								</div>
 
 								<div className="inline-flex items-center gap-1.5 rounded-full bg-[#D0E1FB]/30 px-4 py-2 text-sm font-bold text-[#24389C]">
@@ -381,6 +411,7 @@ export default function App_PickingWipQrPage() {
 								key={scannerSessionKey}
 								ref={scannerControlRef}
 								onScanSuccess={handleScanSuccess}
+								paused={isScanIssueOpen || scanStatus === "recognized"}
 							/>
 						) : (
 							<div className="relative aspect-square w-full max-w-[340px] overflow-hidden rounded-3xl bg-black shadow-2xl" />
@@ -395,11 +426,22 @@ export default function App_PickingWipQrPage() {
 
 							<div className="space-y-1">
 								<p className="text-base font-bold text-[#191C1E]">
-									재공품 QR 코드를 중앙에 맞춰주세요
+									QR 코드를 중앙에 맞춰주세요
 								</p>
-								<p className="text-sm leading-relaxed text-[#505F76]">
-									인식이 완료되면 자동으로 다음 단계로 넘어갑니다.
-								</p>
+
+								<div className="space-y-0.5">
+									<p className="text-sm leading-relaxed text-[#505F76]">
+										인식이 완료되면 자동으로 다음 단계로 넘어갑니다.
+									</p>
+									<button
+										type="button"
+										onClick={() => setIsScanIssueOpen(true)}
+										className="block text-left text-sm font-medium leading-relaxed text-[#505F76] underline underline-offset-2 decoration-[#505F76]/70"
+									>
+										QR 인식에 문제가 있나요?
+									</button>
+								</div>
+
 								{scanError ? (
 									<p className="pt-1 text-sm font-semibold text-red-600">
 										{scanError}
@@ -421,6 +463,21 @@ export default function App_PickingWipQrPage() {
 					Previous
 				</button>
 			</nav>
+
+			<App_ScanIssue
+	isOpen={isScanIssueOpen}
+	details={[
+					{ label: "제조사", value: picking.manufacturer },
+					{ label: "재질", value: picking.material },
+					{ label: "규격", value: picking.specText },
+					{ label: "중량", value: picking.weightText },
+					{ label: "QR", value: picking.wipQr || "-" },
+					{ label: "현재 위치", value: picking.from?.zone },
+					{ label: "이동 위치", value: picking.to?.zone },
+				]}
+				onCancel={() => setIsScanIssueOpen(false)}
+				onConfirm={handleScanIssueConfirm}
+			/>
 		</div>
 	);
 }
