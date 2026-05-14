@@ -306,7 +306,7 @@ const App_ProcessingQrPage = () => {
 			<App_ScanIssue
 				isOpen={isScanIssueOpen}
 				title="발생 재공품 정보 확인"
-				description="선택한 재공품 정보와 QR 정보가 맞나요?"
+				description="선택한 재공품 정보와 상세 정보가 맞나요?"
 				details={[
 					{ label: "제조사", value: selectedIssueItem?.manufacturer || "-" },
 					{ label: "재질", value: getItemMaterial(selectedIssueItem) },
