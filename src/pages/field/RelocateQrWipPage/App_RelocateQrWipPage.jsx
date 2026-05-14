@@ -247,18 +247,28 @@ const App_RelocateQrWipPage = () => {
 							</div>
 
 							<div className="space-y-1">
-								<p className="text-base font-bold text-[#191C1E]">
-									QR 코드를 중앙에 맞춰주세요
-								</p>
-								<p className="text-sm leading-relaxed text-[#505F76]">
-									인식이 완료되면 자동으로 다음 단계로 넘어갑니다.
-								</p>
-								{scanError ? (
-									<p className="pt-1 text-sm font-semibold text-red-600">
-										{scanError}
-									</p>
-								) : null}
-							</div>
+	<p className="text-base font-bold text-[#191C1E]">
+		QR 코드를 중앙에 맞춰주세요
+	</p>
+
+	<div className="space-y-0.5">
+		<p className="text-sm leading-relaxed text-[#505F76]">
+			인식이 완료되면 자동으로 다음 단계로 넘어갑니다.
+		</p>
+		<button
+			type="button"
+			className="block text-left text-sm font-medium leading-relaxed text-[#505F76] underline underline-offset-2 decoration-[#505F76]/70"
+		>
+			QR 인식에 문제가 있나요?
+		</button>
+	</div>
+
+	{scanError ? (
+		<p className="pt-1 text-sm font-semibold text-red-600">
+			{scanError}
+		</p>
+	) : null}
+</div>
 						</section>
 					</div>
 				</div>
