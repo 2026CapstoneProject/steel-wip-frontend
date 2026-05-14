@@ -117,16 +117,6 @@ function summarizeEquipment(items, equipmentId) {
 	};
 }
 
-function createMockNcCode(item, wip, index) {
-	return (
-		wip.ncCode ||
-		item.ncCode ||
-		`NC-${String(item.scenarioId ?? "000").padStart(3, "0")}-${String(
-			item.batchOrder ?? 1,
-		).padStart(2, "0")}-${String(index + 1).padStart(2, "0")}`
-	);
-}
-
 // FieldBatchItem → timeline 아이템 형태로 변환
 function mapBatchItemToTimeline(item, equipmentId) {
 	return {
@@ -142,16 +132,17 @@ function mapBatchItemToTimeline(item, equipmentId) {
 					item.batchOrder,
 				).padStart(2, "0")}`
 			: item.scenarioTitle || "",
-		rows: (item.wip ?? []).map((w, index) => ({
-			qrNumber: w.qrId || "원자재", // ← 원자재면 "원자재"
+		rows: (item.wip ?? []).map((w) => ({
+			qrNumber: w.qrId || "원자재",
 			thickness: w.thickness,
 			width: w.width,
 			length: w.length,
 			from: item.fromLocationName || "-",
 			to: item.toLocationName || "-",
 
+			// PICKING인 경우만 ncCode 컬럼 표시, null이면 "-"
 			...(item.batchItemAction === "PICKING" && {
-				ncCode: createMockNcCode(item, w, index),
+				ncCode: w.ncCode ?? null, // ← 더미 생성 없이 실제 값만
 			}),
 
 			estimatedTime: item.expectedRunningTime,
