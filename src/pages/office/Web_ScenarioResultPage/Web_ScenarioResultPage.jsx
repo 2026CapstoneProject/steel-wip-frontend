@@ -42,6 +42,8 @@ function mapBatchItemsToTimeline(batchItems) {
 		const action = String(item.batchItemAction ?? "").trim();
 		const row = {
 			qrNumber: formatScenarioQr(item),
+			batchItemId: item.batchItemId, // ← 추가
+			ncCode: item.ncCode, // ← 이미 있는 경우 유지
 			thickness: String(item.thickness ?? ""),
 			width: String(item.width ?? ""),
 			length: String(item.length ?? ""),
@@ -298,7 +300,10 @@ export default function Web_ScenarioResultPage() {
 								batchItems={scenarioData.batchItems}
 							/>
 						) : (
-							<Web_ScenarioTimelineSection items={timelineItems} />
+							<Web_ScenarioTimelineSection
+								items={timelineItems}
+								scenarioId={scenarioId}
+							/>
 						)}
 					</>
 				)}
