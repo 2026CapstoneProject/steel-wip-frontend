@@ -46,10 +46,10 @@ export default function Web_ScenarioTaskTable({
 	const handleConfirmEdit = async (row, rowKey) => {
 		const trimmed = ncDraft.trim();
 		const sid = row.scenarioId ?? scenarioId;
-		if (!trimmed || !row.batchItemId || !scenarioId) return;
+		if (!trimmed || !row.batchItemId || !sid) return;
 
 		try {
-			await updateNcCode(scenarioId, row.batchItemId, trimmed);
+			await updateNcCode(sid, row.batchItemId, trimmed);
 			setNcCodeMap((prev) => ({ ...prev, [rowKey]: trimmed }));
 		} catch (err) {
 			console.error("NC코드 수정 실패:", err);
