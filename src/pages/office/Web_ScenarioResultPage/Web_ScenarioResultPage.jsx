@@ -42,7 +42,7 @@ function mapBatchItemsToTimeline(batchItems) {
 		const action = String(item.batchItemAction ?? "").trim();
 		const row = {
 			qrNumber: formatScenarioQr(item),
-			batchItemId: item.steelWipId, // ← 추가
+			batchItemId: item.batchItemId, // ← 추가
 			ncCode: item.ncCode, // ← 이미 있는 경우 유지
 			thickness: String(item.thickness ?? ""),
 			width: String(item.width ?? ""),

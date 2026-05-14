@@ -35,6 +35,7 @@ function mapBatchItemsToPickingRows(batchItems = []) {
 	return batchItems
 		.filter((item) => isPickingAction(item.batchItemAction))
 		.map((item, index) => ({
+			batchItemId: item.batchItemId,
 			qrNumber: formatScenarioQr(item),
 			thickness: item.thickness ?? "-",
 			width: item.width ?? "-",
@@ -65,6 +66,7 @@ function mapCraneScheduleToPickingRows(craneSchedule = [], batchItems = []) {
 			const itemDetail = findMatchingBatchItem(batchItems, row.steelWipId);
 
 			return {
+				batchItemId: row.batchItemId ?? itemDetail?.batchItemId,
 				qrNumber: row?.qrCode
 					? formatScenarioQr(row)
 					: formatScenarioQr(itemDetail ?? row),

@@ -133,6 +133,7 @@ function mapBatchItemToTimeline(item, equipmentId) {
 				).padStart(2, "0")}`
 			: item.scenarioTitle || "",
 		rows: (item.wip ?? []).map((w) => ({
+			batchItemId: item.batchItemId,
 			qrNumber: w.qrId || "원자재",
 			thickness: w.thickness,
 			width: w.width,

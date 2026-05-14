@@ -32,6 +32,7 @@ function mapBatchItemsToTimeline(batchItems) {
 	(batchItems ?? []).forEach((item) => {
 		const action = String(item.batchItemAction ?? "").trim();
 		const row = {
+			batchItemId: item.batchItemId,
 			qrNumber: formatScenarioQr(item),
 			thickness: String(item.thickness ?? ""),
 			width: String(item.width ?? ""),
