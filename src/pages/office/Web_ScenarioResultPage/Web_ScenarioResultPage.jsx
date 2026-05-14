@@ -42,6 +42,8 @@ function mapBatchItemsToTimeline(batchItems) {
 		const action = String(item.batchItemAction ?? "").trim();
 		const row = {
 			qrNumber: formatScenarioQr(item),
+			batchItemId: item.batchItemId, // ← 추가
+			ncCode: item.ncCode, // ← 이미 있는 경우 유지
 			thickness: String(item.thickness ?? ""),
 			width: String(item.width ?? ""),
 			length: String(item.length ?? ""),
@@ -126,7 +128,9 @@ export default function Web_ScenarioResultPage() {
 			const dataList = response.data?.data ?? [];
 			const nextScenario = dataList[0] ?? null;
 			setScenarioData(nextScenario);
-
+			// ✅ 여기에 추가
+			console.log("scenarioId:", id);
+			console.log("batchItems[0]:", nextScenario?.batchItems?.[0]);
 			if (!nextScenario) {
 				setError("시나리오 결과를 불러오는 데 실패했습니다.");
 				return;
@@ -298,7 +302,10 @@ export default function Web_ScenarioResultPage() {
 								batchItems={scenarioData.batchItems}
 							/>
 						) : (
-							<Web_ScenarioTimelineSection items={timelineItems} />
+							<Web_ScenarioTimelineSection
+								items={timelineItems}
+								scenarioId={scenarioId}
+							/>
 						)}
 					</>
 				)}
