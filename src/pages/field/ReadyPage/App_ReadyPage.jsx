@@ -14,8 +14,7 @@ import {
 const buildRelocateActionKey = (taskId, itemId) =>
 	`${taskId}-relocate-${itemId}`;
 
-const buildPickingActionKey = (taskId, itemId) =>
-	`${taskId}-picking-${itemId}`;
+const buildPickingActionKey = (taskId, itemId) => `${taskId}-picking-${itemId}`;
 
 const extractSlotNumber = (value) => {
 	const match = String(value ?? "").match(/(\d+)/);
@@ -52,7 +51,7 @@ function mapBatchesToTasks(batchGroups) {
 			duration: `${item.expectedRunningTime ?? 0}m`,
 		})),
 		pickings: (group.picking ?? []).map((item, pickIdx) => {
-			const isRaw = !item.wipId || item.wipId === 0;
+			const isRaw = !item.wipQr || item.wipQr === "";
 			const specText =
 				item.specText ||
 				(item.thickness && item.width && item.height
@@ -71,12 +70,8 @@ function mapBatchesToTasks(batchGroups) {
 				weightText: item.weightText ?? "-",
 				currentZone: item.fromLocationName || "",
 				targetPositionLabel: item.toLocationName || `Position ${pickIdx + 1}`,
-				infoLabel: isRaw ? "두께×폭" : "현재 위치",
-				infoValue: isRaw
-					? item.thickness && item.width
-						? `${item.thickness} × ${item.width}`
-						: specText
-					: item.fromLocationName || "-",
+				infoLabel: isRaw ? "" : "현재 위치",
+				infoValue: isRaw ? "" : item.fromLocationName || "-",
 				duration: `${item.expectedRunningTime ?? 0}m`,
 			};
 		}),
@@ -183,7 +178,7 @@ const PickingCard = ({ item, onActionClick, onWorkOrderClick }) => {
 						{item.materialName} - {item.manufacturer}
 						<br />
 						<span className="text-xs font-bold text-slate-900">
-							{item.specText} | {item.wipQr}
+							{item.specText} | {isRawMaterial ? "원자재" : item.wipQr}
 						</span>
 					</p>
 					<div className="flex items-center gap-1.5">
