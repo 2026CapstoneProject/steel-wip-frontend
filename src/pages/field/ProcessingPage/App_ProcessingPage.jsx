@@ -4,6 +4,7 @@ import App_ProcessTabs from "../../../components/field/ProcessTabs/App_ProcessTa
 import App_Header from "../../../components/field/Header/App_Header";
 import workOrderPdf from "../../../assets/Steel_all_Work_instruction.pdf";
 import { getFieldProgress } from "../../../services/fieldService";
+import { useNextScenario } from "../../../components/field/NextScenario/App_NextScenarioProvider";
 import {
 	getSelectedFieldScenarioId,
 	setSelectedFieldScenarioId,
@@ -216,6 +217,8 @@ const ProcessingBatchCard = ({ batch, onWorkOrderClick }) => (
 const App_ProcessingPage = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const { notifyNextScenarioProgress } = useNextScenario();
+
 	const selectedScenarioId =
 		location.state?.selectedScenarioId ?? getSelectedFieldScenarioId();
 
@@ -241,6 +244,14 @@ const App_ProcessingPage = () => {
 			if (matchedData?.scenarioId) {
 				setSelectedFieldScenarioId(matchedData.scenarioId);
 			}
+
+			if (matchedData) {
+				notifyNextScenarioProgress({
+					scenarioId: matchedData.scenarioId,
+					progressRate: matchedData.scenarioProgressRate,
+				});
+			}
+
 			setProgressData(matchedData);
 		} catch (err) {
 			console.error("생산 중 데이터 조회 실패:", err);

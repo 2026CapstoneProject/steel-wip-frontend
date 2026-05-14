@@ -2,17 +2,14 @@ import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import App_ProcessTabs from "../../../components/field/ProcessTabs/App_ProcessTabs";
 import App_Header from "../../../components/field/Header/App_Header";
-import App_NextScenario from "../../../components/field/NextScenario/App_NextScenario";
 import workOrderPdf from "../../../assets/Steel_all_Work_instruction.pdf";
 import { getFieldEnd } from "../../../services/fieldService";
+import { useNextScenario } from "../../../components/field/NextScenario/App_NextScenarioProvider";
 import {
 	getSelectedFieldScenarioId,
 	setSelectedFieldScenarioId,
 } from "../../../utils/App/selectedScenario";
 
-const NEXT_SCENARIO_ALERT_DELAY = 5500;
-
-// ─── 날짜 포맷 헬퍼 ──────────────────────────────────────────────
 const formatSummaryDate = () => {
 	const now = new Date();
 	const year = now.getFullYear();
@@ -31,8 +28,6 @@ const normalizeProgressPercent = (value) => {
 	return Math.max(0, Math.min(100, Math.round(percent)));
 };
 
-// ─── 백엔드 FieldEndData → UI tasks 변환 ─────────────────────────
-// 생산 준비 페이지와 동일하게 relocation + picking만 표시
 function mapEndDataToTasks(endDataList) {
 	const tasks = [];
 
@@ -90,8 +85,6 @@ function mapEndDataToTasks(endDataList) {
 
 	return tasks;
 }
-
-// ─── 서브 컴포넌트 ──────────────────────────────────────────────
 
 const SummarySection = ({ summaryDate, progressPercent }) => (
 	<section className="mt-4 mb-4 rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm">
@@ -249,10 +242,9 @@ const EmptyCompletedTaskState = () => (
 	</div>
 );
 
-// ─── 메인 컴포넌트 ──────────────────────────────────────────────
-
 const App_EndPage = () => {
 	const location = useLocation();
+	const { notifyNextScenarioProgress } = useNextScenario();
 
 	const selectedScenarioId =
 		location.state?.selectedScenarioId ?? getSelectedFieldScenarioId();
@@ -261,17 +253,6 @@ const App_EndPage = () => {
 	const [progressPercent, setProgressPercent] = useState(0);
 	const [loading, setLoading] = useState(true);
 	const [openTaskIds, setOpenTaskIds] = useState([]);
-
-	const [showNextScenarioToast, setShowNextScenarioToast] = useState(false);
-	const [hasUnreadNextScenarioAlert, setHasUnreadNextScenarioAlert] =
-		useState(false);
-	const [showNextScenarioSelectModal, setShowNextScenarioSelectModal] =
-		useState(false);
-	const [hasTriggeredNextScenarioAlert, setHasTriggeredNextScenarioAlert] =
-		useState(false);
-	const [, setNextScenarioDecision] = useState(
-		location.state?.nextScenarioDecision ?? null,
-	);
 
 	const summaryDate = formatSummaryDate();
 
@@ -284,36 +265,6 @@ const App_EndPage = () => {
 	useEffect(() => {
 		fetchEndData();
 	}, [selectedScenarioId]);
-
-	useEffect(() => {
-		if (loading) return;
-
-		if (progressPercent < 95) {
-			setShowNextScenarioToast(false);
-			setHasUnreadNextScenarioAlert(false);
-			setShowNextScenarioSelectModal(false);
-			setHasTriggeredNextScenarioAlert(false);
-			return;
-		}
-
-		if (hasTriggeredNextScenarioAlert) return;
-
-		setShowNextScenarioToast(true);
-		setHasUnreadNextScenarioAlert(false);
-		setShowNextScenarioSelectModal(false);
-		setHasTriggeredNextScenarioAlert(true);
-	}, [loading, progressPercent, hasTriggeredNextScenarioAlert]);
-
-	useEffect(() => {
-		if (!showNextScenarioToast || progressPercent < 95) return;
-
-		const timer = window.setTimeout(() => {
-			setShowNextScenarioToast(false);
-			setHasUnreadNextScenarioAlert(true);
-		}, NEXT_SCENARIO_ALERT_DELAY);
-
-		return () => window.clearTimeout(timer);
-	}, [showNextScenarioToast, progressPercent]);
 
 	const fetchEndData = async () => {
 		setLoading(true);
@@ -329,6 +280,13 @@ const App_EndPage = () => {
 
 			if (matchedData?.scenarioId) {
 				setSelectedFieldScenarioId(matchedData.scenarioId);
+			}
+
+			if (matchedData) {
+				notifyNextScenarioProgress({
+					scenarioId: matchedData.scenarioId,
+					progressRate: matchedData.scenarioProgressRate,
+				});
 			}
 
 			const mappedTasks = mapEndDataToTasks(matchedData ? [matchedData] : []);
@@ -366,40 +324,9 @@ const App_EndPage = () => {
 		window.open(workOrderPdf, "_self");
 	};
 
-	const openNextScenarioSelectModal = () => {
-		if (progressPercent < 95) return;
-
-		setShowNextScenarioToast(false);
-		setHasUnreadNextScenarioAlert(false);
-		setShowNextScenarioSelectModal(true);
-	};
-
-	const handleNotificationClick = () => {
-		if (!hasUnreadNextScenarioAlert) return;
-
-		openNextScenarioSelectModal();
-	};
-
-	const handleNextScenarioDecision = (decision) => {
-		setNextScenarioDecision(decision);
-		setShowNextScenarioSelectModal(false);
-	};
-
 	return (
 		<div className="h-[100dvh] overflow-hidden bg-[#f7f9fb] text-slate-900">
-			<App_Header
-				showBackButton
-				hasUnreadAlert={hasUnreadNextScenarioAlert}
-				onNotificationClick={handleNotificationClick}
-			/>
-
-			<App_NextScenario
-				showToast={showNextScenarioToast && progressPercent >= 95}
-				showSelectModal={showNextScenarioSelectModal}
-				onToastClick={openNextScenarioSelectModal}
-				onNoClick={() => handleNextScenarioDecision("no")}
-				onYesClick={() => handleNextScenarioDecision("yes")}
-			/>
+			<App_Header showBackButton />
 
 			<main className="mx-auto flex h-[calc(100dvh-72px)] w-full max-w-md flex-col px-4">
 				<div className="shrink-0 bg-[#f7f9fb] pt-3">
