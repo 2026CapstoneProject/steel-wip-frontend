@@ -5,11 +5,21 @@ import { getFieldReady } from "../../../services/fieldService";
 import { setSelectedFieldScenarioId } from "../../../utils/App/selectedScenario";
 import App_UserDropdown from "../../../components/field/Header/App_UserDropdown";
 
-// FieldReadyData → 화면용 scenario 항목으로 변환
+// FieldReadyData → lazerName 기준으로 그룹핑하여 equipment 목록으로 변환
 function mapReadyDataToEquipment(readyDataList) {
-	return (readyDataList ?? []).map((item) => {
-		// 배치 전체에서 미완료 작업 수 산출 (relocation + picking 아이템 합산)
-		const incompleteBatchCount = (item.batch ?? []).length;
+	const grouped = {};
+
+	(readyDataList ?? []).forEach((item) => {
+		const key = item.lazerName || "LAZER1";
+
+		if (!grouped[key]) {
+			grouped[key] = {
+				equipmentId: key,
+				equipmentName: key,
+				scenarios: [],
+			};
+		}
+
 		const totalItems = Number.isFinite(item.remainingTaskCount)
 			? item.remainingTaskCount
 			: (item.batch ?? []).reduce(
@@ -18,24 +28,20 @@ function mapReadyDataToEquipment(readyDataList) {
 					0,
 				);
 
-		return {
-			equipmentId: `${item.lazerName || "LAZER1"}-${item.scenarioId}`,
-			equipmentName: item.lazerName || "LAZER1",
-			scenarios: [
-				{
-					scenarioId: item.scenarioId,
-					scenarioName: item.scenarioTitle || `시나리오 ${item.scenarioId}`,
-					remainingTaskCount: totalItems,
-					estimatedTime: "-",
-					progress: Math.round((item.scenarioProgressRate ?? 0) * 100),
-					urgent: false,
-					// 다음 시나리오 정보 포함
-					nextScenarioId: item.nextScenarioId ?? null,
-					nextScenarioTitle: item.nextScenarioTitle ?? null,
-				},
-			],
-		};
+		grouped[key].scenarios.push({
+			scenarioId: item.scenarioId,
+			scenarioName: item.scenarioTitle || `시나리오 ${item.scenarioId}`,
+			remainingTaskCount: totalItems,
+			estimatedTime: "-",
+			progress: Math.round((item.scenarioProgressRate ?? 0) * 100),
+			urgent: false,
+			nextScenarioId: item.nextScenarioId ?? null,
+			nextScenarioTitle: item.nextScenarioTitle ?? null,
+		});
 	});
+
+	// scenarios는 이미 백엔드에서 scenario_order ASC로 정렬되어 있으므로 순서 유지
+	return Object.values(grouped);
 }
 
 function App_StartPage() {
@@ -78,10 +84,9 @@ function App_StartPage() {
 	const getRepresentativeScenario = (equipment) => {
 		const scenarios = equipment?.scenarios || [];
 		if (scenarios.length === 0) return null;
+		// 긴급 시나리오 우선, 없으면 scenario_order 순서상 첫 번째(index 0)
 		const urgentScenario = scenarios.find((s) => s.urgent);
 		if (urgentScenario) return urgentScenario;
-		const nearlyDone = scenarios.find((s) => Number(s.progress) >= 95);
-		if (nearlyDone) return nearlyDone;
 		return scenarios[0];
 	};
 
@@ -183,15 +188,21 @@ function App_StartPage() {
 											</div>
 										)}
 
-										{scenarios.map((scenario) => (
+										{scenarios.map((scenario, index) => (
 											<div
 												key={scenario.scenarioId}
 												className="rounded-[2rem] bg-white p-6 shadow-sm"
 											>
 												<div className="mb-4 flex items-start justify-between">
-													<h3 className="text-lg font-bold text-[#191C1E]">
-														{scenario.scenarioName}
-													</h3>
+													<div className="flex items-center gap-2">
+														{/* 순서 배지: scenario_order 시각화 */}
+														<span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#E8EAF6] text-xs font-bold text-[#5C6BC0]">
+															{index + 1}
+														</span>
+														<h3 className="text-lg font-bold text-[#191C1E]">
+															{scenario.scenarioName}
+														</h3>
+													</div>
 													{scenario.urgent && (
 														<span className="rounded-full bg-[#FFEBEE] px-2.5 py-1 text-[10px] font-bold text-[#D32F2F]">
 															긴급 발주
