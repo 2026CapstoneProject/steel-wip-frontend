@@ -49,7 +49,7 @@ export const getLiveField = (lazerName) => {
 	return api.get(`/live_field/${lazerName}`);
 };
 
-// ✅ 기존 fieldService.js에 아래 함수 추가
+// ✅ 변경
 export const completeBatch = (batchId) => {
-	return axiosInstance.post(`/api/field/batch/${batchId}/complete`);
+	return api.post(`/field/batch/${batchId}/complete`);
 };
