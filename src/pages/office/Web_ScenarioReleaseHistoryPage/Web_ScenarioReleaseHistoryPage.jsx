@@ -184,15 +184,10 @@ function ScenarioReleaseProjectAccordion({
 				</div>
 
 				<div className="flex items-center gap-8">
-					<div className="flex items-center gap-2">
+					<div className="flex items-center gap-3">
 						<span
-							className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-tighter ${getStatusBadgeClass(
-								project.status,
-							)}`}
+							className={`rounded-full px-3 py-1 text-[11px] font-bold tracking-tight ${getStatusBadgeClass(project.status)}`}
 						>
-							{project.statusLabel}
-						</span>
-						<span className="text-xs font-semibold text-on-surface-variant">
 							{project.statusDescription}
 						</span>
 					</div>
