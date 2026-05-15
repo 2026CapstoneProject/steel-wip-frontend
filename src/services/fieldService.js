@@ -48,3 +48,8 @@ export const completeScenario = (scenarioId) => {
 export const getLiveField = (lazerName) => {
 	return api.get(`/live_field/${lazerName}`);
 };
+
+export const completeScenarioProduction = (scenarioId) => {
+	return axiosInstance.post(`/field/scenario/${scenarioId}/complete`);
+	// ⚠️ 실제 엔드포인트는 백엔드 feature/SY2026-125-next-scenario 브랜치 확인 후 맞춰주세요
+};
