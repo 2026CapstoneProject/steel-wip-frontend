@@ -34,15 +34,36 @@ const normalizeProgressPercent = (value) => {
 
 const App_NextScenarioProvider = () => {
 	const navigate = useNavigate();
-	const [currentScenarioId, setCurrentScenarioId] = useState(null);
-	const [progressPercent, setProgressPercent] = useState(0);
-
-	const [showToast, setShowToast] = useState(false);
+	const [currentScenarioId, setCurrentScenarioId] = useState(
+		() => sessionStorage.getItem("ns_scenarioId") ?? null,
+	);
+	const [progressPercent, setProgressPercent] = useState(() =>
+		Number(sessionStorage.getItem("ns_progressPercent") ?? 0),
+	);
+	const [showToast, setShowToast] = useState(false); // toast는 새로고침 시 재노출 안 함
 	const [showSelectModal, setShowSelectModal] = useState(false);
-	const [hasUnreadAlert, setHasUnreadAlert] = useState(false);
-	const [hasNotification, setHasNotification] = useState(false);
-	const [hasTriggeredAlert, setHasTriggeredAlert] = useState(false);
-	const [nextScenarioDecision, setNextScenarioDecision] = useState(null);
+	const [hasUnreadAlert, setHasUnreadAlert] = useState(
+		() => sessionStorage.getItem("ns_hasUnreadAlert") === "true",
+	);
+	const [hasNotification, setHasNotification] = useState(
+		() => sessionStorage.getItem("ns_hasNotification") === "true",
+	);
+	const [hasTriggeredAlert, setHasTriggeredAlert] = useState(
+		() => sessionStorage.getItem("ns_hasTriggeredAlert") === "true",
+	);
+	const [nextScenarioDecision, setNextScenarioDecision] = useState(
+		() => sessionStorage.getItem("ns_decision") ?? null,
+	);
+
+	const saveSession = useCallback((patch) => {
+		Object.entries(patch).forEach(([key, value]) => {
+			if (value === null || value === undefined) {
+				sessionStorage.removeItem(key);
+			} else {
+				sessionStorage.setItem(key, String(value));
+			}
+		});
+	}, []);
 
 	const resetNextScenarioState = useCallback(() => {
 		setShowToast(false);
@@ -51,6 +72,12 @@ const App_NextScenarioProvider = () => {
 		setHasNotification(false);
 		setHasTriggeredAlert(false);
 		setNextScenarioDecision(null);
+		sessionStorage.removeItem("ns_scenarioId");
+		sessionStorage.removeItem("ns_progressPercent");
+		sessionStorage.removeItem("ns_hasUnreadAlert");
+		sessionStorage.removeItem("ns_hasNotification");
+		sessionStorage.removeItem("ns_hasTriggeredAlert");
+		sessionStorage.removeItem("ns_decision");
 	}, []);
 
 	const notifyNextScenarioProgress = useCallback(
@@ -67,7 +94,14 @@ const App_NextScenarioProvider = () => {
 				setCurrentScenarioId(safeScenarioId);
 			}
 
+			if (isNewScenario) {
+				resetNextScenarioState();
+				setCurrentScenarioId(safeScenarioId);
+				saveSession({ ns_scenarioId: safeScenarioId });
+			}
+
 			setProgressPercent(normalizedProgress);
+			saveSession({ ns_progressPercent: normalizedProgress });
 
 			if (normalizedProgress < 95) {
 				setShowToast(false);
@@ -75,6 +109,13 @@ const App_NextScenarioProvider = () => {
 				setHasUnreadAlert(false);
 				setHasNotification(false);
 				setHasTriggeredAlert(false);
+				// 95% 미만이면 session도 초기화
+				saveSession({
+					ns_hasUnreadAlert: false,
+					ns_hasNotification: false,
+					ns_hasTriggeredAlert: false,
+					ns_decision: null,
+				});
 				return;
 			}
 
@@ -89,6 +130,7 @@ const App_NextScenarioProvider = () => {
 			setHasUnreadAlert(false);
 			setHasNotification(false);
 			setHasTriggeredAlert(true);
+			saveSession({ ns_hasTriggeredAlert: true });
 		},
 		[
 			currentScenarioId,
@@ -100,15 +142,14 @@ const App_NextScenarioProvider = () => {
 
 	useEffect(() => {
 		if (!showToast || progressPercent < 95) return;
-
 		const timer = window.setTimeout(() => {
 			setShowToast(false);
 			setHasUnreadAlert(true);
 			setHasNotification(true);
+			saveSession({ ns_hasUnreadAlert: true, ns_hasNotification: true });
 		}, NEXT_SCENARIO_ALERT_DELAY);
-
 		return () => window.clearTimeout(timer);
-	}, [showToast, progressPercent]);
+	}, [showToast, progressPercent, saveSession]);
 
 	const openNextScenarioSelectModal = () => {
 		if (progressPercent < 95) return;
@@ -137,15 +178,19 @@ const App_NextScenarioProvider = () => {
 		setShowToast(false);
 		setHasUnreadAlert(false);
 		setHasNotification(false);
+		saveSession({
+			ns_decision: decision,
+			ns_hasUnreadAlert: false,
+			ns_hasNotification: false,
+		});
 
 		if (decision === "yes") {
 			try {
 				await completeScenario(currentScenarioId);
-				resetNextScenarioState();
+				resetNextScenarioState(); // session도 같이 초기화됨
 				navigate("/App/ready");
 			} catch (err) {
 				console.error("시나리오 완료 처리 실패:", err);
-				// 필요 시 에러 토스트 추가
 			}
 		}
 	};
