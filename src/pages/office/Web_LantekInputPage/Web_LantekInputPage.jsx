@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
 import Web_LantekProjectForm from "../../../components/office/Web_LantekProjectForm/Web_LantekProjectForm";
@@ -26,6 +26,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function Web_LantekInputPage() {
 	const navigate = useNavigate();
+	const location = useLocation();
 
 	const [projectInfo, setProjectInfo] = useState({
 		projectId: null, // 선택된 프로젝트 ID (백엔드 연동)
@@ -54,6 +55,16 @@ export default function Web_LantekInputPage() {
 
 	// 캐시에서 복원
 	useEffect(() => {
+		const shouldPreserveCache = location.state?.preserveCache === true;
+
+		if (!shouldPreserveCache) {
+			// 직접 진입 또는 "아니오"로 돌아온 경우 → 캐시 무시
+			clearScenarioLantekCache();
+			setIsCacheReady(true);
+			return;
+		}
+
+		// "예"로 돌아온 경우에만 캐시 복원
 		const cachedData = getScenarioLantekCache();
 		if (cachedData?.projectInfo) {
 			setProjectInfo((prev) => ({

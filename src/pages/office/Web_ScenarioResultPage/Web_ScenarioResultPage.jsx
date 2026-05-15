@@ -200,17 +200,16 @@ export default function Web_ScenarioResultPage() {
 		? mapBatchItemsToTimeline(scenarioData.batchItems)
 		: [];
 
-	const handleGoBackNo = () => {
-		clearScenarioLantekCache();
+	const handleGoBackYes = () => {
+		// 캐시 유지 + 복원 허용 플래그를 state로 전달
+		navigate("/office/scenario/input", { state: { preserveCache: true } });
 		setIsGoBackModalOpen(false);
-		navigate("/office/scenario/input");
 	};
 
-	const handleGoBackYes = () => {
-		const existingCache = getScenarioLantekCache();
-		if (existingCache) setScenarioLantekCache(existingCache);
-		setIsGoBackModalOpen(false);
+	const handleGoBackNo = () => {
+		clearScenarioLantekCache();
 		navigate("/office/scenario/input");
+		setIsGoBackModalOpen(false);
 	};
 
 	const handleAddConfirm = () => {
