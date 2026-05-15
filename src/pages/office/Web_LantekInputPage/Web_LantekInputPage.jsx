@@ -22,8 +22,6 @@ import { createScenario } from "../../../services/scenarioService";
 import { deleteLantekData } from "../../../services/lantekService";
 import { runScheduler } from "../../../services/schedulerService";
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 export default function Web_LantekInputPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -221,29 +219,21 @@ export default function Web_LantekInputPage() {
 		setScenarioLantekCache({ projectInfo, lantekRows, tempSavedFile });
 		setIsScenarioCheckModalOpen(false);
 		setIsLoadingModalOpen(true);
-		const startedAt = Date.now();
 
 		try {
-			// 스케줄러(최적화 알고리즘) 실행
 			await runScheduler(projectInfo.scenarioId);
-			const remainingDelay = Math.max(0, 10000 - (Date.now() - startedAt));
-			if (remainingDelay > 0) {
-				await sleep(remainingDelay);
-			}
+			// ✅ API 응답 즉시 이동 (하드코딩 대기 제거)
 			setIsLoadingModalOpen(false);
 			navigate("/office/scenario/result", {
 				state: { scenarioId: projectInfo.scenarioId },
 			});
 		} catch (err) {
 			console.error("스케줄러 실행 실패:", err);
-			const remainingDelay = Math.max(0, 10000 - (Date.now() - startedAt));
-			if (remainingDelay > 0) {
-				await sleep(remainingDelay);
-			}
 			const errorMessage =
 				err.response?.data?.message ||
 				err.response?.data?.detail ||
 				"Solver 실행에 실패했습니다. 시나리오 결과를 다시 생성해주세요.";
+			// ✅ 에러 시에도 즉시 로딩 해제
 			setIsLoadingModalOpen(false);
 			alert(errorMessage);
 		}
