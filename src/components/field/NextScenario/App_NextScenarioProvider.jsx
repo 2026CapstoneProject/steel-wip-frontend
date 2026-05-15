@@ -10,7 +10,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import App_NextScenario from "./App_NextScenario";
 import { completeScenario } from "../../../services/fieldService";
 
-const NEXT_SCENARIO_ALERT_DELAY = 5500;
+const NEXT_SCENARIO_ALERT_DELAY = 2000;
 
 const NextScenarioContext = createContext({
 	hasUnreadAlert: false,
@@ -103,13 +103,12 @@ const App_NextScenarioProvider = () => {
 			setProgressPercent(normalizedProgress);
 			saveSession({ ns_progressPercent: normalizedProgress });
 
-			if (normalizedProgress < 95) {
+			if (normalizedProgress < 100) {
 				setShowToast(false);
 				setShowSelectModal(false);
 				setHasUnreadAlert(false);
 				setHasNotification(false);
 				setHasTriggeredAlert(false);
-				// 95% 미만이면 session도 초기화
 				saveSession({
 					ns_hasUnreadAlert: false,
 					ns_hasNotification: false,
@@ -141,7 +140,7 @@ const App_NextScenarioProvider = () => {
 	);
 
 	useEffect(() => {
-		if (!showToast || progressPercent < 95) return;
+		if (!showToast || progressPercent < 100) return;
 		const timer = window.setTimeout(() => {
 			setShowToast(false);
 			setHasUnreadAlert(true);
@@ -152,7 +151,7 @@ const App_NextScenarioProvider = () => {
 	}, [showToast, progressPercent, saveSession]);
 
 	const openNextScenarioSelectModal = () => {
-		if (progressPercent < 95) return;
+		if (progressPercent < 100) return;
 
 		setShowToast(false);
 		setHasUnreadAlert(false);
@@ -201,8 +200,7 @@ const App_NextScenarioProvider = () => {
 					{
 						id: "next-scenario",
 						title: "다음 시나리오 추천",
-						description:
-							"작업 완료율이 95% 이상입니다. 다음 시나리오 진행 여부를 확인하세요.",
+						description: "다음 시나리오 진행 여부를 확인하세요.",
 						icon: "task_alt",
 					},
 				]
@@ -224,7 +222,7 @@ const App_NextScenarioProvider = () => {
 			<Outlet />
 
 			<App_NextScenario
-				showToast={showToast && progressPercent >= 95}
+				showToast={showToast && progressPercent >= 100}
 				showSelectModal={showSelectModal}
 				onToastClick={openNextScenarioSelectModal}
 				onNoClick={() => handleNextScenarioDecision("no")}

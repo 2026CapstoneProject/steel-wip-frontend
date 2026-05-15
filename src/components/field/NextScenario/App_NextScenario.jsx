@@ -13,9 +13,11 @@ const NextScenarioToast = ({ visible, onClick }) => {
 				<span className="material-symbols-outlined text-indigo-100">info</span>
 
 				<div className="min-w-0 flex-1">
-					<p className="truncate text-[15px] font-bold">작업이 곧 완료됩니다</p>
+					<p className="truncate text-[15px] font-bold">
+						작업이 완료되었습니다
+					</p>
 					<p className="mt-0.5 text-[12px] text-indigo-100/90">
-						진행도 95% 달성 — 눌러서 다음 시나리오 진행 여부를 확인하세요
+						눌러서 다음 시나리오 진행 여부를 확인하세요
 					</p>
 				</div>
 

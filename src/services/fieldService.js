@@ -48,3 +48,8 @@ export const completeScenario = (scenarioId) => {
 export const getLiveField = (lazerName) => {
 	return api.get(`/live_field/${lazerName}`);
 };
+
+// ✅ 변경
+export const completeBatch = (batchId) => {
+	return api.post(`/field/batch/${batchId}/complete`);
+};
