@@ -152,11 +152,11 @@ const App_NextScenarioProvider = () => {
 
 	const openNextScenarioSelectModal = () => {
 		if (progressPercent < 100) return;
-
 		setShowToast(false);
-		setHasUnreadAlert(false);
-		setHasNotification(false);
+		setHasUnreadAlert(false); // 읽음 표시만 제거
+		// hasNotification은 건드리지 않음 (모달 닫아도 알람은 유지)
 		setShowSelectModal(true);
+		saveSession({ ns_hasUnreadAlert: false });
 	};
 
 	const handleNotificationOpen = () => {
@@ -171,31 +171,45 @@ const App_NextScenarioProvider = () => {
 		openNextScenarioSelectModal();
 	};
 
+	// ✅ 수정 코드
 	const handleNextScenarioDecision = async (decision) => {
 		setNextScenarioDecision(decision);
 		setShowSelectModal(false);
 		setShowToast(false);
+
+		if (decision === "no") {
+			// "아니오"를 눌러도 알람은 유지 → 나중에 다시 접근 가능
+			setHasUnreadAlert(true);
+			setHasNotification(true);
+			saveSession({
+				ns_decision: "no",
+				ns_hasUnreadAlert: true,
+				ns_hasNotification: true,
+			});
+			return;
+		}
+
+		// "yes"인 경우만 알람 제거 후 시나리오 완료 처리
 		setHasUnreadAlert(false);
 		setHasNotification(false);
 		saveSession({
-			ns_decision: decision,
+			ns_decision: "yes",
 			ns_hasUnreadAlert: false,
 			ns_hasNotification: false,
 		});
 
-		if (decision === "yes") {
-			try {
-				await completeScenario(currentScenarioId);
-				resetNextScenarioState(); // session도 같이 초기화됨
-				navigate("/App/ready");
-			} catch (err) {
-				console.error("시나리오 완료 처리 실패:", err);
-			}
+		try {
+			await completeScenario(currentScenarioId);
+			resetNextScenarioState();
+			navigate("/App/ready");
+		} catch (err) {
+			console.error("시나리오 완료 처리 실패:", err);
 		}
 	};
 
 	const notificationItems =
-		hasNotification && nextScenarioDecision === null
+		hasNotification &&
+		(nextScenarioDecision === null || nextScenarioDecision === "no")
 			? [
 					{
 						id: "next-scenario",
