@@ -6,7 +6,7 @@ function getStatusBadgeClass(status) {
 		case "COMPLETED":
 			return "bg-emerald-100 text-emerald-700";
 		case "ORDERED":
-			return "bg-primary-container text-on-primary-container";
+			return "bg-amber-100 text-amber-700"; // ← 변경
 		case "DRAFT":
 			return "bg-surface-container text-on-surface-variant";
 		default:

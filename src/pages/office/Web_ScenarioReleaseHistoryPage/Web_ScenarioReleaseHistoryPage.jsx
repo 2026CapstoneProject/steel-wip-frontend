@@ -17,15 +17,14 @@ const DEFAULT_FILTERS = {
 
 function getStatusBadgeClass(status) {
 	switch (status) {
-		case "urgent":
-			return "bg-red-100 text-red-700";
-		case "completed":
-			return "bg-emerald-100 text-emerald-700";
 		case "in-progress":
-			return "bg-primary-container text-on-primary-container";
+			return "bg-blue-100 text-blue-700"; // 진행 중 — 파랑
+		case "completed":
+			return "bg-emerald-100 text-emerald-700"; // 완료 — 초록
 		case "before-progress":
+			return "bg-amber-100 text-amber-700"; // 발행됨(ORDERED) — 노랑
 		default:
-			return "bg-surface-container-highest text-on-surface-variant";
+			return "bg-surface-container text-on-surface-variant";
 	}
 }
 // ─── DB status → 프론트 status 키 변환 ───────────────────────────
@@ -184,13 +183,6 @@ function ScenarioReleaseProjectAccordion({
 				</div>
 
 				<div className="flex items-center gap-8">
-					<div className="flex items-center gap-3">
-						<span
-							className={`rounded-full px-3 py-1 text-[11px] font-bold tracking-tight ${getStatusBadgeClass(project.status)}`}
-						>
-							{project.statusDescription}
-						</span>
-					</div>
 					<span
 						className={`material-symbols-outlined text-outline transition-transform duration-200 ${
 							isOpen ? "rotate-180" : ""
@@ -227,10 +219,12 @@ function ScenarioReleaseProjectAccordion({
 									</th>
 									<th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-on-surface-variant">
 										상세
-									</th>
+									</th>{" "}
+									<th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+										상태
+									</th>{" "}
 								</tr>
 							</thead>
-
 							<tbody className="divide-y divide-surface-container">
 								{(project.rows ?? []).map((row, index) => (
 									<tr
@@ -252,7 +246,6 @@ function ScenarioReleaseProjectAccordion({
 										<td className="px-6 py-4 text-sm font-bold text-primary">
 											{row.materialCount}
 										</td>
-
 										<td className="px-6 py-4 text-center">
 											<button
 												type="button"
@@ -265,7 +258,6 @@ function ScenarioReleaseProjectAccordion({
 												보기
 											</button>
 										</td>
-
 										<td className="px-6 py-4 text-center">
 											<button
 												type="button"
@@ -277,6 +269,14 @@ function ScenarioReleaseProjectAccordion({
 												</span>
 												보기
 											</button>
+										</td>{" "}
+										{/* ← 상태 컬럼 추가 */}
+										<td className="px-6 py-4">
+											<span
+												className={`rounded-full px-3 py-1 text-[11px] font-bold tracking-tight ${getStatusBadgeClass(row.status)}`}
+											>
+												{row.statusDescription}
+											</span>
 										</td>
 									</tr>
 								))}
