@@ -147,10 +147,7 @@ export default function Web_ScenarioDetailHistoryPage() {
 			scenarioData?.scenarioTitle || projectInfo?.productionPlanName || "-",
 		shipmentDate: scenarioData?.scenarioDue || projectInfo?.shipmentDate || "-",
 		equipmentName: scenarioData?.lazerName || projectInfo?.equipmentName || "-",
-		// ✅ scenarioData에서 실제 DB status를 우선 사용, 없으면 projectInfo 폴백
-		status: scenarioData?.status
-			? resolveStatusLabel(scenarioData.status)
-			: projectInfo?.statusLabel || "발행됨",
+		status: scenarioData?.status || projectInfo?.dbStatus || "",
 	};
 
 	const metrics = scenarioData
