@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
 import Web_LantekProjectForm from "../../../components/office/Web_LantekProjectForm/Web_LantekProjectForm";
@@ -22,10 +22,9 @@ import { createScenario } from "../../../services/scenarioService";
 import { deleteLantekData } from "../../../services/lantekService";
 import { runScheduler } from "../../../services/schedulerService";
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 export default function Web_LantekInputPage() {
 	const navigate = useNavigate();
+	const location = useLocation();
 
 	const [projectInfo, setProjectInfo] = useState({
 		projectId: null, // 선택된 프로젝트 ID (백엔드 연동)
@@ -54,6 +53,16 @@ export default function Web_LantekInputPage() {
 
 	// 캐시에서 복원
 	useEffect(() => {
+		const shouldPreserveCache = location.state?.preserveCache === true;
+
+		if (!shouldPreserveCache) {
+			// 직접 진입 또는 "아니오"로 돌아온 경우 → 캐시 무시
+			clearScenarioLantekCache();
+			setIsCacheReady(true);
+			return;
+		}
+
+		// "예"로 돌아온 경우에만 캐시 복원
 		const cachedData = getScenarioLantekCache();
 		if (cachedData?.projectInfo) {
 			setProjectInfo((prev) => ({
@@ -210,29 +219,21 @@ export default function Web_LantekInputPage() {
 		setScenarioLantekCache({ projectInfo, lantekRows, tempSavedFile });
 		setIsScenarioCheckModalOpen(false);
 		setIsLoadingModalOpen(true);
-		const startedAt = Date.now();
 
 		try {
-			// 스케줄러(최적화 알고리즘) 실행
 			await runScheduler(projectInfo.scenarioId);
-			const remainingDelay = Math.max(0, 10000 - (Date.now() - startedAt));
-			if (remainingDelay > 0) {
-				await sleep(remainingDelay);
-			}
+			// ✅ API 응답 즉시 이동 (하드코딩 대기 제거)
 			setIsLoadingModalOpen(false);
 			navigate("/office/scenario/result", {
 				state: { scenarioId: projectInfo.scenarioId },
 			});
 		} catch (err) {
 			console.error("스케줄러 실행 실패:", err);
-			const remainingDelay = Math.max(0, 10000 - (Date.now() - startedAt));
-			if (remainingDelay > 0) {
-				await sleep(remainingDelay);
-			}
 			const errorMessage =
 				err.response?.data?.message ||
 				err.response?.data?.detail ||
 				"Solver 실행에 실패했습니다. 시나리오 결과를 다시 생성해주세요.";
+			// ✅ 에러 시에도 즉시 로딩 해제
 			setIsLoadingModalOpen(false);
 			alert(errorMessage);
 		}

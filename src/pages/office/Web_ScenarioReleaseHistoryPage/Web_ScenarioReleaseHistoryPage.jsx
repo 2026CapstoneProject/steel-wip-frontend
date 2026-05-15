@@ -17,37 +17,85 @@ const DEFAULT_FILTERS = {
 
 function getStatusBadgeClass(status) {
 	switch (status) {
-		case "urgent":
-			return "bg-red-100 text-red-700";
-		case "completed":
-			return "bg-emerald-100 text-emerald-700";
 		case "in-progress":
-			return "bg-primary-container text-on-primary-container";
+			return "bg-blue-100 text-blue-700"; // 진행 중 — 파랑
+		case "completed":
+			return "bg-emerald-100 text-emerald-700"; // 완료 — 초록
 		case "before-progress":
+			return "bg-amber-100 text-amber-700"; // 발행됨(ORDERED) — 노랑
 		default:
-			return "bg-surface-container-highest text-on-surface-variant";
+			return "bg-surface-container text-on-surface-variant";
+	}
+}
+// ─── DB status → 프론트 status 키 변환 ───────────────────────────
+function resolveScenarioStatus(dbStatus) {
+	switch ((dbStatus ?? "").toUpperCase()) {
+		case "IN_PROGRESS":
+			return {
+				status: "in-progress",
+				statusLabel: "In Progress",
+				statusDescription: "진행 중",
+			};
+		case "COMPLETED":
+			return {
+				status: "completed",
+				statusLabel: "Completed",
+				statusDescription: "완료",
+			};
+		case "ORDERED":
+			return {
+				status: "before-progress",
+				statusLabel: "Ordered",
+				statusDescription: "발행됨",
+			};
+		default:
+			return {
+				status: "before-progress",
+				statusLabel: "Before Progress",
+				statusDescription: "진행 예정",
+			};
 	}
 }
 
 // 백엔드 SentProjectHistory[] → 프론트 accordion 데이터로 변환
 function mapSentToProjects(data) {
-	return (data ?? []).map((project) => ({
-		id: `project-${project.projectId}`,
-		projectId: project.projectId,
-		projectName: project.projectTitle,
-		projectDeadline: project.projectDue ?? "",
-		status: "before-progress",
-		statusLabel: "Before Progress",
-		statusDescription: "진행 예정",
-		rows: (project.scenarios ?? []).map((s) => ({
-			id: `scenario-${s.scenarioId}`,
-			scenarioId: s.scenarioId,
-			productionPlanName: s.scenarioTitle,
-			shipmentDate: s.scenarioDue ?? "",
-			releaseDate: s.orderedAt ? String(s.orderedAt).slice(0, 10) : "",
-			materialCount: s.numInputWip ?? 0,
-		})),
-	}));
+	return (data ?? []).map((project) => {
+		const scenarios = project.scenarios ?? [];
+
+		// 프로젝트 전체 status: 소속 시나리오 중 가장 진행된 상태를 대표로 사용
+		const statusPriority = { COMPLETED: 3, IN_PROGRESS: 2, ORDERED: 1 };
+		const representativeStatus = scenarios.reduce((best, s) => {
+			const p = statusPriority[(s.status ?? "").toUpperCase()] ?? 0;
+			return p > (statusPriority[(best ?? "").toUpperCase()] ?? 0)
+				? s.status
+				: best;
+		}, "ORDERED");
+		const projectStatusInfo = resolveScenarioStatus(representativeStatus);
+
+		return {
+			id: `project-${project.projectId}`,
+			projectId: project.projectId,
+			projectName: project.projectTitle,
+			projectDeadline: project.projectDue ?? "",
+			...projectStatusInfo, // ← 프로젝트 대표 status
+			rows: scenarios.map((s) => {
+				const scenarioStatusInfo = resolveScenarioStatus(s.status); // ← 시나리오별 실제 status
+				return {
+					id: `scenario-${s.scenarioId}`,
+					scenarioId: s.scenarioId,
+					productionPlanName: s.scenarioTitle,
+					shipmentDate: s.scenarioDue ?? "",
+					releaseDate: s.orderedAt ? String(s.orderedAt).slice(0, 10) : "",
+					materialCount: s.numInputWip ?? 0,
+					// detail 페이지로 넘길 실제 status 정보
+					status: scenarioStatusInfo.status,
+					statusLabel: scenarioStatusInfo.statusLabel,
+					statusDescription: scenarioStatusInfo.statusDescription,
+					dbStatus: s.status ?? "", // 원본 DB 값도 보관
+				};
+			}),
+		};
+	});
 }
 
 function FilterInput({ label, name, value, onChange, placeholder }) {
@@ -135,18 +183,6 @@ function ScenarioReleaseProjectAccordion({
 				</div>
 
 				<div className="flex items-center gap-8">
-					<div className="flex items-center gap-2">
-						<span
-							className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-tighter ${getStatusBadgeClass(
-								project.status,
-							)}`}
-						>
-							{project.statusLabel}
-						</span>
-						<span className="text-xs font-semibold text-on-surface-variant">
-							{project.statusDescription}
-						</span>
-					</div>
 					<span
 						className={`material-symbols-outlined text-outline transition-transform duration-200 ${
 							isOpen ? "rotate-180" : ""
@@ -183,10 +219,12 @@ function ScenarioReleaseProjectAccordion({
 									</th>
 									<th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-on-surface-variant">
 										상세
-									</th>
+									</th>{" "}
+									<th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+										상태
+									</th>{" "}
 								</tr>
 							</thead>
-
 							<tbody className="divide-y divide-surface-container">
 								{(project.rows ?? []).map((row, index) => (
 									<tr
@@ -208,7 +246,6 @@ function ScenarioReleaseProjectAccordion({
 										<td className="px-6 py-4 text-sm font-bold text-primary">
 											{row.materialCount}
 										</td>
-
 										<td className="px-6 py-4 text-center">
 											<button
 												type="button"
@@ -221,7 +258,6 @@ function ScenarioReleaseProjectAccordion({
 												보기
 											</button>
 										</td>
-
 										<td className="px-6 py-4 text-center">
 											<button
 												type="button"
@@ -233,6 +269,14 @@ function ScenarioReleaseProjectAccordion({
 												</span>
 												보기
 											</button>
+										</td>{" "}
+										{/* ← 상태 컬럼 추가 */}
+										<td className="px-6 py-4">
+											<span
+												className={`whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-bold tracking-tight ${getStatusBadgeClass(row.status)}`}
+											>
+												{row.statusDescription}
+											</span>
 										</td>
 									</tr>
 								))}
@@ -350,8 +394,10 @@ export default function Web_ScenarioReleaseHistoryPage() {
 		releaseDate: row.releaseDate || "-",
 		materialCount: row.materialCount ?? 0,
 		equipmentName: "-",
-		statusLabel: project.statusLabel || "-",
-		status: project.status || "-",
+		// ✅ 시나리오 개별 status를 넘김 (프로젝트 대표 status가 아닌 행 단위 status)
+		statusLabel: row.statusLabel || "-",
+		status: row.status || "-",
+		dbStatus: row.dbStatus || "",
 	});
 
 	const handleViewScenario = (project, row) => {
