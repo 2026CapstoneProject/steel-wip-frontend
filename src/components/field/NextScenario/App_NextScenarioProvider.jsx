@@ -6,8 +6,9 @@ import React, {
 	useMemo,
 	useState,
 } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import App_NextScenario from "./App_NextScenario";
+import { completeScenario } from "../../../services/fieldService";
 
 const NEXT_SCENARIO_ALERT_DELAY = 5500;
 
@@ -32,6 +33,7 @@ const normalizeProgressPercent = (value) => {
 };
 
 const App_NextScenarioProvider = () => {
+	const navigate = useNavigate();
 	const [currentScenarioId, setCurrentScenarioId] = useState(null);
 	const [progressPercent, setProgressPercent] = useState(0);
 
@@ -53,7 +55,9 @@ const App_NextScenarioProvider = () => {
 
 	const notifyNextScenarioProgress = useCallback(
 		({ scenarioId, progressRate }) => {
-			const safeScenarioId = scenarioId ? String(scenarioId) : "current-scenario";
+			const safeScenarioId = scenarioId
+				? String(scenarioId)
+				: "current-scenario";
 			const normalizedProgress = normalizeProgressPercent(progressRate);
 
 			const isNewScenario = currentScenarioId !== safeScenarioId;
@@ -127,12 +131,23 @@ const App_NextScenarioProvider = () => {
 		openNextScenarioSelectModal();
 	};
 
-	const handleNextScenarioDecision = (decision) => {
+	const handleNextScenarioDecision = async (decision) => {
 		setNextScenarioDecision(decision);
 		setShowSelectModal(false);
 		setShowToast(false);
 		setHasUnreadAlert(false);
 		setHasNotification(false);
+
+		if (decision === "yes") {
+			try {
+				await completeScenario(currentScenarioId);
+				resetNextScenarioState();
+				navigate("/App/ready");
+			} catch (err) {
+				console.error("시나리오 완료 처리 실패:", err);
+				// 필요 시 에러 토스트 추가
+			}
+		}
 	};
 
 	const notificationItems =
