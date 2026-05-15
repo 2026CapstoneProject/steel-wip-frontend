@@ -273,7 +273,7 @@ function ScenarioReleaseProjectAccordion({
 										{/* ← 상태 컬럼 추가 */}
 										<td className="px-6 py-4">
 											<span
-												className={`rounded-full px-3 py-1 text-[11px] font-bold tracking-tight ${getStatusBadgeClass(row.status)}`}
+												className={`whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-bold tracking-tight ${getStatusBadgeClass(row.status)}`}
 											>
 												{row.statusDescription}
 											</span>
