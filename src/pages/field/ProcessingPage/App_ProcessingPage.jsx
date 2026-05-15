@@ -3,7 +3,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import App_ProcessTabs from "../../../components/field/ProcessTabs/App_ProcessTabs";
 import App_Header from "../../../components/field/Header/App_Header";
 import workOrderPdf from "../../../assets/Steel_all_Work_instruction.pdf";
-import { getFieldProgress } from "../../../services/fieldService";
+import {
+	getFieldProgress,
+	completeBatch,
+} from "../../../services/fieldService";
 import { useNextScenario } from "../../../components/field/NextScenario/App_NextScenarioProvider";
 import {
 	getSelectedFieldScenarioId,
@@ -65,6 +68,8 @@ function mapProgressData(progressData) {
 		totalTaskCount: progressData?.totalTaskCount ?? 0,
 		remainingTaskCount: progressData?.remainingTaskCount ?? 0,
 		expectedTotalMinutes: progressData?.expectedTotalRunningTime ?? 0,
+		hasNoWip: progressData?.hasNoWip ?? false, // ✅ 추가
+		batchId: progressData?.batchId ?? null, // ✅ 추가
 		batches,
 	};
 }
@@ -337,6 +342,18 @@ const App_ProcessingPage = () => {
 		});
 	};
 
+	const handleCompleteProduction = async () => {
+		if (!window.confirm("생산을 완료 처리하시겠습니까?")) return;
+		try {
+			// fieldService.js에 completeBatch 함수 추가 후 import 필요 (아래 참고)
+			await completeBatch(mappedData.batchId);
+			navigate("/App/end");
+		} catch (err) {
+			console.error("생산완료 처리 실패:", err);
+			alert("완료 처리 중 오류가 발생했습니다.");
+		}
+	};
+
 	const handleWorkOrderClick = () => {
 		window.open(workOrderPdf, "_self");
 	};
@@ -359,13 +376,12 @@ const App_ProcessingPage = () => {
 						qrEnabled={isQrEnabled}
 					/>
 				</div>
-
 				<div className="min-h-0 flex-1 overflow-y-auto pb-8">
 					{loading ? (
 						<div className="py-12 text-center text-sm text-slate-500">
 							데이터를 불러오는 중...
 						</div>
-					) : mappedData.batches.length === 0 ? (
+					) : mappedData.batches.length === 0 && !mappedData.hasNoWip ? (
 						<div className="py-12 text-center text-sm text-slate-500">
 							현재 진행 중인 생산 작업이 없습니다.
 						</div>
@@ -378,6 +394,17 @@ const App_ProcessingPage = () => {
 									onWorkOrderClick={handleWorkOrderClick}
 								/>
 							))}
+
+							{/* ✅ 재공품 없는 배치일 때만 생산완료 버튼 표시 */}
+							{mappedData.hasNoWip && (
+								<button
+									type="button"
+									onClick={handleCompleteProduction}
+									className="w-full rounded-2xl bg-[#3F51B5] py-4 text-base font-bold text-white shadow-sm transition active:scale-95 active:opacity-90"
+								>
+									생산완료
+								</button>
+							)}
 						</div>
 					)}
 				</div>
