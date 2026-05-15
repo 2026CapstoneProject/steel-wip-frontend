@@ -10,6 +10,7 @@ import Web_SolverTimelineSection from "../../../components/office/Web_SolverTime
 import Web_ScenarioGoBackModal from "../../../components/modal/Web_ScenarioGoBackModal/Web_ScenarioGoBackModal";
 import Web_ScenarioAddModal from "../../../components/modal/Web_ScenarioAddModal/Web_ScenarioAddModal";
 import Web_ScenarioSendModal from "../../../components/modal/Web_ScenarioSendModal/Web_ScenarioSendModal";
+import { deleteLantekData } from "../../../services/lantekService";
 
 import {
 	clearScenarioLantekCache,
@@ -206,10 +207,18 @@ export default function Web_ScenarioResultPage() {
 		setIsGoBackModalOpen(false);
 	};
 
-	const handleGoBackNo = () => {
+	const handleGoBackNo = async () => {
+		// 초기화 버튼과 동일하게 DB도 삭제
+		if (scenarioId) {
+			try {
+				await deleteLantekData(scenarioId);
+			} catch (err) {
+				console.error("시나리오 초기화 실패:", err);
+			}
+		}
 		clearScenarioLantekCache();
-		navigate("/office/scenario/input");
 		setIsGoBackModalOpen(false);
+		navigate("/office/scenario/input");
 	};
 
 	const handleAddConfirm = () => {
