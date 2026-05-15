@@ -9,6 +9,20 @@ import Web_SolverTimelineSection from "../../../components/office/Web_SolverTime
 
 import { getScenarioDetail } from "../../../services/scenarioService";
 
+// ─── DB status → 표시용 label 변환 (detail 페이지용) ───────────
+function resolveStatusLabel(dbStatus) {
+	switch ((dbStatus ?? "").toUpperCase()) {
+		case "IN_PROGRESS":
+			return "In Progress";
+		case "COMPLETED":
+			return "Completed";
+		case "ORDERED":
+			return "Ordered";
+		default:
+			return "Before Progress";
+	}
+}
+
 function hasDemoSolverTimeline(scenario) {
 	const craneSchedule = scenario?.craneSchedule ?? [];
 	return (
@@ -133,7 +147,10 @@ export default function Web_ScenarioDetailHistoryPage() {
 			scenarioData?.scenarioTitle || projectInfo?.productionPlanName || "-",
 		shipmentDate: scenarioData?.scenarioDue || projectInfo?.shipmentDate || "-",
 		equipmentName: scenarioData?.lazerName || projectInfo?.equipmentName || "-",
-		status: projectInfo?.statusLabel || "발행됨",
+		// ✅ scenarioData에서 실제 DB status를 우선 사용, 없으면 projectInfo 폴백
+		status: scenarioData?.status
+			? resolveStatusLabel(scenarioData.status)
+			: projectInfo?.statusLabel || "발행됨",
 	};
 
 	const metrics = scenarioData

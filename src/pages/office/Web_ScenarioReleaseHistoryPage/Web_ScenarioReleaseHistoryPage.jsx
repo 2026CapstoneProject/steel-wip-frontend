@@ -28,26 +28,75 @@ function getStatusBadgeClass(status) {
 			return "bg-surface-container-highest text-on-surface-variant";
 	}
 }
+// ─── DB status → 프론트 status 키 변환 ───────────────────────────
+function resolveScenarioStatus(dbStatus) {
+	switch ((dbStatus ?? "").toUpperCase()) {
+		case "IN_PROGRESS":
+			return {
+				status: "in-progress",
+				statusLabel: "In Progress",
+				statusDescription: "진행 중",
+			};
+		case "COMPLETED":
+			return {
+				status: "completed",
+				statusLabel: "Completed",
+				statusDescription: "완료",
+			};
+		case "ORDERED":
+			return {
+				status: "before-progress",
+				statusLabel: "Ordered",
+				statusDescription: "발행됨",
+			};
+		default:
+			return {
+				status: "before-progress",
+				statusLabel: "Before Progress",
+				statusDescription: "진행 예정",
+			};
+	}
+}
 
 // 백엔드 SentProjectHistory[] → 프론트 accordion 데이터로 변환
 function mapSentToProjects(data) {
-	return (data ?? []).map((project) => ({
-		id: `project-${project.projectId}`,
-		projectId: project.projectId,
-		projectName: project.projectTitle,
-		projectDeadline: project.projectDue ?? "",
-		status: "before-progress",
-		statusLabel: "Before Progress",
-		statusDescription: "진행 예정",
-		rows: (project.scenarios ?? []).map((s) => ({
-			id: `scenario-${s.scenarioId}`,
-			scenarioId: s.scenarioId,
-			productionPlanName: s.scenarioTitle,
-			shipmentDate: s.scenarioDue ?? "",
-			releaseDate: s.orderedAt ? String(s.orderedAt).slice(0, 10) : "",
-			materialCount: s.numInputWip ?? 0,
-		})),
-	}));
+	return (data ?? []).map((project) => {
+		const scenarios = project.scenarios ?? [];
+
+		// 프로젝트 전체 status: 소속 시나리오 중 가장 진행된 상태를 대표로 사용
+		const statusPriority = { COMPLETED: 3, IN_PROGRESS: 2, ORDERED: 1 };
+		const representativeStatus = scenarios.reduce((best, s) => {
+			const p = statusPriority[(s.status ?? "").toUpperCase()] ?? 0;
+			return p > (statusPriority[(best ?? "").toUpperCase()] ?? 0)
+				? s.status
+				: best;
+		}, "ORDERED");
+		const projectStatusInfo = resolveScenarioStatus(representativeStatus);
+
+		return {
+			id: `project-${project.projectId}`,
+			projectId: project.projectId,
+			projectName: project.projectTitle,
+			projectDeadline: project.projectDue ?? "",
+			...projectStatusInfo, // ← 프로젝트 대표 status
+			rows: scenarios.map((s) => {
+				const scenarioStatusInfo = resolveScenarioStatus(s.status); // ← 시나리오별 실제 status
+				return {
+					id: `scenario-${s.scenarioId}`,
+					scenarioId: s.scenarioId,
+					productionPlanName: s.scenarioTitle,
+					shipmentDate: s.scenarioDue ?? "",
+					releaseDate: s.orderedAt ? String(s.orderedAt).slice(0, 10) : "",
+					materialCount: s.numInputWip ?? 0,
+					// detail 페이지로 넘길 실제 status 정보
+					status: scenarioStatusInfo.status,
+					statusLabel: scenarioStatusInfo.statusLabel,
+					statusDescription: scenarioStatusInfo.statusDescription,
+					dbStatus: s.status ?? "", // 원본 DB 값도 보관
+				};
+			}),
+		};
+	});
 }
 
 function FilterInput({ label, name, value, onChange, placeholder }) {
@@ -350,8 +399,10 @@ export default function Web_ScenarioReleaseHistoryPage() {
 		releaseDate: row.releaseDate || "-",
 		materialCount: row.materialCount ?? 0,
 		equipmentName: "-",
-		statusLabel: project.statusLabel || "-",
-		status: project.status || "-",
+		// ✅ 시나리오 개별 status를 넘김 (프로젝트 대표 status가 아닌 행 단위 status)
+		statusLabel: row.statusLabel || "-",
+		status: row.status || "-",
+		dbStatus: row.dbStatus || "",
 	});
 
 	const handleViewScenario = (project, row) => {
