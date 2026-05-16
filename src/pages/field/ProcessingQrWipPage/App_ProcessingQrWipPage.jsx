@@ -242,7 +242,15 @@ const App_ProcessingQrWipPage = () => {
 			const response = await saveBatchItem(batchItemId, {
 				wipQR: scannedWipQr,
 				locQR: scannedLocQr,
-				specText: normalizedSpecText,
+				thickness: confirmedSpecParts.thickness
+					? parseFloat(confirmedSpecParts.thickness)
+					: undefined,
+				width: confirmedSpecParts.width
+					? parseFloat(confirmedSpecParts.width)
+					: undefined,
+				length: confirmedSpecParts.length
+					? parseFloat(confirmedSpecParts.length)
+					: undefined,
 			});
 
 			const saveResult = response.data?.data ?? {};
@@ -357,10 +365,7 @@ const App_ProcessingQrWipPage = () => {
 														inputMode="numeric"
 														value={draftSpecParts.thickness}
 														onChange={(event) =>
-															handleSpecChange(
-																"thickness",
-																event.target.value,
-															)
+															handleSpecChange("thickness", event.target.value)
 														}
 														disabled={isSaving}
 														placeholder="두께"
