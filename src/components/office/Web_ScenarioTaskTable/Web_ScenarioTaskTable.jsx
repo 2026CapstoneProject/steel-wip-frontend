@@ -14,6 +14,7 @@ export default function Web_ScenarioTaskTable({
 	const [ncCodeMap, setNcCodeMap] = useState({});
 
 	const hasNcCodeColumn = rows.some((row) => row.ncCode !== undefined);
+	const hasStatusColumn = rows.some((row) => row.status !== undefined);
 
 	const getRowKey = (row, index) => `${row.qrNumber ?? "row"}-${index}`;
 
@@ -94,6 +95,11 @@ export default function Web_ScenarioTaskTable({
 						<th className="px-4 py-3 text-center text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">
 							{timeHeaderLabel}
 						</th>
+						{hasStatusColumn && (
+							<th className="px-4 py-3 text-center text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">
+								상태
+							</th>
+						)}
 					</tr>
 				</thead>
 
@@ -212,6 +218,18 @@ export default function Web_ScenarioTaskTable({
 								<td className="px-4 py-4 text-center text-sm">
 									{row.estimatedTime}
 								</td>
+								{hasStatusColumn && (
+									<td className="px-4 py-4 text-center">
+										<span
+											className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+												row.statusClass ??
+												"bg-surface-container-highest text-on-surface-variant"
+											}`}
+										>
+											{row.status ?? "-"}
+										</span>
+									</td>
+								)}
 							</tr>
 						);
 					})}
