@@ -1,10 +1,38 @@
 import Web_ScenarioTaskTable from "../Web_ScenarioTaskTable/Web_ScenarioTaskTable";
-export default function Web_ScenarioTimelineSection({ items, scenarioId }) {
+
+// ✅ 통일된 아이콘/색상: scenarioTimeline.js와 동기화
+const ACTION_META = {
+	재배치: { accentClass: "text-gray-400" },
+	피킹: { accentClass: "text-red-500" },
+	원자재투입: { accentClass: "text-purple-500" },
+	"원자재 투입": { accentClass: "text-purple-500" },
+	적재: { accentClass: "text-cyan-500" },
+	임시이동: { accentClass: "text-orange-500" },
+	원상복구: { accentClass: "text-cyan-500" },
+};
+
+// ✅ Tailwind 색상 → HEX 변환
+const COLOR_MAP = {
+	"bg-gray-400": "#9CA3AF",
+	"bg-red-500": "#EF4444",
+	"bg-purple-500": "#A855F7",
+	"bg-cyan-500": "#06B6D4",
+	"bg-orange-500": "#F97316",
+};
+
+function extractColorFromClass(colorClass) {
+	// colorClass는 "bg-cyan-500 ring-surface" 형태
+	const bgClass = colorClass.split(" ")[0];
+	return COLOR_MAP[bgClass] || "#000000";
+}
+
+export default function Web_ScenarioTimelineSection({
+	items,
+	scenarioId,
+	timeHeaderLabel = "예상 소요시간(분)",
+}) {
 	const getAccentTextClass = (type) => {
-		if (type.includes("재배치")) return "text-primary";
-		if (type.includes("피킹")) return "text-secondary";
-		if (type.includes("적재")) return "text-emerald-600";
-		return "text-primary";
+		return ACTION_META[type]?.accentClass || "text-primary";
 	};
 
 	return (
@@ -19,7 +47,8 @@ export default function Web_ScenarioTimelineSection({ items, scenarioId }) {
 						<div className="flex items-center gap-3 mb-4">
 							<h3 className="font-bold text-lg text-on-surface flex items-center gap-2">
 								<span
-									className={`material-symbols-outlined ${item.iconColorClass}`}
+									className="material-symbols-outlined"
+									style={{ color: extractColorFromClass(item.colorClass) }}
 								>
 									{item.icon}
 								</span>
@@ -35,6 +64,7 @@ export default function Web_ScenarioTimelineSection({ items, scenarioId }) {
 						<Web_ScenarioTaskTable
 							rows={item.rows}
 							accentTextClass={getAccentTextClass(item.type)}
+							timeHeaderLabel={timeHeaderLabel}
 							scenarioId={scenarioId}
 						/>
 					</div>

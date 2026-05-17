@@ -28,62 +28,123 @@ const normalizeProgressPercent = (value) => {
 	return Math.max(0, Math.min(100, Math.round(percent)));
 };
 
+const formatMinuteText = (value) => `${Number(value ?? 0)}분`;
+
+const formatExpectedTimeText = (startTime, runningTime) => {
+	const start = Number(startTime ?? 0);
+	const running = Number(runningTime ?? 0);
+
+	if (running > 0) {
+		return `예상 시작 ${formatMinuteText(start)} · 소요 ${formatMinuteText(running)}`;
+	}
+
+	return `예상 시작 ${formatMinuteText(start)}`;
+};
+
+const ACTION_META = {
+	TEMP_MOVE: { key: "tempMove", title: "임시이동", subtitle: "Temp Move" },
+	RESTORE: { key: "restore", title: "원상복구", subtitle: "Restore" },
+	RELOCATE: { key: "relocation", title: "재배치", subtitle: "Relocation" },
+	DIRECT_START: { key: "directStart", title: "원자재 투입", subtitle: "Direct Start" },
+	PICKING: { key: "picking", title: "피킹", subtitle: "Picking" },
+	INBOUND: { key: "inbound", title: "적재", subtitle: "Inbound" },
+};
+
+const getActionMeta = (actionType) =>
+	ACTION_META[actionType] || {
+		key: "relocation",
+		title: actionType || "작업",
+		subtitle: actionType || "",
+	};
+
 function mapEndDataToTasks(endDataList) {
-	const tasks = [];
+	const entries = [];
 
 	(endDataList ?? []).forEach((endData) => {
-		(endData.batch ?? []).forEach((group, groupIdx) => {
-			const relocations = (group.relocation ?? []).map((item, rIdx) => ({
-				id: String(item.batchItemId),
-				title: `Relocate ${rIdx + 1}`,
-				materialName: item.material || "-",
-				manufacturer: item.manufacturer || "-",
-				specText: item.specText || "-",
-				weightText: item.weightText || "-",
-				wipQr: item.wipQr || "-",
-				fromZone: item.fromLocationName || "-",
-				toZone: item.toLocationName || "-",
-				duration: item.expectedRunningTime
-					? `${item.expectedRunningTime}m`
-					: null,
-			}));
-
-			const pickings = (group.picking ?? []).map((item, pIdx) => {
-				const isRaw = !item.wipId || item.wipId === 0;
-
-				return {
+		(endData.batch ?? []).forEach((group) => {
+			(group.relocation ?? []).forEach((item) => {
+				entries.push({
 					id: String(item.batchItemId),
-					title: `Picking ${pIdx + 1}`,
-					type: isRaw ? "원자재" : "재공품",
+					actionType: item.actionType || "RELOCATE",
+					expectedStartTime: Number(item.expectedStartTime ?? 0),
+					expectedRunningTime: Number(item.expectedRunningTime ?? 0),
 					materialName: item.material || "-",
 					manufacturer: item.manufacturer || "-",
 					specText: item.specText || "-",
 					weightText: item.weightText || "-",
 					wipQr: item.wipQr || "-",
-					infoLabel: isRaw ? "두께×폭x길이" : "현재 위치",
-					infoValue: isRaw
-						? item.thickness && item.width && item.height
-							? `${item.thickness} × ${item.width} × ${item.height}`
-							: item.specText || "-"
-						: item.fromLocationName || "-",
-					duration: item.expectedRunningTime
-						? `${item.expectedRunningTime}m`
-						: null,
-				};
+					fromZone: item.fromLocationName || "-",
+					toZone: item.toLocationName || "-",
+				});
 			});
 
-			if (relocations.length === 0 && pickings.length === 0) return;
+			(group.picking ?? []).forEach((item) => {
+				const isRaw =
+					item.actionType === "DIRECT_START" || !item.wipQr || item.wipQr === "";
 
-			tasks.push({
-				id: `batch-group-${groupIdx}`,
-				title: `Task ${String(groupIdx + 1).padStart(2, "0")}`,
-				relocations,
-				pickings,
+				entries.push({
+					id: String(item.batchItemId),
+					actionType: item.actionType || "PICKING",
+					expectedStartTime: Number(item.expectedStartTime ?? 0),
+					expectedRunningTime: Number(item.expectedRunningTime ?? 0),
+					materialName: item.material || "-",
+					manufacturer: item.manufacturer || "-",
+					specText: item.specText || "-",
+					weightText: item.weightText || "-",
+					wipQr: item.wipQr || "-",
+					fromZone: item.fromLocationName || "-",
+					toZone: item.toLocationName || "-",
+					type: isRaw ? "원자재" : "재공품",
+					infoLabel: isRaw ? "투입 위치" : "현재 위치",
+					infoValue: isRaw
+						? item.toLocationName || "-"
+						: item.fromLocationName || "-",
+				});
+			});
+
+			(group.inbound ?? []).forEach((item) => {
+				entries.push({
+					id: String(item.batchItemId),
+					actionType: item.actionType || "INBOUND",
+					expectedStartTime: Number(item.expectedStartTime ?? 0),
+					expectedRunningTime: Number(item.expectedRunningTime ?? 0),
+					materialName: item.material || "-",
+					manufacturer: item.manufacturer || "-",
+					specText: item.specText || "-",
+					weightText: item.weightText || "-",
+					wipQr: item.wipQr || "-",
+					fromZone: item.fromLocationName || "-",
+					toZone: item.toLocationName || "-",
+				});
 			});
 		});
 	});
 
-	return tasks;
+	entries.sort((a, b) => {
+		if (a.expectedStartTime !== b.expectedStartTime) {
+			return a.expectedStartTime - b.expectedStartTime;
+		}
+		return Number(a.id) - Number(b.id);
+	});
+
+	return entries.reduce((groups, entry) => {
+		const meta = getActionMeta(entry.actionType);
+		const prev = groups[groups.length - 1];
+
+		if (prev && prev.actionType === entry.actionType) {
+			prev.items.push(entry);
+			return groups;
+		}
+
+		groups.push({
+			id: `group-${entry.id}`,
+			actionType: entry.actionType,
+			title: meta.title,
+			subtitle: meta.subtitle,
+			items: [entry],
+		});
+		return groups;
+	}, []);
 }
 
 const SummarySection = ({ summaryDate, progressPercent }) => (
@@ -107,7 +168,71 @@ const SummarySection = ({ summaryDate, progressPercent }) => (
 	</section>
 );
 
-const EndRelocateCard = ({ item }) => (
+const EndActionCard = ({ item, onWorkOrderClick }) => {
+	const isPickingLike =
+		item.actionType === "PICKING" || item.actionType === "DIRECT_START";
+	const expectedTimeText = formatExpectedTimeText(
+		item.expectedStartTime,
+		item.expectedRunningTime,
+	);
+
+	if (isPickingLike) {
+		return (
+			<div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 shadow-sm">
+				<div className="flex items-start justify-between gap-3">
+					<div>
+						<div className="mb-2 flex items-center gap-2">
+							<h3 className="text-[15px] font-extrabold text-slate-900">
+								{item.actionType === "DIRECT_START" ? "원자재 투입" : "피킹"}
+							</h3>
+
+							{item.type ? (
+								<span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+									{item.type}
+								</span>
+							) : null}
+						</div>
+
+						<p className="mb-1 text-sm font-bold text-slate-900">
+							{item.materialName} · {item.manufacturer}
+							<br />
+							<span className="text-xs font-semibold text-slate-700">
+								{item.specText} | {item.wipQr}
+							</span>
+						</p>
+
+						<div className="flex items-center gap-1.5">
+							<span className="text-[11px] font-medium text-slate-500">
+								{item.infoLabel}
+							</span>
+							<span className="text-[12px] font-bold text-indigo-700">
+								{item.infoValue}
+							</span>
+						</div>
+					</div>
+
+					<div className="flex shrink-0 flex-col items-end gap-2">
+						<div className="flex items-center gap-1 text-slate-400">
+							<span className="material-symbols-outlined text-xs">schedule</span>
+							<span className="text-[11px]">{expectedTimeText}</span>
+						</div>
+
+						<button
+							type="button"
+							onClick={() => onWorkOrderClick(item)}
+							className="p-1"
+						>
+							<span className="material-symbols-outlined text-2xl text-slate-500">
+								description
+							</span>
+						</button>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	return (
 	<div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
 		<div className="mb-3 flex items-start justify-between">
 			<div>
@@ -124,75 +249,19 @@ const EndRelocateCard = ({ item }) => (
 				</div>
 			</div>
 
-			{item.duration ? (
-				<div className="flex items-center gap-1.5 text-[12px] text-slate-400">
-					<span className="material-symbols-outlined text-[18px] leading-none">
-						schedule
-					</span>
-					<span>{item.duration}</span>
-				</div>
-			) : null}
-		</div>
-	</div>
-);
-
-const EndPickingCard = ({ item, onWorkOrderClick }) => (
-	<div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 shadow-sm">
-		<div className="flex items-start justify-between gap-3">
-			<div>
-				<div className="mb-2 flex items-center gap-2">
-					<h3 className="text-[15px] font-extrabold text-slate-900">
-						{item.title}
-					</h3>
-
-					<span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
-						{item.type}
-					</span>
-				</div>
-
-				<p className="mb-1 text-sm font-bold text-slate-900">
-					{item.materialName} · {item.manufacturer}
-					<br />
-					<span className="text-xs font-semibold text-slate-700">
-						{item.specText} | {item.wipQr}
-					</span>
-				</p>
-
-				<div className="flex items-center gap-1.5">
-					<span className="text-[11px] font-medium text-slate-500">
-						{item.infoLabel}
-					</span>
-					<span className="text-[12px] font-bold text-indigo-700">
-						{item.infoValue}
-					</span>
-				</div>
-			</div>
-
-			<div className="flex shrink-0 flex-col items-end gap-2">
-				{item.duration ? (
-					<div className="flex items-center gap-1 text-slate-400">
-						<span className="material-symbols-outlined text-xs">schedule</span>
-						<span className="text-[11px]">{item.duration}</span>
-					</div>
-				) : null}
-
-				<button
-					type="button"
-					onClick={() => onWorkOrderClick(item)}
-					className="p-1"
-				>
-					<span className="material-symbols-outlined text-2xl text-slate-500">
-						description
-					</span>
-				</button>
+			<div className="flex items-center gap-1.5 text-[12px] text-slate-400">
+				<span className="material-symbols-outlined text-[18px] leading-none">
+					schedule
+				</span>
+				<span>{expectedTimeText}</span>
 			</div>
 		</div>
 	</div>
 );
+};
 
 const CompletedTaskCard = ({ task, isOpen, onToggle, onWorkOrderClick }) => {
-	const relocations = Array.isArray(task?.relocations) ? task.relocations : [];
-	const pickings = Array.isArray(task?.pickings) ? task.pickings : [];
+	const items = Array.isArray(task?.items) ? task.items : [];
 
 	return (
 		<div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0px_4px_12px_rgba(0,0,0,0.03)]">
@@ -203,7 +272,14 @@ const CompletedTaskCard = ({ task, isOpen, onToggle, onWorkOrderClick }) => {
 			>
 				<div className="flex items-center gap-2">
 					<div className="h-5 w-1.5 rounded-full bg-indigo-700" />
-					<h2 className="text-lg font-bold text-slate-900">{task.title}</h2>
+					<h2 className="text-lg font-bold text-slate-900">
+						{task.title}
+						{task.subtitle ? (
+							<span className="ml-2 text-base font-semibold text-slate-500">
+								({task.subtitle})
+							</span>
+						) : null}
+					</h2>
 				</div>
 
 				<span
@@ -217,12 +293,8 @@ const CompletedTaskCard = ({ task, isOpen, onToggle, onWorkOrderClick }) => {
 
 			{isOpen ? (
 				<div className="space-y-3 px-5 pb-5">
-					{relocations.map((item) => (
-						<EndRelocateCard key={item.id} item={item} />
-					))}
-
-					{pickings.map((item) => (
-						<EndPickingCard
+					{items.map((item) => (
+						<EndActionCard
 							key={item.id}
 							item={item}
 							onWorkOrderClick={onWorkOrderClick}
@@ -301,7 +373,7 @@ const App_EndPage = () => {
 			}
 
 			if (mappedTasks.length > 0) {
-				setOpenTaskIds([mappedTasks[0].id]);
+				setOpenTaskIds(mappedTasks.map((task) => task.id));
 			} else {
 				setOpenTaskIds([]);
 			}

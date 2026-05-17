@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import App_ProcessTabs from "../../../components/field/ProcessTabs/App_ProcessTabs";
 import App_Header from "../../../components/field/Header/App_Header";
 import workOrderPdf from "../../../assets/Steel_all_Work_instruction.pdf";
-import { getFieldReady } from "../../../services/fieldService";
+import { completeBatch, getFieldReady } from "../../../services/fieldService";
 import { useNextScenario } from "../../../components/field/NextScenario/App_NextScenarioProvider";
 import {
 	getSelectedFieldScenarioId,
@@ -34,52 +34,347 @@ const parseDurationMinutes = (value) => {
 	return hours * 60 + minutes;
 };
 
-// FieldBatchGroup[] → 화면용 tasks 형태로 변환
-function mapBatchesToTasks(batchGroups) {
-	return (batchGroups ?? []).map((group, batchIndex) => ({
-		id: `batch-${batchIndex}`,
-		title: `Task ${String(batchIndex + 1).padStart(2, "0")}`,
-		relocations: (group.relocation ?? []).map((item) => ({
-			id: String(item.batchItemId),
-			batchItemId: item.batchItemId,
-			wipQr: item.wipQr ?? "",
-			manufacturer: item.manufacturer ?? "-",
-			materialName: item.material || "-",
-			specText: item.specText ?? "",
-			weightText: item.weightText ?? "-",
-			fromZone: item.fromLocationName || "-",
-			toZone: item.toLocationName || "-",
-			duration: `${item.expectedRunningTime ?? 0}m`,
-		})),
-		pickings: (group.picking ?? []).map((item, pickIdx) => {
-			const isRaw = !item.wipQr || item.wipQr === "";
-			const specText =
-				item.specText ||
-				(item.thickness && item.width && item.height
-					? `${item.thickness} x ${item.width} x ${item.height}`
-					: "");
+const formatMinuteText = (value) => `${Number(value ?? 0)}분`;
 
-			return {
-				id: String(item.batchItemId),
-				batchItemId: item.batchItemId,
-				title: `Picking ${pickIdx + 1}`,
-				type: isRaw ? "원자재" : "재공품",
-				wipQr: item.wipQr ?? "",
-				manufacturer: item.manufacturer ?? "-",
-				materialName: item.material || "-",
-				specText,
-				weightText: item.weightText ?? "-",
-				currentZone: item.fromLocationName || "",
-				targetPositionLabel: item.toLocationName || `Position ${pickIdx + 1}`,
-				infoLabel: isRaw ? "" : "현재 위치",
-				infoValue: isRaw ? "" : item.fromLocationName || "-",
-				duration: `${item.expectedRunningTime ?? 0}m`,
-			};
-		}),
-	}));
+const formatExpectedTimeText = (startTime, runningTime) => {
+	const start = Number(startTime ?? 0);
+	const running = Number(runningTime ?? 0);
+
+	if (running > 0) {
+		return `예상 시작 ${formatMinuteText(start)} · 소요 ${formatMinuteText(running)}`;
+	}
+
+	return `예상 시작 ${formatMinuteText(start)}`;
+};
+
+const formatSpecText = (value) => {
+	const raw = String(value ?? "").trim();
+	if (!raw) return "";
+	return raw.replace(/\s*[xX]\s*/g, " X ");
+};
+
+const isDirectStartFieldItem = (item) =>
+	String(item?.batchItemAction ?? "").toUpperCase() === "RELOCATE" &&
+	!item?.fromLocationName &&
+	String(item?.toLocationName ?? "").startsWith("S4-");
+
+const mapOrderedItemsToDisplayEntries = (orderedItems = []) => {
+	const entries = [];
+	let taskNumber = 1;
+
+	for (let index = 0; index < orderedItems.length; index += 1) {
+		const item = orderedItems[index];
+		const action = String(item?.batchItemAction ?? "").toUpperCase();
+		const wip = item?.wip?.[0] ?? null;
+
+		if (action === "INBOUND") {
+			let count = 1;
+			let cursor = index + 1;
+			while (
+				cursor < orderedItems.length &&
+				String(orderedItems[cursor]?.batchItemAction ?? "").toUpperCase() === "INBOUND"
+			) {
+				count += 1;
+				cursor += 1;
+			}
+
+			entries.push({
+				id: `inbound-${item.batchItemId}`,
+				kind: "inbound",
+				count,
+			});
+			index = cursor - 1;
+			continue;
+		}
+
+		const specText = wip
+			? formatSpecText(
+					`${wip.thickness || ""}X${wip.width || ""}X${wip.length || ""}`,
+				)
+			: "";
+		const weightText = wip?.weight ? `${wip.weight}kg` : "-";
+		const expectedStartTime = Number(item?.expectedStartTime ?? 0);
+		const expectedRunningTime = Number(item?.expectedRunningTime ?? 0);
+
+		if (action === "PICKING" || isDirectStartFieldItem(item)) {
+			const isRaw = isDirectStartFieldItem(item);
+			entries.push({
+				id: `task-${item.batchItemId}`,
+				kind: "task",
+				task: {
+					id: `task-${item.batchItemId}`,
+					title: `Task ${String(taskNumber).padStart(2, "0")}`,
+					relocations: [],
+					pickings: [
+						{
+							id: String(item.batchItemId),
+							batchItemId: Number(item.batchItemId),
+							title: `Picking 1`,
+							type: isRaw ? "원자재 투입" : "Picking",
+							actionType: isRaw ? "DIRECT_START" : "PICKING",
+							isRaw,
+							wipQr: wip?.qrId ?? "",
+							manufacturer: wip?.manufacturer ?? "-",
+							materialName: wip?.material ?? "-",
+							specText,
+							weightText,
+							currentZone: item?.fromLocationName || "",
+							targetPositionLabel: item?.toLocationName || "",
+							infoLabel: isRaw ? "투입 위치" : "현재 위치",
+							infoValue: isRaw
+								? item?.toLocationName || "-"
+								: item?.fromLocationName || "-",
+							expectedStartTime,
+							expectedRunningTime,
+							expectedTimeText: formatExpectedTimeText(
+								expectedStartTime,
+								expectedRunningTime,
+							),
+						},
+					],
+				},
+			});
+			taskNumber += 1;
+			continue;
+		}
+
+		entries.push({
+			id: `task-${item.batchItemId}`,
+			kind: "task",
+			task: {
+				id: `task-${item.batchItemId}`,
+				title: `Task ${String(taskNumber).padStart(2, "0")}`,
+				relocations: [
+					{
+						id: String(item.batchItemId),
+						batchItemId: Number(item.batchItemId),
+						wipQr: wip?.qrId ?? "",
+						manufacturer: wip?.manufacturer ?? "-",
+						materialName: wip?.material ?? "-",
+						specText,
+						weightText,
+						fromZone: item?.fromLocationName || "-",
+						toZone: item?.toLocationName || "-",
+						expectedStartTime,
+						expectedRunningTime,
+						expectedTimeText: formatExpectedTimeText(
+							expectedStartTime,
+							expectedRunningTime,
+						),
+					},
+				],
+				pickings: [],
+			},
+		});
+		taskNumber += 1;
+	}
+
+	return entries;
+};
+
+// FieldBatchGroup[] → expectedStartTime 기반으로 동적 배치 그룹화
+function mapBatchesToTaskGroups(batchGroups) {
+	const allGroups = [];
+
+	(batchGroups ?? []).forEach((group, batchIndex) => {
+		// 1. relocation + picking을 actions으로 변환
+		const actions = [
+			...(group.relocation ?? []).map((item) => ({
+				kind: "relocation",
+				expectedStartTime: Number(item.expectedStartTime ?? 0),
+				payload: {
+					id: String(item.batchItemId),
+					batchItemId: item.batchItemId,
+					wipQr: item.wipQr ?? "",
+					manufacturer: item.manufacturer ?? "-",
+					materialName: item.material || "-",
+					specText: formatSpecText(item.specText ?? ""),
+					weightText: item.weightText ?? "-",
+					fromZone: item.fromLocationName || "-",
+					toZone: item.toLocationName || "-",
+					expectedStartTime: Number(item.expectedStartTime ?? 0),
+					expectedRunningTime: Number(item.expectedRunningTime ?? 0),
+					expectedTimeText: formatExpectedTimeText(
+						item.expectedStartTime,
+						item.expectedRunningTime,
+					),
+				},
+			})),
+			...(group.picking ?? []).map((item, pickIdx) => {
+				const isRaw =
+					item.actionType === "DIRECT_START" ||
+					!item.fromLocationName ||
+					item.fromLocationName === "" ||
+					!item.wipQr ||
+					item.wipQr === "";
+				const specText =
+					formatSpecText(item.specText) ||
+					(item.thickness && item.width && item.height
+						? `${item.thickness} x ${item.width} x ${item.height}`
+						: "");
+
+				return {
+					kind: "picking",
+					expectedStartTime: Number(item.expectedStartTime ?? 0),
+					payload: {
+						id: String(item.batchItemId),
+						batchItemId: item.batchItemId,
+						title: `Picking ${pickIdx + 1}`,
+						type: isRaw ? "원자재 투입" : "Picking",
+						actionType: item.actionType || "PICKING",
+						isRaw,
+						wipQr: item.wipQr ?? "",
+						manufacturer: item.manufacturer ?? "-",
+						materialName: item.material || "-",
+						specText,
+						weightText: item.weightText ?? "-",
+						currentZone: item.fromLocationName || "",
+						targetPositionLabel:
+							item.toLocationName || `Position ${pickIdx + 1}`,
+						infoLabel: isRaw ? "투입 위치" : "현재 위치",
+						infoValue: isRaw
+							? item.toLocationName || `Position ${pickIdx + 1}`
+							: item.fromLocationName || "-",
+						expectedStartTime: Number(item.expectedStartTime ?? 0),
+						expectedRunningTime: Number(item.expectedRunningTime ?? 0),
+						expectedTimeText: formatExpectedTimeText(
+							item.expectedStartTime,
+							item.expectedRunningTime,
+						),
+					},
+				};
+			}),
+		].sort((a, b) => {
+			if (a.expectedStartTime !== b.expectedStartTime) {
+				return a.expectedStartTime - b.expectedStartTime;
+			}
+			return Number(a.payload.batchItemId ?? 0) - Number(b.payload.batchItemId ?? 0);
+		});
+
+		// 2. inbound의 expectedStartTime 배열
+		const inboundTimes = (group.inbound ?? [])
+			.map((item) => Number(item.expectedStartTime ?? 0))
+			.sort((a, b) => a - b);
+
+		// 3. expectedStartTime 기준으로 배치 그룹 나누기
+		if (inboundTimes.length === 0) {
+			// inbound가 없으면 모든 actions을 하나의 그룹으로
+			const taskItems = actions.map((entry, actionIndex) => ({
+				id: `batch-${batchIndex}-action-${actionIndex}`,
+				title: `Task ${String(actionIndex + 1).padStart(2, "0")}`,
+				relocations: entry.kind === "relocation" ? [entry.payload] : [],
+				pickings: entry.kind === "picking" ? [entry.payload] : [],
+			}));
+
+			allGroups.push({
+				batchIndex,
+				tasks: taskItems,
+				inboundCount: 0,
+			});
+			return;
+		}
+
+		// expectedStartTime 경계점으로 배치 분할
+		let currentGroupActions = [];
+		let currentGroupIndex = 0;
+		let nextBoundaryTime = inboundTimes[0];
+
+		actions.forEach((action) => {
+			// 다음 경계에 도달했으면 현재 그룹을 저장
+			if (action.expectedStartTime >= nextBoundaryTime) {
+				// ✅ 앞선 task가 없어도 (빈 그룹이어도) 적재 카드는 항상 push
+				//    TEMP_MOVE 같은 선행 작업이 완료된 후에도 적재 대기 카드가 유지되어야 함
+				const taskItems = currentGroupActions.map((entry, actionIndex) => ({
+					id: `batch-${batchIndex}-group-${currentGroupIndex}-action-${actionIndex}`,
+					title: `Task ${String(actionIndex + 1).padStart(2, "0")}`,
+					relocations: entry.kind === "relocation" ? [entry.payload] : [],
+					pickings: entry.kind === "picking" ? [entry.payload] : [],
+				}));
+
+				allGroups.push({
+					batchIndex,
+					groupIndex: currentGroupIndex,
+					tasks: taskItems,        // 빈 배열일 수 있음 → InboundPromptCard만 표시
+					inboundCount: 1,
+				});
+
+				currentGroupActions = [];
+				currentGroupIndex += 1;
+				nextBoundaryTime = inboundTimes[currentGroupIndex] ?? Infinity;
+			}
+
+			currentGroupActions.push(action);
+		});
+
+		// 마지막 그룹 저장
+		if (currentGroupActions.length > 0) {
+			const taskItems = currentGroupActions.map((entry, actionIndex) => ({
+				id: `batch-${batchIndex}-group-${currentGroupIndex}-action-${actionIndex}`,
+				title: `Task ${String(actionIndex + 1).padStart(2, "0")}`,
+				relocations: entry.kind === "relocation" ? [entry.payload] : [],
+				pickings: entry.kind === "picking" ? [entry.payload] : [],
+			}));
+
+			allGroups.push({
+				batchIndex,
+				groupIndex: currentGroupIndex,
+				tasks: taskItems,
+				inboundCount: 1,
+			});
+		}
+	});
+
+	return allGroups;
 }
 
 // ─── 서브 컴포넌트 ──────────────────────────────────────────────────
+
+const InboundPromptCard = ({ count, groupTasksCount, onStartInbound }) => (
+	<section className="space-y-3">
+		{/* 구분선 */}
+		<div className="border-t-2 border-slate-300 pt-6" />
+
+		{/* 적재 섹션 */}
+		<div className="rounded-2xl border-2 border-cyan-400 bg-gradient-to-br from-cyan-50 to-cyan-100/50 p-5 shadow-md">
+			<div className="mb-4 flex items-start justify-between">
+				<div className="flex items-start gap-3">
+					<div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-400/20">
+						<span className="material-symbols-outlined text-xl text-cyan-600">
+							package_2
+						</span>
+					</div>
+					<div>
+						<h3 className="text-base font-extrabold text-slate-900">
+							발생 재공품 적재
+						</h3>
+						<p className="mt-1 text-xs font-medium text-slate-600">
+							위 작업들의 결과물을 적재해주세요
+						</p>
+					</div>
+				</div>
+			</div>
+
+			{/* 적재 개수 정보 */}
+			<div className="mb-4 rounded-lg bg-white/70 px-3 py-2">
+				<p className="text-sm font-semibold text-slate-700">
+					적재 대기: <span className="text-cyan-600">{count}개</span>
+				</p>
+			</div>
+
+			{/* 시작 버튼 */}
+			<button
+				type="button"
+				onClick={() => onStartInbound(groupTasksCount)}
+				className="w-full rounded-lg bg-gradient-to-r from-cyan-400 to-cyan-500 px-4 py-2.5 font-bold text-white shadow-md transition hover:shadow-lg active:scale-95"
+			>
+				<span className="flex items-center justify-center gap-2">
+					<span className="material-symbols-outlined text-lg">arrow_forward</span>
+					적재 시작하기
+				</span>
+			</button>
+		</div>
+	</section>
+);
 
 const SummarySection = ({
 	progressPercent,
@@ -153,43 +448,68 @@ const RelocateCard = ({ item, onQrClick }) => (
 			<span className="material-symbols-outlined text-[18px] leading-none">
 				schedule
 			</span>
-			<span>{item.duration}</span>
+			<span>{item.expectedTimeText}</span>
 		</div>
 	</div>
 );
 
 const PickingCard = ({ item, onActionClick, onWorkOrderClick }) => {
-	const isRawMaterial = item?.type === "원자재";
-	const actionIcon = isRawMaterial ? "inventory_2" : "qr_code_2";
+	const isRawMaterial = item?.isRaw ?? false;
+	const actionIcon = isRawMaterial ? "input" : "qr_code_2";
 	const displayInfoValue = item?.infoValue ?? "";
+	const cardClassName = isRawMaterial
+		? "rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 p-4 shadow-sm"
+		: "rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 shadow-sm";
+	const iconButtonClassName = isRawMaterial
+		? "rounded-lg border border-purple-200 bg-white p-2 shadow-sm transition active:scale-95"
+		: "rounded-lg border border-indigo-200 bg-white p-2 shadow-sm transition active:scale-95";
+	const iconClassName = isRawMaterial
+		? "material-symbols-outlined block text-4xl text-purple-700"
+		: "material-symbols-outlined block text-4xl text-indigo-700";
 
 	return (
-		<div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 shadow-sm">
+		<div className={cardClassName}>
 			<div className="mb-2 flex items-start justify-between">
 				<div>
 					<div className="mb-2 flex items-center gap-2">
-						<h3 className="text-[15px] font-extrabold text-slate-900">
-							{item.title}
-						</h3>
-						<span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
-							{item.type}
+						<span
+							className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+								isRawMaterial
+									? "bg-purple-100 text-purple-700"
+									: "bg-indigo-100 text-indigo-700"
+							}`}
+						>
+							<span className="material-symbols-outlined text-[12px]">
+								{isRawMaterial ? "input" : "inventory_2"}
+							</span>
+							{isRawMaterial ? "원자재 피킹" : item.type}
 						</span>
 					</div>
-					<p className="mb-1 text-sm font-bold text-indigo-700">
+					<p
+						className={`mb-1 text-sm font-bold ${
+							isRawMaterial ? "text-purple-700" : "text-indigo-700"
+						}`}
+					>
 						{item.materialName} - {item.manufacturer}
 						<br />
 						<span className="text-xs font-bold text-slate-900">
 							{item.specText} | {isRawMaterial ? "원자재" : item.wipQr}
 						</span>
 					</p>
-					<div className="flex items-center gap-1.5">
-						<span className="text-[11px] font-medium text-slate-500">
-							{item.infoLabel}
-						</span>
-						<span className="text-[12px] font-bold text-indigo-700">
-							{displayInfoValue}
-						</span>
-					</div>
+					{displayInfoValue ? (
+						<div className="flex items-center gap-1.5">
+							<span className="text-[11px] font-medium text-slate-500">
+								{item.infoLabel}
+							</span>
+							<span
+								className={`text-[12px] font-bold ${
+									isRawMaterial ? "text-purple-700" : "text-indigo-700"
+								}`}
+							>
+								{displayInfoValue}
+							</span>
+						</div>
+					) : null}
 				</div>
 				<div className="flex items-center gap-4">
 					<button
@@ -204,9 +524,9 @@ const PickingCard = ({ item, onActionClick, onWorkOrderClick }) => {
 					<button
 						type="button"
 						onClick={onActionClick}
-						className="rounded-lg border border-indigo-200 bg-white p-2 shadow-sm transition active:scale-95"
+						className={iconButtonClassName}
 					>
-						<span className="material-symbols-outlined block text-4xl text-indigo-700">
+						<span className={iconClassName}>
 							{actionIcon}
 						</span>
 					</button>
@@ -216,7 +536,7 @@ const PickingCard = ({ item, onActionClick, onWorkOrderClick }) => {
 				<span className="material-symbols-outlined text-[18px] leading-none">
 					schedule
 				</span>
-				<span>{item.duration}</span>
+				<span>{item.expectedTimeText}</span>
 			</div>
 		</div>
 	);
@@ -285,6 +605,9 @@ const App_ReadyPage = () => {
 	const [readyData, setReadyData] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [isOrderPopupOpen, setIsOrderPopupOpen] = useState(false);
+	const [isInboundWarningOpen, setIsInboundWarningOpen] = useState(false);
+	const [pendingAction, setPendingAction] = useState(null);
+	const [isProductionConfirmOpen, setIsProductionConfirmOpen] = useState(false);
 
 	useEffect(() => {
 		if (location.state?.selectedScenarioId) {
@@ -309,8 +632,8 @@ const App_ReadyPage = () => {
 	const fetchReadyData = async () => {
 		setLoading(true);
 		try {
-			const response = await getFieldReady();
-			const dataList = response.data?.data ?? [];
+			const readyResponse = await getFieldReady();
+			const dataList = readyResponse.data?.data ?? [];
 			const matchedData =
 				dataList.find((item) => item.scenarioId === selectedScenarioId) ??
 				dataList[0] ??
@@ -335,11 +658,32 @@ const App_ReadyPage = () => {
 		}
 	};
 
-	const tasks = readyData ? mapBatchesToTasks(readyData.batch) : [];
+	const orderedEntries =
+		readyData?.orderedItems?.length > 0
+			? mapOrderedItemsToDisplayEntries(readyData.orderedItems)
+			: mapBatchesToTaskGroups(readyData?.batch ?? []).flatMap((group) => {
+					const taskEntries = group.tasks.map((task) => ({
+						id: task.id,
+						kind: "task",
+						task,
+					}));
+					if (group.inboundCount > 0) {
+						taskEntries.push({
+							id: `inbound-fallback-${group.batchIndex}-${group.groupIndex ?? 0}`,
+							kind: "inbound",
+							count: group.inboundCount,
+						});
+					}
+					return taskEntries;
+				});
+	const allTasks = orderedEntries
+		.filter((entry) => entry.kind === "task")
+		.map((entry) => entry.task);
+
 	const progressPercent = Math.round(
 		(readyData?.scenarioProgressRate ?? 0) * 100,
 	);
-	const visibleReadyTaskCount = tasks.reduce(
+	const visibleReadyTaskCount = allTasks.reduce(
 		(sum, t) => sum + (t.relocations?.length ?? 0) + (t.pickings?.length ?? 0),
 		0,
 	);
@@ -347,12 +691,16 @@ const App_ReadyPage = () => {
 		readyData?.currentBatchRemainingTaskCount ?? 0;
 	const hiddenInboundTaskCount =
 		readyData?.currentBatchPendingInboundCount ?? 0;
+	const shouldShowInboundPrompt =
+		!loading &&
+		(hiddenInboundTaskCount > 0 ||
+			orderedEntries.some((entry) => entry.kind === "inbound"));
 	const remainingTaskCount =
 		visibleReadyTaskCount > 0
 			? visibleReadyTaskCount
 			: hiddenCurrentBatchTaskCount;
 
-	const orderedActionKeys = tasks.flatMap((task) => [
+	const orderedActionKeys = allTasks.flatMap((task) => [
 		...(task.relocations ?? []).map((item) =>
 			buildRelocateActionKey(task.id, item.id),
 		),
@@ -365,6 +713,20 @@ const App_ReadyPage = () => {
 
 	const isActionAllowed = (actionKey) => {
 		return !activeActionKey || activeActionKey === actionKey;
+	};
+
+	const requiresProductionCompletion =
+		readyData?.requiresProductionCompletion &&
+		readyData?.blockingProductionBatchId;
+
+	const runOrConfirmProductionCompletion = (action) => {
+		if (!requiresProductionCompletion) {
+			action();
+			return;
+		}
+
+		setPendingAction(() => action);
+		setIsProductionConfirmOpen(true);
 	};
 
 	const openOrderPopup = () => {
@@ -404,7 +766,10 @@ const App_ReadyPage = () => {
 		const totalCount = pickingList.length;
 		const targetPosition = item?.targetPositionLabel || `Position ${order}`;
 		const highlightedSlot = extractSlotNumber(targetPosition) || String(order);
-		const expectedDurationText = item?.duration || "";
+		const expectedDurationText =
+			item?.expectedRunningTime > 0
+				? formatMinuteText(item.expectedRunningTime)
+				: "";
 		const expectedDurationMinutes = parseDurationMinutes(expectedDurationText);
 
 		const commonPickingState = {
@@ -425,28 +790,60 @@ const App_ReadyPage = () => {
 			isLastPicking: order === totalCount,
 		};
 
-		if (item.type === "재공품") {
-			navigate("/App/ready/picking/wip", {
+		// ✅ isRaw 속성으로 판단: 원자재(raw) vs 재공품(WIP)
+		const isRaw = item?.isRaw ?? false;
+		const targetRoute = isRaw ? "/App/ready/picking/raw" : "/App/ready/picking/wip";
+
+		runOrConfirmProductionCompletion(() => {
+			navigate(targetRoute, {
 				state: {
 					picking: commonPickingState,
 					pickingOrder: order,
 					totalPickingCount: totalCount,
 				},
 			});
-			return;
-		}
-
-		navigate("/App/ready/picking/raw", {
-			state: {
-				picking: commonPickingState,
-				pickingOrder: order,
-				totalPickingCount: totalCount,
-			},
 		});
 	};
 
 	const handleWorkOrderClick = () => {
 		window.open(workOrderPdf, "_self");
+	};
+
+	const handleStartInbound = (groupTasksCount) => {
+		// ✅ 현재 그룹의 작업이 남아있으면 경고
+		if (groupTasksCount > 0) {
+			setIsInboundWarningOpen(true);
+			return;
+		}
+
+		// 모두 완료되었으면 생산중 페이지로 이동
+		navigate("/App/processing", {
+			state: {
+				selectedScenarioId,
+			},
+		});
+	};
+
+	const handleConfirmProductionCompletion = async () => {
+		const blockingBatchId = readyData?.blockingProductionBatchId;
+		if (!blockingBatchId || !pendingAction) {
+			setIsProductionConfirmOpen(false);
+			setPendingAction(null);
+			return;
+		}
+
+		try {
+			await completeBatch(blockingBatchId);
+			setIsProductionConfirmOpen(false);
+			const action = pendingAction;
+			setPendingAction(null);
+			action();
+		} catch (err) {
+			console.error("선행 생산 완료 처리 실패:", err);
+			alert("이전 생산 완료 처리 중 오류가 발생했습니다.");
+			setIsProductionConfirmOpen(false);
+			setPendingAction(null);
+		}
 	};
 
 	return (
@@ -477,8 +874,8 @@ const App_ReadyPage = () => {
 					)}
 
 					{!loading &&
-						tasks.length === 0 &&
-						(hiddenCurrentBatchTaskCount > 0 ? (
+						allTasks.length === 0 &&
+						(hiddenCurrentBatchTaskCount > 0 && !shouldShowInboundPrompt ? (
 							<div className="rounded-2xl border border-indigo-100 bg-white px-5 py-6 text-center shadow-sm">
 								<p className="text-sm font-semibold text-slate-700">
 									현재 생산 중인 배치에 남은 작업이 있습니다.
@@ -495,18 +892,38 @@ const App_ReadyPage = () => {
 							</div>
 						))}
 
-					{!loading && tasks.length > 0 && (
+					{/* ✅ Tasks 또는 적재 섹션이 있으면 표시 (적재 전까지 버튼 유지) */}
+					{!loading && (orderedEntries.length > 0 || shouldShowInboundPrompt) && (
 						<div className="space-y-8 pb-2">
-							{tasks.map((task) => (
-								<TaskSection
-									key={task.id}
-									task={task}
-									activeActionKey={activeActionKey}
-									onRelocateQrClick={handleRelocateQrClick}
-									onPickingActionClick={handlePickingActionClick}
-									onWorkOrderClick={handleWorkOrderClick}
-								/>
-							))}
+							{orderedEntries.map((entry) =>
+								entry.kind === "task" ? (
+									<div key={entry.id} className="mb-8">
+										<TaskSection
+											task={entry.task}
+											activeActionKey={activeActionKey}
+											onRelocateQrClick={handleRelocateQrClick}
+											onPickingActionClick={handlePickingActionClick}
+											onWorkOrderClick={handleWorkOrderClick}
+										/>
+									</div>
+								) : shouldShowInboundPrompt ? (
+									<InboundPromptCard
+										key={entry.id}
+										count={entry.count}
+										groupTasksCount={0}
+										onStartInbound={handleStartInbound}
+									/>
+								) : null,
+							)}
+
+							{shouldShowInboundPrompt &&
+								!orderedEntries.some((entry) => entry.kind === "inbound") && (
+									<InboundPromptCard
+										count={hiddenInboundTaskCount}
+										groupTasksCount={0}
+										onStartInbound={handleStartInbound}
+									/>
+								)}
 						</div>
 					)}
 				</div>
@@ -527,6 +944,81 @@ const App_ReadyPage = () => {
 						<h2 className="text-center text-2xl font-extrabold leading-tight text-slate-900">
 							이전 작업을 먼저 진행해주세요
 						</h2>
+					</div>
+				</div>
+			)}
+
+			{isProductionConfirmOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6 backdrop-blur-sm">
+					<div className="flex w-full max-w-sm flex-col items-center rounded-[2rem] bg-white p-8 shadow-2xl">
+						<div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
+							<span
+								className="material-symbols-outlined text-4xl text-amber-600"
+								style={{ fontVariationSettings: '"FILL" 1' }}
+							>
+								help
+							</span>
+						</div>
+
+						<h2 className="text-center text-xl font-extrabold leading-tight text-slate-900 mb-2">
+							생산이 완료되었나요?
+						</h2>
+						<p className="text-center text-sm text-slate-600 mb-6">
+							예를 누르면 이전 생산을 완료 처리하고<br />
+							다음 작업을 진행합니다.
+						</p>
+
+						<div className="flex w-full gap-3">
+							<button
+								type="button"
+								onClick={() => {
+									setIsProductionConfirmOpen(false);
+									setPendingAction(null);
+								}}
+								className="flex-1 rounded-lg bg-slate-200 px-4 py-2.5 font-bold text-slate-900 transition hover:bg-slate-300 active:scale-95"
+							>
+								아니오
+							</button>
+							<button
+								type="button"
+								onClick={handleConfirmProductionCompletion}
+								className="flex-1 rounded-lg bg-[#3F51B5] px-4 py-2.5 font-bold text-white transition active:scale-95"
+							>
+								예
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* ✅ 적재 작업 전 완료 확인 */}
+			{isInboundWarningOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6 backdrop-blur-sm">
+					<div className="flex w-full max-w-sm flex-col items-center rounded-[2rem] bg-white p-8 shadow-2xl">
+						<div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+							<span
+								className="material-symbols-outlined text-4xl text-red-600"
+								style={{ fontVariationSettings: '"FILL" 1' }}
+							>
+								warning
+							</span>
+						</div>
+
+						<h2 className="text-center text-xl font-extrabold leading-tight text-slate-900 mb-2">
+							이전 작업을 완료해주세요
+						</h2>
+						<p className="text-center text-sm text-slate-600 mb-6">
+							현재 그룹의 모든 작업을 완료한 후<br />
+							적재 작업을 시작해주세요.
+						</p>
+
+						<button
+							type="button"
+							onClick={() => setIsInboundWarningOpen(false)}
+							className="w-full rounded-lg bg-slate-200 px-4 py-2.5 font-bold text-slate-900 transition hover:bg-slate-300 active:scale-95"
+						>
+							확인
+						</button>
 					</div>
 				</div>
 			)}

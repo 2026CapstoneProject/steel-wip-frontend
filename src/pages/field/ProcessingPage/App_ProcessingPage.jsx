@@ -14,8 +14,14 @@ import {
 } from "../../../utils/App/selectedScenario";
 
 const PROCESS_STATUS_META = {
+	// 절단 완료 → 적재 대기 (QR 스캔하여 적재 가능)
 	pending: {
-		label: "대기",
+		label: "적재 대기",
+		className: "bg-cyan-50 text-cyan-700",
+	},
+	// 절단 진행 중 → 생성 대기 (적재 불가, 목록에 표시만)
+	generating: {
+		label: "생성 대기",
 		className: "bg-slate-100 text-slate-500",
 	},
 	complete: {
@@ -55,7 +61,16 @@ function mapProgressData(progressData) {
 			specText: wip.specText ?? "",
 			weightText: wip.weightText ?? "",
 			zone: wip.toLocation || "-",
-			status: wip.status === "적재 완료" ? "complete" : "pending",
+			// ✅ 백엔드 상태값 3단계 매핑
+			// - "적재 완료" → complete (완료)
+			// - "적재 대기" → pending (절단 완료, QR 스캔 가능)
+			// - "생성 대기" → generating (절단 진행 중, 스캔 불가)
+			status:
+				wip.status === "적재 완료"
+					? "complete"
+					: wip.status === "적재 대기"
+						? "pending"
+						: "generating",
 		})),
 	}));
 
@@ -70,10 +85,12 @@ function mapProgressData(progressData) {
 		expectedTotalMinutes: progressData?.expectedTotalRunningTime ?? 0,
 		hasNoWip: progressData?.hasNoWip ?? false, // ✅ 추가
 		batchId: progressData?.batchId ?? null, // ✅ 추가
+		canCompleteProduction: progressData?.canCompleteProduction ?? false,
 		batches,
 	};
 }
 
+// ✅ complete가 아닌 항목 모두를 "남은 작업"으로 집계 (generating 포함)
 const getRemainingGeneratedCount = (batches = []) =>
 	batches.reduce((sum, batch) => {
 		const pendingCount = (batch.generatedItems ?? []).filter(
@@ -87,6 +104,7 @@ const SummarySection = ({
 	remainingCount,
 	totalEstimatedTimeText,
 	countLabel,
+	timeLabel,
 	onQrClick,
 	qrEnabled,
 	className = "",
@@ -139,7 +157,7 @@ const SummarySection = ({
 
 			<div className="rounded-xl bg-slate-50 p-3">
 				<p className="mb-1 text-[11px] font-medium text-slate-500">
-					전체 예상 소요 시간
+					{timeLabel}
 				</p>
 				<p className="text-lg font-bold text-slate-900">
 					{totalEstimatedTimeText}
@@ -150,8 +168,9 @@ const SummarySection = ({
 );
 
 const GeneratedItemRow = ({ item, isLast }) => {
+	// ✅ generating 상태도 메타 존재 → fallback은 generating으로 변경
 	const statusMeta =
-		PROCESS_STATUS_META[item.status] ?? PROCESS_STATUS_META.pending;
+		PROCESS_STATUS_META[item.status] ?? PROCESS_STATUS_META.generating;
 
 	return (
 		<div className={`${!isLast ? "mb-4 border-b border-slate-50 pb-4" : ""}`}>
@@ -279,8 +298,16 @@ const App_ProcessingPage = () => {
 		() => mapProgressData(progressData),
 		[progressData],
 	);
+	const currentProcessingBatch = mappedData.batches[0] ?? null;
+	const currentProcessingPendingCount = useMemo(
+		() =>
+			(currentProcessingBatch?.generatedItems ?? []).filter(
+				(item) => item.status !== "complete",
+			).length,
+		[currentProcessingBatch],
+	);
 	const totalEstimatedTimeText = formatDurationText(
-		mappedData.expectedTotalMinutes,
+		currentProcessingBatch?.estimatedCuttingTime ?? 0,
 	);
 
 	const remainingGeneratedCount = useMemo(
@@ -298,9 +325,7 @@ const App_ProcessingPage = () => {
 		[mappedData.batchProgressRate],
 	);
 
-	const remainingCount = Number.isFinite(mappedData.remainingTaskCount)
-		? mappedData.remainingTaskCount
-		: remainingGeneratedCount;
+	const remainingCount = currentProcessingPendingCount;
 
 	const generatedItemsForQr = useMemo(
 		() =>
@@ -316,8 +341,10 @@ const App_ProcessingPage = () => {
 		[mappedData.batches],
 	);
 
+	// ✅ QR 적재 대상: "적재 대기" 상태인 항목만 (절단 완료 후 스캔 가능)
+	// "생성 대기" 항목은 절단 진행 중이므로 QR 흐름에서 제외
 	const pendingGeneratedItems = useMemo(
-		() => generatedItemsForQr.filter((item) => item.status !== "complete"),
+		() => generatedItemsForQr.filter((item) => item.status === "pending"),
 		[generatedItemsForQr],
 	);
 
@@ -345,9 +372,22 @@ const App_ProcessingPage = () => {
 	const handleCompleteProduction = async () => {
 		if (!window.confirm("생산을 완료 처리하시겠습니까?")) return;
 		try {
-			// fieldService.js에 completeBatch 함수 추가 후 import 필요 (아래 참고)
-			await completeBatch(mappedData.batchId);
-			navigate("/App/end");
+			const response = await completeBatch(mappedData.batchId);
+			const result = response?.data?.data ?? {};
+			const nextStage = result.nextStage ?? "end";
+			const nextPath =
+				nextStage === "processing"
+					? "/App/processing"
+					: nextStage === "ready"
+						? "/App/ready"
+						: "/App/end";
+
+			navigate(nextPath, {
+				replace: true,
+				state: {
+					selectedScenarioId: result.scenarioId ?? mappedData.scenarioId,
+				},
+			});
 		} catch (err) {
 			console.error("생산완료 처리 실패:", err);
 			alert("완료 처리 중 오류가 발생했습니다.");
@@ -372,6 +412,7 @@ const App_ProcessingPage = () => {
 						remainingCount={remainingCount}
 						totalEstimatedTimeText={totalEstimatedTimeText}
 						countLabel={mappedData.summaryCountLabel}
+						timeLabel="예상 소요 시간"
 						onQrClick={handleQrClick}
 						qrEnabled={isQrEnabled}
 					/>
@@ -396,7 +437,7 @@ const App_ProcessingPage = () => {
 							))}
 
 							{/* ✅ 재공품 없는 배치일 때만 생산완료 버튼 표시 */}
-							{mappedData.hasNoWip && (
+							{mappedData.hasNoWip && mappedData.canCompleteProduction && (
 								<button
 									type="button"
 									onClick={handleCompleteProduction}

@@ -1,28 +1,54 @@
 import Web_ScenarioTaskTable from "../Web_ScenarioTaskTable/Web_ScenarioTaskTable";
+import { BATCH_ACTION_METADATA, getActionMetadata } from "../../../utils/batchActionMetadata";
 
-const ACTION_META = {
+// ✅ 표준화: batchActionMetadata 기반으로 UI 컬러 매핑
+const ACTION_COLOR_MAP = {
 	RELOCATE: {
-		title: "재배치 (Relocation)",
-		icon: "sync_alt",
-		colorClass: "bg-primary ring-surface",
-		iconColorClass: "text-primary",
-		accentTextClass: "text-primary",
+		colorClass: "bg-gray-400 ring-surface",
+		iconColorClass: "text-gray-400",
+		accentTextClass: "text-gray-400",
 	},
-	PICK: {
-		title: "피킹 (Picking)",
-		icon: "inventory",
+	PICKING: {
 		colorClass: "bg-red-500 ring-surface",
-		iconColorClass: "text-secondary",
-		accentTextClass: "text-secondary",
+		iconColorClass: "text-red-500",
+		accentTextClass: "text-red-500",
 	},
-	STORE: {
-		title: "적재 (Inbound)",
-		icon: "layers",
-		colorClass: "bg-emerald-500 ring-surface",
-		iconColorClass: "text-emerald-600",
-		accentTextClass: "text-emerald-600",
+	INBOUND: {
+		colorClass: "bg-cyan-500 ring-surface",
+		iconColorClass: "text-cyan-500",
+		accentTextClass: "text-cyan-500",
+	},
+	TEMP_MOVE: {
+		colorClass: "bg-orange-500 ring-surface",
+		iconColorClass: "text-orange-500",
+		accentTextClass: "text-orange-500",
+	},
+	RESTORE: {
+		colorClass: "bg-cyan-500 ring-surface",
+		iconColorClass: "text-cyan-500",
+		accentTextClass: "text-cyan-500",
+	},
+	DIRECT_START: {
+		colorClass: "bg-purple-500 ring-surface",
+		iconColorClass: "text-purple-500",
+		accentTextClass: "text-purple-500",
 	},
 };
+
+// ✅ Tailwind 색상 → HEX 변환 (Material Icon 색상 적용)
+const COLOR_MAP = {
+	"bg-gray-400": "#9CA3AF",
+	"bg-red-500": "#EF4444",
+	"bg-purple-500": "#A855F7",
+	"bg-cyan-500": "#06B6D4",
+	"bg-orange-500": "#F97316",
+};
+
+function extractColorFromClass(colorClass) {
+	// colorClass는 "bg-cyan-500 ring-surface" 형태
+	const bgClass = colorClass.split(" ")[0];
+	return COLOR_MAP[bgClass] || "#000000";
+}
 
 function mapLocationLabel(value) {
 	const raw = String(value ?? "").trim();
@@ -45,11 +71,9 @@ function formatScenarioQr(itemDetail, steelWipId) {
 	return "-";
 }
 
-function mapCraneActionToBatchAction(action) {
-	if (action === "RELOCATE") return "재배치";
-	if (action === "PICK") return "피킹";
-	if (action === "STORE") return "적재";
-	return action;
+// ✅ 수정: 백엔드 enum 값과 맞추기 (더 이상 한글명이 아님)
+function normalizeAction(action) {
+	return String(action ?? "").trim();
 }
 
 function createBatchItemLookup(batchItems = []) {
@@ -64,13 +88,13 @@ function createBatchItemLookup(batchItems = []) {
 	return Array.from(lookup.values());
 }
 
+// ✅ 수정: 백엔드 enum 값으로 직접 매칭
 function findMatchingBatchItem(batchItems, action, steelWipId) {
-	const batchAction = mapCraneActionToBatchAction(action);
-
+	const normalizedAction = normalizeAction(action);
 	return (
 		batchItems.find(
 			(item) =>
-				item.batchItemAction === batchAction &&
+				normalizeAction(item.batchItemAction) === normalizedAction &&
 				Number(item.steelWipId) === Number(steelWipId),
 		) ?? null
 	);
@@ -86,19 +110,22 @@ function createMockNcCode(row, itemDetail) {
 	);
 }
 
+// ✅ 수정: 백엔드 enum 값 사용, 모든 액션 타입 지원
 function buildSequentialGroups(craneSchedule = [], batchItems = []) {
 	const details = createBatchItemLookup(batchItems);
 	const groups = [];
 
 	craneSchedule.forEach((row) => {
-		const action = String(row.action ?? "").trim();
-		const meta = ACTION_META[action];
+		const action = normalizeAction(row.action);
+		const metadata = getActionMetadata(action);
+		const colorMap = ACTION_COLOR_MAP[action];
 
-		if (!meta) return;
+		if (!colorMap) return; // 알 수 없는 액션은 스킵
 
 		const itemDetail = findMatchingBatchItem(details, action, row.steelWipId);
 
 		const nextRow = {
+			batchItemId: itemDetail?.batchItemId,
 			qrNumber: row?.qrCode
 				? formatScenarioQr(row, row.steelWipId)
 				: formatScenarioQr(itemDetail, row.steelWipId),
@@ -108,7 +135,8 @@ function buildSequentialGroups(craneSchedule = [], batchItems = []) {
 			from: mapLocationLabel(row.fromLocation ?? itemDetail?.fromLocation),
 			to: mapLocationLabel(row.toLocation ?? itemDetail?.toLocation),
 
-			...(action === "PICK" && {
+			// ✅ 피킹 유형만 ncCode 표시
+			...(action === "PICKING" && {
 				ncCode: createMockNcCode(row, itemDetail),
 			}),
 
@@ -128,11 +156,11 @@ function buildSequentialGroups(craneSchedule = [], batchItems = []) {
 		groups.push({
 			id: `${action}-${row.order}`,
 			action,
-			type: meta.title,
-			icon: meta.icon,
-			colorClass: meta.colorClass,
-			iconColorClass: meta.iconColorClass,
-			accentTextClass: meta.accentTextClass,
+			type: metadata.label_ko,
+			icon: metadata.material_icon,
+			colorClass: colorMap.colorClass,
+			iconColorClass: colorMap.iconColorClass,
+			accentTextClass: colorMap.accentTextClass,
 			subLabel: "1건",
 			rows: [nextRow],
 		});
@@ -159,7 +187,8 @@ export default function Web_SolverTimelineSection({
 						<div className="mb-4 flex items-center gap-3">
 							<h3 className="flex items-center gap-2 text-lg font-bold text-on-surface">
 								<span
-									className={`material-symbols-outlined ${item.iconColorClass}`}
+									className="material-symbols-outlined"
+									style={{ color: extractColorFromClass(item.colorClass) }}
 								>
 									{item.icon}
 								</span>
