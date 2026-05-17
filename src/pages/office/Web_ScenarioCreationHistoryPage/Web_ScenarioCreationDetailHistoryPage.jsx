@@ -8,100 +8,7 @@ import Web_ScenarioTimelineSection from "../../../components/office/Web_Scenario
 import Web_SolverTimelineSection from "../../../components/office/Web_SolverTimelineSection/Web_SolverTimelineSection";
 
 import { getScenarioDetail } from "../../../services/scenarioService";
-
-// 백엔드 ScenarioResultData → timelineItems 형태로 변환
-function formatScenarioQr(item) {
-  if (item?.qrCode) return item.qrCode;
-  return `QR-WIP-${String(item?.steelWipId ?? "").padStart(3, "0")}`;
-}
-
-function isPickingAction(action) {
-  return action === "PICKING" || action === "피킹";
-}
-
-function createMockNcCode(item, index) {
-  return (
-    item.ncCode ||
-    `NC-${String(item.scenarioId ?? item.batchItemId ?? "000").padStart(
-      3,
-      "0"
-    )}-${String(index + 1).padStart(2, "0")}`
-  );
-}
-
-function mapBatchItemsToTimeline(batchItems) {
-  const RELOCATION = [];
-  const PICKING = [];
-  const INBOUND = [];
-
-  (batchItems ?? []).forEach((item, index) => {
-    const action = String(item.batchItemAction ?? "").trim();
-
-    const row = {
-      qrNumber: formatScenarioQr(item),
-      thickness: String(item.thickness ?? ""),
-      width: String(item.width ?? ""),
-      length: String(item.length ?? ""),
-      from: item.fromLocation || "-",
-      to: item.toLocation || "-",
-
-      ...(isPickingAction(action) && {
-        ncCode: createMockNcCode(item, index),
-      }),
-
-      estimatedTime: String(item.expectedStartTime ?? ""),
-    };
-
-    if (
-      action === "RELOCATION" ||
-      action === "RELOCATE" ||
-      action === "재배치"
-    ) {
-      RELOCATION.push(row);
-    } else if (isPickingAction(action)) {
-      PICKING.push(row);
-    } else if (action === "INBOUND" || action === "적재") {
-      INBOUND.push(row);
-    }
-  });
-
-  const items = [];
-
-  if (RELOCATION.length > 0) {
-    items.push({
-      id: 1,
-      type: "재배치 (Relocation)",
-      icon: "sync_alt",
-      colorClass: "bg-primary ring-surface",
-      iconColorClass: "text-primary",
-      rows: RELOCATION,
-    });
-  }
-
-  if (PICKING.length > 0) {
-    items.push({
-      id: 2,
-      type: "피킹 (Picking)",
-      icon: "inventory",
-      colorClass: "bg-red-500 ring-surface",
-      iconColorClass: "text-secondary",
-      rows: PICKING,
-    });
-  }
-
-  if (INBOUND.length > 0) {
-    items.push({
-      id: 3,
-      type: "적재 (Inbound)",
-      icon: "layers",
-      colorClass: "bg-emerald-500 ring-surface",
-      iconColorClass: "text-emerald-500",
-      rows: INBOUND,
-    });
-  }
-
-  return items;
-}
+import { mapBatchItemsToTimeline } from "../../../utils/Web/scenarioTimeline";
 
 export default function Web_ScenarioCreationDetailHistoryPage() {
   const location = useLocation();
@@ -201,7 +108,7 @@ export default function Web_ScenarioCreationDetailHistoryPage() {
       ];
 
   const timelineItems = scenarioData
-    ? mapBatchItemsToTimeline(scenarioData.batchItems)
+    ? mapBatchItemsToTimeline(scenarioData.batchItems, "expectedStartTime")
     : [];
 
   return (

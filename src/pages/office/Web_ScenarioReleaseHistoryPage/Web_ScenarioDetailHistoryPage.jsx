@@ -8,6 +8,7 @@ import Web_ScenarioTimelineSection from "../../../components/office/Web_Scenario
 import Web_SolverTimelineSection from "../../../components/office/Web_SolverTimelineSection/Web_SolverTimelineSection";
 
 import { getScenarioDetail } from "../../../services/scenarioService";
+import { mapBatchItemsToTimeline } from "../../../utils/Web/scenarioTimeline";
 
 // ─── DB status → 표시용 label 변환 (detail 페이지용) ───────────
 function resolveStatusLabel(dbStatus) {
@@ -30,72 +31,6 @@ function hasDemoSolverTimeline(scenario) {
 		craneSchedule.length > 0 &&
 		craneSchedule.some((item) => item?.action === "RELOCATE")
 	);
-}
-
-// 백엔드 ScenarioResultData → timelineItems 형태로 변환
-function formatScenarioQr(item) {
-	if (item?.qrCode) return item.qrCode;
-	return "원자재";
-}
-
-function mapBatchItemsToTimeline(batchItems) {
-	const RELOCATION = [];
-	const PICKING = [];
-	const INBOUND = [];
-
-	(batchItems ?? []).forEach((item) => {
-		const action = String(item.batchItemAction ?? "").trim();
-		const row = {
-			batchItemId: item.batchItemId,
-			qrNumber: formatScenarioQr(item),
-			thickness: String(item.thickness ?? ""),
-			width: String(item.width ?? ""),
-			length: String(item.length ?? ""),
-			from: item.fromLocation || "-",
-			to: item.toLocation || "-",
-			estimatedTime: String(item.expectedStartTime ?? ""),
-			...(action === "PICKING" || action === "피킹"
-				? { ncCode: item.ncCode ?? "-" }
-				: {}),
-		};
-		if (action === "RELOCATION" || action === "RELOCATE" || action === "재배치")
-			RELOCATION.push(row);
-		else if (action === "PICKING" || action === "피킹") PICKING.push(row);
-		else if (action === "INBOUND" || action === "적재") INBOUND.push(row);
-	});
-
-	const items = [];
-	if (RELOCATION.length > 0) {
-		items.push({
-			id: 1,
-			type: "재배치 (Relocation)",
-			icon: "sync_alt",
-			colorClass: "bg-primary ring-surface",
-			iconColorClass: "text-primary",
-			rows: RELOCATION,
-		});
-	}
-	if (PICKING.length > 0) {
-		items.push({
-			id: 2,
-			type: "피킹 (Picking)",
-			icon: "inventory",
-			colorClass: "bg-red-500 ring-surface",
-			iconColorClass: "text-secondary",
-			rows: PICKING,
-		});
-	}
-	if (INBOUND.length > 0) {
-		items.push({
-			id: 3,
-			type: "적재 (Inbound)",
-			icon: "layers",
-			colorClass: "bg-emerald-500 ring-surface",
-			iconColorClass: "text-emerald-500",
-			rows: INBOUND,
-		});
-	}
-	return items;
 }
 
 export default function Web_ScenarioDetailHistoryPage() {
@@ -186,7 +121,7 @@ export default function Web_ScenarioDetailHistoryPage() {
 			];
 
 	const timelineItems = scenarioData
-		? mapBatchItemsToTimeline(scenarioData.batchItems)
+		? mapBatchItemsToTimeline(scenarioData.batchItems, "expectedStartTime")
 		: [];
 
 	return (

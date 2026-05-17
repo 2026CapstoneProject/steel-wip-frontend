@@ -22,75 +22,7 @@ import {
 	getScenarioDetail,
 	sendScenario,
 } from "../../../services/scenarioService";
-
-// 백엔드 ScenarioResultData → timelineItems 형태로 변환
-function formatScenarioQr(item) {
-	if (item?.qrCode) return item.qrCode;
-
-	const action = String(item?.batchItemAction ?? "").trim();
-	const isPicking = action === "PICKING" || action === "피킹";
-
-	if (isPicking) return "원자재";
-	return "-";
-}
-
-function mapBatchItemsToTimeline(batchItems) {
-	const RELOCATION = [];
-	const PICKING = [];
-	const INBOUND = [];
-
-	(batchItems ?? []).forEach((item) => {
-		const action = String(item.batchItemAction ?? "").trim();
-		const row = {
-			qrNumber: formatScenarioQr(item),
-			batchItemId: item.batchItemId, // ← 추가
-			ncCode: item.ncCode, // ← 이미 있는 경우 유지
-			thickness: String(item.thickness ?? ""),
-			width: String(item.width ?? ""),
-			length: String(item.length ?? ""),
-			from: item.fromLocation || "-",
-			to: item.toLocation || "-",
-			estimatedTime: String(item.expectedRunningTime ?? ""), // ← 변경
-		};
-		if (action === "RELOCATION" || action === "RELOCATE" || action === "재배치")
-			RELOCATION.push(row);
-		else if (action === "PICKING" || action === "피킹") PICKING.push(row);
-		else if (action === "INBOUND" || action === "적재") INBOUND.push(row);
-	});
-
-	const items = [];
-	if (RELOCATION.length > 0) {
-		items.push({
-			id: 1,
-			type: "재배치 (Relocation)",
-			icon: "sync_alt",
-			colorClass: "bg-primary ring-surface",
-			iconColorClass: "text-primary",
-			rows: RELOCATION,
-		});
-	}
-	if (PICKING.length > 0) {
-		items.push({
-			id: 2,
-			type: "피킹 (Picking)",
-			icon: "inventory",
-			colorClass: "bg-red-500 ring-surface",
-			iconColorClass: "text-secondary",
-			rows: PICKING,
-		});
-	}
-	if (INBOUND.length > 0) {
-		items.push({
-			id: 3,
-			type: "적재 (Inbound)",
-			icon: "layers",
-			colorClass: "bg-emerald-500 ring-surface",
-			iconColorClass: "text-emerald-500",
-			rows: INBOUND,
-		});
-	}
-	return items;
-}
+import { mapBatchItemsToTimeline } from "../../../utils/Web/scenarioTimeline";
 
 export default function Web_ScenarioResultPage() {
 	const navigate = useNavigate();
@@ -198,7 +130,7 @@ export default function Web_ScenarioResultPage() {
 			];
 
 	const timelineItems = scenarioData
-		? mapBatchItemsToTimeline(scenarioData.batchItems)
+		? mapBatchItemsToTimeline(scenarioData.batchItems, "expectedStartTime")
 		: [];
 
 	const handleGoBackYes = () => {
@@ -313,6 +245,7 @@ export default function Web_ScenarioResultPage() {
 							<Web_ScenarioTimelineSection
 								items={timelineItems}
 								scenarioId={scenarioId}
+								timeHeaderLabel="예상 시작시간(분)"
 							/>
 						)}
 					</>

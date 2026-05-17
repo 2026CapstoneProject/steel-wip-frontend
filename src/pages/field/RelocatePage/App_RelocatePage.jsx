@@ -99,6 +99,11 @@ const App_RelocatePage = () => {
 	}, []);
 
 	const relocation = location.state?.relocation ?? fallbackRelocation;
+	const toZone = String(relocation.to?.zone || relocation.toZone || "").trim().toUpperCase();
+
+	const isVirtualBufferTarget = toZone === "BUF-1";
+	// ✅ S로 시작하는 설비인지 확인
+	const isEquipmentTarget = toZone.startsWith("S");
 
 	const [scanState, setScanState] = useState({
 		wipScanned: location.state?.scanState?.wipScanned ?? false,
@@ -111,6 +116,8 @@ const App_RelocatePage = () => {
 
 	const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
+	// ✅ 설비 올림 확인 팝업
+	const [isEquipmentConfirmOpen, setIsEquipmentConfirmOpen] = useState(false);
 
 	// QR 스캔 후 돌아올 때 location.state가 덮어씌워지므로
 	// 첫 마운트 시 batchItemId를 useState로 한 번만 고정 보관
@@ -121,7 +128,8 @@ const App_RelocatePage = () => {
 	const isExitLocked = scanState.wipScanned || scanState.zoneScanned;
 
 	const isWipScanEnabled = !scanState.wipScanned;
-	const isZoneScanEnabled = scanState.wipScanned && !scanState.zoneScanned;
+	const isZoneScanEnabled =
+		!isVirtualBufferTarget && scanState.wipScanned && !scanState.zoneScanned;
 	const isSaveEnabled = isCompleted;
 
 	const statusText = isCompleted
@@ -201,6 +209,33 @@ const App_RelocatePage = () => {
 		});
 	};
 
+	const handleVirtualBufferConfirm = () => {
+		if (!scanState.wipScanned || scanState.zoneScanned) return;
+		setScanState((prev) => ({
+			...prev,
+			zoneScanned: true,
+			zoneScannedAt: prev.zoneScannedAt || formatNowTime(),
+			zoneScannedValue: "BUF-1",
+		}));
+	};
+
+	// ✅ 설비 위에 올렸는지 확인 핸들러
+	const handleEquipmentConfirm = () => {
+		if (!scanState.wipScanned || scanState.zoneScanned) return;
+		setIsEquipmentConfirmOpen(true);
+	};
+
+	// ✅ 설비 올림 확인 후 저장
+	const handleEquipmentConfirmYes = () => {
+		setScanState((prev) => ({
+			...prev,
+			zoneScanned: true,
+			zoneScannedAt: prev.zoneScannedAt || formatNowTime(),
+			zoneScannedValue: toZone,
+		}));
+		setIsEquipmentConfirmOpen(false);
+	};
+
 	const handleSaveClick = async () => {
 		if (!isSaveEnabled || isSaving) return;
 
@@ -217,14 +252,14 @@ const App_RelocatePage = () => {
 			return;
 		}
 
-		if (!locQR) {
+		if (!locQR && !isVirtualBufferTarget) {
 			alert("구역 QR 스캔값이 없습니다.");
 			return;
 		}
 
 		const payload = {
 			wipQR,
-			locQR,
+			...(locQR ? { locQR } : {}),
 		};
 
 		setIsSaving(true);
@@ -394,18 +429,42 @@ const App_RelocatePage = () => {
 
 									<button
 										type="button"
-										onClick={handleZoneScanClick}
-										disabled={!isZoneScanEnabled}
+										onClick={
+											isEquipmentTarget
+												? handleEquipmentConfirm
+												: isVirtualBufferTarget
+													? handleVirtualBufferConfirm
+													: handleZoneScanClick
+										}
+										disabled={
+											isEquipmentTarget
+												? !scanState.wipScanned || scanState.zoneScanned
+												: isVirtualBufferTarget
+													? !scanState.wipScanned || scanState.zoneScanned
+													: !isZoneScanEnabled
+										}
 										className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 font-bold transition ${
-											isZoneScanEnabled
+											(isEquipmentTarget
+												? scanState.wipScanned && !scanState.zoneScanned
+												: isVirtualBufferTarget
+													? scanState.wipScanned && !scanState.zoneScanned
+													: isZoneScanEnabled)
 												? "bg-gradient-to-br from-[#24389c] to-[#3f51b5] text-white shadow-lg shadow-indigo-200 active:scale-95"
 												: "cursor-not-allowed bg-slate-200 text-slate-400"
 										}`}
 									>
 										<span className="material-symbols-outlined">
-											center_focus_weak
+											{isEquipmentTarget
+												? "inventory_2"
+												: isVirtualBufferTarget
+													? "check_circle"
+													: "center_focus_weak"}
 										</span>
-										구역 scan
+										{isEquipmentTarget
+											? "설비에 올림"
+											: isVirtualBufferTarget
+												? "임시이동 완료 확인"
+												: "구역 scan"}
 									</button>
 								</div>
 							</div>
@@ -444,6 +503,48 @@ const App_RelocatePage = () => {
 					Previous
 				</button>
 			</nav>
+
+			{/* ✅ 설비 올림 확인 팝업 */}
+			{isEquipmentConfirmOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6 backdrop-blur-sm">
+					<div className="flex w-full max-w-sm flex-col items-center rounded-[2rem] bg-white p-8 shadow-2xl">
+						<div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
+							<span
+								className="material-symbols-outlined text-4xl text-amber-600"
+								style={{ fontVariationSettings: '"FILL" 1' }}
+							>
+								help
+							</span>
+						</div>
+
+						<h2 className="text-center text-xl font-extrabold leading-tight text-slate-900 mb-2">
+							설비 위에 올렸습니까?
+						</h2>
+						<p className="text-center text-sm text-slate-600 mb-6">
+							재공품을 <span className="font-bold text-amber-600">{toZone}</span> 위에 올렸다면
+							<br />
+							확인 버튼을 눌러주세요.
+						</p>
+
+						<div className="flex w-full gap-3">
+							<button
+								type="button"
+								onClick={() => setIsEquipmentConfirmOpen(false)}
+								className="flex-1 rounded-lg bg-slate-200 px-4 py-3 font-bold text-slate-900 transition hover:bg-slate-300 active:scale-95"
+							>
+								취소
+							</button>
+							<button
+								type="button"
+								onClick={handleEquipmentConfirmYes}
+								className="flex-1 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 px-4 py-3 font-bold text-white transition hover:shadow-lg active:scale-95"
+							>
+								확인
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{isSavePopupOpen && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6 backdrop-blur-sm">

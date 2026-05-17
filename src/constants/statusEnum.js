@@ -25,6 +25,15 @@ export const StepItemActionType = {
   RELOCATE_FOR_TOMORROW: 'RELOCATE_FOR_TOMORROW',
 };
 
+// CAASDy 솔버 배치 액션 타입 (백엔드 BatchItemsBatchItemAction과 동기화)
+export const BatchActionType = {
+  RELOCATE:  'RELOCATE',
+  PICKING:   'PICKING',
+  INBOUND:   'INBOUND',
+  TEMP_MOVE: 'TEMP_MOVE',
+  RESTORE:   'RESTORE',
+};
+
 export const UserRole = {
   OFFICE: 'OFFICE',
   FIELD: 'FIELD',

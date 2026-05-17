@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
 import Web_ScenarioTimelineSection from "../../../components/office/Web_ScenarioTimelineSection/Web_ScenarioTimelineSection.jsx";
 import { getLiveField } from "../../../services/fieldService";
+import { getActionMetadata } from "../../../utils/batchActionMetadata";
 
 // 백엔드 LazerType enum 값과 탭 ID를 일치
 const EQUIPMENT_TABS = [
@@ -20,44 +21,29 @@ const INITIAL_FILTERS = {
 	maxMinutes: "",
 };
 
-// ─── 매핑 헬퍼 ────────────────────────────────────────────
+// ✅ 표준화: batchActionMetadata 기반 색상 맵
+const ACTION_COLOR_MAP = {
+	RELOCATE: "bg-gray-400 ring-surface",
+	PICKING: "bg-red-500 ring-surface",
+	INBOUND: "bg-cyan-500 ring-surface",
+	TEMP_MOVE: "bg-orange-500 ring-surface",
+	RESTORE: "bg-cyan-500 ring-surface",
+	DIRECT_START: "bg-purple-500 ring-surface",
+};
+
+// ─── 매핑 헬퍼 (batchActionMetadata 활용) ────────────────────────────
 function mapActionLabel(action) {
-	switch (action) {
-		case "RELOCATE":
-			return "재배치 (Relocation)";
-		case "PICKING":
-			return "피킹 (Picking)";
-		case "INBOUND":
-			return "적재 (Loading)";
-		default:
-			return action ?? "-";
-	}
+	const metadata = getActionMetadata(action);
+	return metadata.label_ko;
 }
 
 function mapActionIcon(action) {
-	switch (action) {
-		case "RELOCATE":
-			return "sync_alt";
-		case "PICKING":
-			return "inventory";
-		case "INBOUND":
-			return "layers";
-		default:
-			return "task";
-	}
+	const metadata = getActionMetadata(action);
+	return metadata.material_icon;
 }
 
 function mapActionColor(action) {
-	switch (action) {
-		case "RELOCATE":
-			return "bg-primary ring-surface";
-		case "PICKING":
-			return "bg-red-500 ring-surface";
-		case "INBOUND":
-			return "bg-emerald-500 ring-surface";
-		default:
-			return "bg-surface-container ring-surface";
-	}
+	return ACTION_COLOR_MAP[action] || "bg-surface-container ring-surface";
 }
 
 function mapStatusLabel(status) {
@@ -119,38 +105,65 @@ function summarizeEquipment(items, equipmentId) {
 
 // FieldBatchItem → timeline 아이템 형태로 변환
 function mapBatchItemToTimeline(item, equipmentId) {
+	// ✅ 원자재 판별: fromLocation이 없으면 원자재 (PICKING → DIRECT_START)
+	const isRaw = !item.fromLocationName || item.fromLocationName === "";
+	const normalizedAction = item.batchItemAction === "RELOCATE" ? "PICKING" : item.batchItemAction;
+
+	// ✅ 원자재 피킹(from 없음)은 DIRECT_START(원자재 투입)으로 표시
+	const displayAction = isRaw && normalizedAction === "PICKING" ? "DIRECT_START" : normalizedAction;
+
+	// ✅ INBOUND의 경우 placeholder row 생성
+	let rows = (item.wip ?? []).map((w) => ({
+		batchItemId: item.batchItemId,
+		scenarioId: item.scenarioId,
+		qrNumber: w.qrId || "원자재",
+		thickness: w.thickness,
+		width: w.width,
+		length: w.length,
+		from: item.fromLocationName || "-",
+		to: item.toLocationName || "-",
+
+		// PICKING인 경우만 ncCode 컬럼 표시, null이면 "-"
+		...(normalizedAction === "PICKING" && {
+			ncCode: w.ncCode ?? null, // ← 더미 생성 없이 실제 값만
+		}),
+
+		estimatedTime: item.expectedRunningTime,
+		status: mapStatusLabel(item.status),
+		statusClass: mapStatusClass(item.status),
+	}));
+
+	// INBOUND인데 wip이 없으면 placeholder 행 생성
+	if (normalizedAction === "INBOUND" && rows.length === 0) {
+		rows = [{
+			batchItemId: item.batchItemId,
+			scenarioId: item.scenarioId,
+			qrNumber: "원자재",  // 새로 생성되는 산출물
+			thickness: "-",
+			width: "-",
+			length: "-",
+			from: "-",  // INBOUND는 from 없음
+			to: item.toLocationName || "-",  // 목표 위치 표시
+			estimatedTime: item.expectedStartTime,  // 예상 시작 시간
+			status: mapStatusLabel(item.status),
+			statusClass: mapStatusClass(item.status),
+		}];
+	}
+
 	return {
 		id: item.batchItemId,
 		equipmentId,
-		type: mapActionLabel(item.batchItemAction),
-		_actionRaw: item.batchItemAction,
-		icon: mapActionIcon(item.batchItemAction),
-		colorClass: mapActionColor(item.batchItemAction),
+		type: mapActionLabel(displayAction),
+		_actionRaw: displayAction,
+		icon: mapActionIcon(displayAction),
+		colorClass: mapActionColor(displayAction),
 		iconColorClass: "",
 		subLabel: item.batchOrder
 			? `${item.scenarioTitle || "-"} · Batch ${String(
 					item.batchOrder,
 				).padStart(2, "0")}`
 			: item.scenarioTitle || "",
-		rows: (item.wip ?? []).map((w) => ({
-			batchItemId: item.batchItemId,
-			scenarioId: item.scenarioId,
-			qrNumber: w.qrId || "원자재",
-			thickness: w.thickness,
-			width: w.width,
-			length: w.length,
-			from: item.fromLocationName || "-",
-			to: item.toLocationName || "-",
-
-			// PICKING인 경우만 ncCode 컬럼 표시, null이면 "-"
-			...(item.batchItemAction === "PICKING" && {
-				ncCode: w.ncCode ?? null, // ← 더미 생성 없이 실제 값만
-			}),
-
-			estimatedTime: item.expectedRunningTime,
-			status: mapStatusLabel(item.status),
-			statusClass: mapStatusClass(item.status),
-		})),
+		rows,
 	};
 }
 
@@ -251,7 +264,9 @@ export default function Web_FieldLiveStatusPage() {
 					);
 				});
 
-				return isActionMatched && filteredRows.length > 0;
+				// ✅ 수정: INBOUND는 wip이 없어도(rows=0) 표시되어야 함
+				// INBOUND는 새로운 산출물을 만드는 작업이므로 rows가 비어있는 것이 정상
+				return isActionMatched && (filteredRows.length > 0 || item._actionRaw === "INBOUND");
 			})
 			.map((item) => {
 				const minVal =
@@ -262,6 +277,11 @@ export default function Web_FieldLiveStatusPage() {
 					searchFilters.maxMinutes === ""
 						? null
 						: Number(searchFilters.maxMinutes);
+
+				// ✅ INBOUND는 rows가 비어있어도 유지 (rows 필터링하지 않음)
+				if (item._actionRaw === "INBOUND") {
+					return item;
+				}
 
 				const filteredRows = item.rows.filter((row) => {
 					const t = Number(row.estimatedTime);
