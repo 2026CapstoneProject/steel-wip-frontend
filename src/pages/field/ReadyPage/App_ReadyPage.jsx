@@ -700,18 +700,32 @@ const App_ReadyPage = () => {
 			? visibleReadyTaskCount
 			: hiddenCurrentBatchTaskCount;
 
-	const orderedActionKeys = allTasks.flatMap((task) => [
+	const getTaskActionKeys = (task) => [
 		...(task.relocations ?? []).map((item) =>
 			buildRelocateActionKey(task.id, item.id),
 		),
 		...(task.pickings ?? []).map((item) =>
 			buildPickingActionKey(task.id, item.id),
 		),
-	]);
+	];
 
-	const activeActionKey = orderedActionKeys[0] ?? "";
+	const activeEntry =
+		orderedEntries[0] ??
+		(shouldShowInboundPrompt
+			? {
+					id: "hidden-inbound",
+					kind: "inbound",
+				}
+			: null);
+
+	const activeActionKeys =
+		activeEntry?.kind === "task" ? getTaskActionKeys(activeEntry.task) : [];
+	const activeActionKey = activeActionKeys[0] ?? "";
+	const isInboundAllowed = activeEntry?.kind === "inbound";
 
 	const isActionAllowed = (actionKey) => {
+		if (!activeEntry) return true;
+		if (activeEntry.kind !== "task") return false;
 		return !activeActionKey || activeActionKey === actionKey;
 	};
 
@@ -810,6 +824,11 @@ const App_ReadyPage = () => {
 	};
 
 	const handleStartInbound = (groupTasksCount) => {
+		if (!isInboundAllowed) {
+			openOrderPopup();
+			return;
+		}
+
 		// ✅ 현재 그룹의 작업이 남아있으면 경고
 		if (groupTasksCount > 0) {
 			setIsInboundWarningOpen(true);
