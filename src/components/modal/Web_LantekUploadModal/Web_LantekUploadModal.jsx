@@ -3,8 +3,6 @@ import { importLantekData } from "../../../services/lantekService";
 import { createScenario } from "../../../services/scenarioService";
 import Web_LoadingModal from "../Web_LoadingModal/Web_LoadingModal";
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 export default function Web_LantekUploadModal({
 	scenarioId,
 	projectId,
@@ -15,7 +13,7 @@ export default function Web_LantekUploadModal({
 	onUpload,
 }) {
 	const inputRef = useRef(null);
-	const [selectedFile, setSelectedFile] = useState(null);
+	const [selectedFiles, setSelectedFiles] = useState([]);
 	const [uploading, setUploading] = useState(false);
 
 	const createFreshScenario = async () => {
@@ -35,26 +33,32 @@ export default function Web_LantekUploadModal({
 		return scenario.id;
 	};
 
-	const handleFileSelect = (file) => {
-		if (!file) return;
-		const isPdf =
-			file.type === "application/pdf" ||
-			file.name.toLowerCase().endsWith(".pdf");
-		if (!isPdf) {
-			alert("지원하지 않는 파일 형식입니다. PDF 파일을 선택해주세요.");
+	const handleFilesSelect = (files) => {
+		if (!files || files.length === 0) return;
+		const allPdf = files.every(
+			(f) =>
+				f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"),
+		);
+		if (!allPdf) {
+			alert("PDF 파일만 선택해주세요.");
 			return;
 		}
-		setSelectedFile(file);
+		setSelectedFiles((prev) => {
+			const existing = new Set(prev.map((f) => f.name));
+			const newFiles = files.filter((f) => !existing.has(f.name));
+			return [...prev, ...newFiles];
+		});
 		if (inputRef.current) inputRef.current.value = "";
 	};
 
 	const handleConfirmUpload = async () => {
-		if (!selectedFile) {
+		if (selectedFiles.length === 0) {
 			alert("파일을 먼저 선택해주세요.");
 			return;
 		}
 		setUploading(true);
-		const startedAt = Date.now();
+		// ❌ const startedAt = Date.now(); 삭제
+
 		try {
 			let activeScenarioId = scenarioId;
 			if (!activeScenarioId) {
@@ -63,31 +67,24 @@ export default function Web_LantekUploadModal({
 
 			let response;
 			try {
-				response = await importLantekData(activeScenarioId, selectedFile);
+				response = await importLantekData(activeScenarioId, selectedFiles);
 			} catch (err) {
 				const msg =
 					err.response?.data?.message || err.response?.data?.detail || "";
 				if (msg.includes("시나리오를 찾을 수 없습니다")) {
 					activeScenarioId = await createFreshScenario();
-					response = await importLantekData(activeScenarioId, selectedFile);
+					response = await importLantekData(activeScenarioId, selectedFiles);
 				} else {
 					throw err;
 				}
 			}
 
-			// 백엔드가 반환하는 LantekScenarioData[] (data 배열의 첫번째 항목)
 			const lantekDataList = response.data?.data ?? [];
-			const remainingDelay = Math.max(0, 5000 - (Date.now() - startedAt));
-			if (remainingDelay > 0) {
-				await sleep(remainingDelay);
-			}
-			onUpload(selectedFile, lantekDataList);
+			// ✅ 하드코딩 대기 제거 — API 응답 즉시 처리
+			onUpload(selectedFiles, lantekDataList);
 		} catch (err) {
 			console.error("LANTEK import 실패:", err);
-			const remainingDelay = Math.max(0, 5000 - (Date.now() - startedAt));
-			if (remainingDelay > 0) {
-				await sleep(remainingDelay);
-			}
+			// ✅ 하드코딩 대기 제거
 			const msg =
 				err.response?.data?.message ||
 				err.response?.data?.detail ||
@@ -120,15 +117,16 @@ export default function Web_LantekUploadModal({
 						ref={inputRef}
 						type="file"
 						accept=".pdf,application/pdf"
+						multiple
 						className="hidden"
-						onChange={(e) => handleFileSelect(e.target.files?.[0])}
+						onChange={(e) => handleFilesSelect(Array.from(e.target.files))}
 					/>
 					<div
 						className="w-full min-h-[220px] border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low flex flex-col items-center justify-center p-6 text-center"
 						onDragOver={(e) => e.preventDefault()}
 						onDrop={(e) => {
 							e.preventDefault();
-							handleFileSelect(e.dataTransfer.files?.[0]);
+							handleFilesSelect(Array.from(e.dataTransfer.files));
 						}}
 					>
 						<div className="mb-4 w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
@@ -149,32 +147,34 @@ export default function Web_LantekUploadModal({
 							파일 선택
 						</button>
 					</div>
-					{selectedFile && (
-						<div className="rounded-xl border border-primary/20 bg-primary-container/30 px-4 py-4">
+					{selectedFiles.length > 0 && (
+						<div className="rounded-xl border border-primary/20 bg-primary-container/30 px-4 py-4 space-y-2">
 							<p className="text-sm text-on-surface-variant mb-1">
-								선택한 파일
+								선택한 파일 ({selectedFiles.length}개)
 							</p>
-							<div className="flex items-center gap-2">
-								<span className="material-symbols-outlined text-primary !text-lg">
-									description
-								</span>
-								<p className="font-semibold text-on-surface flex-1">
-									{selectedFile.name}
-								</p>
-								<button
-									type="button"
-									onClick={() => {
-										setSelectedFile(null);
-										if (inputRef.current) inputRef.current.value = "";
-									}}
-									className="flex items-center justify-center w-6 h-6 rounded-full text-error hover:bg-error/10 transition-colors"
-									title="파일 선택 취소"
-								>
-									<span className="material-symbols-outlined !text-base !text-red-500">
-										close
+							{selectedFiles.map((file, idx) => (
+								<div key={idx} className="flex items-center gap-2">
+									<span className="material-symbols-outlined text-primary !text-lg">
+										description
 									</span>
-								</button>
-							</div>
+									<p className="font-semibold text-on-surface flex-1 text-sm">
+										{file.name}
+									</p>
+									<button
+										type="button"
+										onClick={() =>
+											setSelectedFiles((prev) =>
+												prev.filter((_, i) => i !== idx),
+											)
+										}
+										className="flex items-center justify-center w-6 h-6 rounded-full text-error hover:bg-error/10 transition-colors"
+									>
+										<span className="material-symbols-outlined !text-base !text-red-500">
+											close
+										</span>
+									</button>
+								</div>
+							))}
 						</div>
 					)}
 					{tempSavedFile && (
@@ -194,9 +194,9 @@ export default function Web_LantekUploadModal({
 						</button>
 						<button
 							type="button"
-							disabled={!selectedFile || uploading}
+							disabled={selectedFiles.length === 0 || uploading}
 							className={`px-5 py-3 rounded-lg font-semibold ${
-								selectedFile && !uploading
+								selectedFiles.length > 0 && !uploading
 									? "bg-primary text-white hover:bg-primary-dim"
 									: "bg-surface-container-high text-on-surface-variant cursor-not-allowed opacity-60"
 							}`}

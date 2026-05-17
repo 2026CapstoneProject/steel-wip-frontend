@@ -3,13 +3,39 @@ import { useNavigate } from "react-router-dom";
 import steelAllLogo from "../../../assets/Steel_all_CI_align_1st.png";
 
 import App_UserDropdown from "./App_UserDropdown";
+import App_NotificationDropdown from "./App_NotificationDropdown";
+import { useNextScenario } from "../NextScenario/App_NextScenarioProvider";
 
 const App_Header = ({
 	hasUnreadAlert = false,
-	onNotificationClick = () => {},
+	notificationItems = [],
+	onNotificationOpen = () => {},
+	onNotificationItemClick = () => {},
 	showBackButton = false,
 }) => {
 	const navigate = useNavigate();
+	const nextScenario = useNextScenario();
+
+	const mergedHasUnreadAlert = hasUnreadAlert || nextScenario.hasUnreadAlert;
+
+	const mergedNotificationItems = [
+		...(nextScenario.notificationItems ?? []),
+		...(notificationItems ?? []),
+	];
+
+	const handleNotificationOpen = () => {
+		nextScenario.onNotificationOpen();
+		onNotificationOpen();
+	};
+
+	const handleNotificationItemClick = (notification) => {
+		if (notification?.id === "next-scenario") {
+			nextScenario.onNotificationItemClick(notification);
+			return;
+		}
+
+		onNotificationItemClick(notification);
+	};
 
 	const handleBackClick = () => {
 		navigate("/App/start");
@@ -51,20 +77,12 @@ const App_Header = ({
 				</div>
 
 				<div className="flex items-center gap-3">
-					<button
-						type="button"
-						onClick={onNotificationClick}
-						className="relative flex h-11 w-11 items-center justify-center"
-						aria-label="notifications"
-					>
-						<span className="material-symbols-outlined text-[34px] leading-none text-slate-700">
-							notifications
-						</span>
-
-						{hasUnreadAlert && (
-							<span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#D32F2F] ring-2 ring-white" />
-						)}
-					</button>
+					<App_NotificationDropdown
+						hasUnreadAlert={mergedHasUnreadAlert}
+						notifications={mergedNotificationItems}
+						onNotificationOpen={handleNotificationOpen}
+						onNotificationItemClick={handleNotificationItemClick}
+					/>
 
 					<App_UserDropdown />
 				</div>

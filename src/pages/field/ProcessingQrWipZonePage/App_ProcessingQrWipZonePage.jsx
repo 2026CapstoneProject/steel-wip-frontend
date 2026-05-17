@@ -2,14 +2,31 @@ import React, { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
 import QrCameraScanner from "../../../components/field/Qr/QrCameraScanner";
+import App_ScanIssue from "../../../components/modal/App_ScanIssue/App_ScanIssue";
 
 const getTargetZone = (generatedWip = {}) =>
-	generatedWip.zone ?? generatedWip.toZone ?? "-";
+	generatedWip.zone ?? generatedWip.toZone ?? generatedWip.toLocation ?? "-";
+
+const getTargetZoneQr = (generatedWip = {}) => {
+	const qr = String(
+		generatedWip.locQr ??
+			generatedWip.locQR ??
+			generatedWip.locationQr ??
+			generatedWip.locationQR ??
+			generatedWip.zoneQr ??
+			generatedWip.zoneQR ??
+			getTargetZone(generatedWip),
+	).trim();
+
+	return qr || "-";
+};
 
 const App_ProcessingQrWipZonePage = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
+
 	const [scanError, setScanError] = useState("");
+	const [isScanIssueOpen, setIsScanIssueOpen] = useState(false);
 
 	React.useEffect(() => {
 		if (!location.state?.generatedWip) {
@@ -29,20 +46,22 @@ const App_ProcessingQrWipZonePage = () => {
 
 	const targetZone = useMemo(() => getTargetZone(generatedWip), [generatedWip]);
 
-	const handleScanSuccess = (decodedText) => {
-		const normalized = String(decodedText ?? "").trim();
-		const expectedZone = String(targetZone ?? "").trim();
+	const targetZoneQr = useMemo(
+		() => getTargetZoneQr(generatedWip),
+		[generatedWip],
+	);
 
-		if (!normalized) {
-			setScanError("스캔된 구역 QR 값이 비어 있습니다.");
-			return;
+	const scanIssueDetails = useMemo(() => {
+		const details = [{ label: "적재 구역", value: targetZone }];
+
+		if (targetZoneQr && targetZoneQr !== "-" && targetZoneQr !== targetZone) {
+			details.push({ label: "구역 QR", value: targetZoneQr });
 		}
 
-		if (expectedZone && expectedZone !== "-" && normalized !== expectedZone) {
-			setScanError("목표 적재공간과 일치하지 않는 QR입니다.");
-			return;
-		}
+		return details;
+	}, [targetZone, targetZoneQr]);
 
+	const completeZoneScan = (scannedLocQr) => {
 		const scannedAt = new Date().toISOString();
 
 		navigate(returnTo, {
@@ -56,9 +75,49 @@ const App_ProcessingQrWipZonePage = () => {
 				wipScannedAt,
 				zoneScanCompleted: true,
 				zoneScannedAt: scannedAt,
-				scannedLocQr: normalized,
+				scannedLocQr,
 			},
 		});
+	};
+
+	const handleScanSuccess = (decodedText) => {
+		const normalized = String(decodedText ?? "").trim();
+		const expectedZoneQr = String(targetZoneQr ?? "").trim();
+
+		if (!normalized) {
+			setScanError("스캔된 구역 QR 값이 비어 있습니다.");
+			return;
+		}
+
+		if (!expectedZoneQr || expectedZoneQr === "-") {
+			setScanError("비교할 구역 QR 값이 없습니다.");
+			return;
+		}
+
+		if (normalized !== expectedZoneQr) {
+			setScanError("목표 적재공간과 일치하지 않는 QR입니다.");
+			return;
+		}
+
+		setScanError("");
+		completeZoneScan(normalized);
+	};
+
+	const handleScanIssueClick = () => {
+		setScanError("");
+		setIsScanIssueOpen(true);
+	};
+
+	const handleScanIssueConfirm = () => {
+		if (!targetZoneQr || targetZoneQr === "-") {
+			setIsScanIssueOpen(false);
+			setScanError("비교할 구역 QR 값이 없습니다.");
+			return;
+		}
+
+		setScanError("");
+		setIsScanIssueOpen(false);
+		completeZoneScan(targetZoneQr);
 	};
 
 	const handlePrevious = () => {
@@ -88,7 +147,10 @@ const App_ProcessingQrWipZonePage = () => {
 							</div>
 						</section>
 
-						<QrCameraScanner onScanSuccess={handleScanSuccess} />
+						<QrCameraScanner
+							onScanSuccess={handleScanSuccess}
+							paused={isScanIssueOpen}
+						/>
 
 						<section className="flex w-full items-start gap-4 rounded-xl border-l-4 border-[#3F51B5] bg-white p-5 shadow-[0_12px_24px_-8px_rgba(0,0,0,0.08)]">
 							<div className="rounded-lg bg-[#3F51B5]/10 p-2">
@@ -101,9 +163,21 @@ const App_ProcessingQrWipZonePage = () => {
 								<p className="text-base font-bold text-slate-900">
 									QR 코드를 중앙에 맞춰주세요
 								</p>
-								<p className="text-sm leading-relaxed text-slate-600">
-									인식이 완료되면 자동으로 다음 단계로 넘어갑니다.
-								</p>
+
+								<div className="space-y-0.5">
+									<p className="text-sm leading-relaxed text-slate-600">
+										인식이 완료되면 자동으로 다음 단계로 넘어갑니다.
+									</p>
+
+									<button
+										type="button"
+										onClick={handleScanIssueClick}
+										className="block text-left text-sm font-medium leading-relaxed text-slate-600 underline underline-offset-2 decoration-slate-400"
+									>
+										QR 인식에 문제가 있나요?
+									</button>
+								</div>
+
 								{scanError ? (
 									<p className="pt-1 text-sm font-semibold text-red-600">
 										{scanError}
@@ -125,6 +199,15 @@ const App_ProcessingQrWipZonePage = () => {
 					Previous
 				</button>
 			</nav>
+
+			<App_ScanIssue
+				isOpen={isScanIssueOpen}
+				title="QR 정보 확인"
+				description="아래 위치 정보와 스캔하려는 구역 QR 정보가 맞나요?"
+				details={scanIssueDetails}
+				onCancel={() => setIsScanIssueOpen(false)}
+				onConfirm={handleScanIssueConfirm}
+			/>
 		</div>
 	);
 };

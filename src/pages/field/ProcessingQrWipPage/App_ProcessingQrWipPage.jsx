@@ -19,6 +19,31 @@ const formatScanTime = (value) => {
 	}
 };
 
+const getGeneratedWipSpecText = (source = {}) =>
+	source.specText ?? source.spec ?? source.sizeText ?? "-";
+
+const parseSpecParts = (value) => {
+	const numbers = String(value ?? "").match(/\d+/g) ?? [];
+
+	return {
+		thickness: numbers[0] ?? "",
+		width: numbers[1] ?? "",
+		length: numbers[2] ?? "",
+	};
+};
+
+const formatSpecParts = (parts) => {
+	const thickness = String(parts?.thickness ?? "").trim();
+	const width = String(parts?.width ?? "").trim();
+	const length = String(parts?.length ?? "").trim();
+
+	if (!thickness && !width && !length) return "-";
+
+	return `${thickness || "-"} × ${width || "-"} × ${length || "-"}`;
+};
+
+const onlyNumber = (value) => String(value ?? "").replace(/\D/g, "");
+
 const App_ProcessingQrWipPage = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -45,6 +70,60 @@ const App_ProcessingQrWipPage = () => {
 	const [nextPathAfterSave, setNextPathAfterSave] = useState("/App/processing");
 	const [nextStateAfterSave, setNextStateAfterSave] = useState({});
 	const [isSaving, setIsSaving] = useState(false);
+
+	const initialSpecText = useMemo(
+		() => getGeneratedWipSpecText(generatedWip),
+		[generatedWip],
+	);
+
+	const initialSpecParts = useMemo(
+		() => parseSpecParts(initialSpecText),
+		[initialSpecText],
+	);
+
+	const [confirmedSpecParts, setConfirmedSpecParts] =
+		useState(initialSpecParts);
+	const [draftSpecParts, setDraftSpecParts] = useState(initialSpecParts);
+	const [isSpecEditing, setIsSpecEditing] = useState(false);
+
+	useEffect(() => {
+		setConfirmedSpecParts(initialSpecParts);
+		setDraftSpecParts(initialSpecParts);
+		setIsSpecEditing(false);
+	}, [initialSpecParts]);
+
+	const normalizedSpecText = formatSpecParts(confirmedSpecParts);
+
+	const currentGeneratedWip = useMemo(
+		() => ({
+			...generatedWip,
+			specText: normalizedSpecText,
+			spec: normalizedSpecText,
+			sizeText: normalizedSpecText,
+		}),
+		[generatedWip, normalizedSpecText],
+	);
+
+	const currentGeneratedItems = useMemo(
+		() =>
+			generatedItems.map((item) => {
+				const isSameItem =
+					item.id === generatedWip.id ||
+					item.wipQr === generatedWip.wipQr ||
+					item.batchItemId === generatedWip.batchItemId;
+
+				return isSameItem
+					? {
+							...item,
+							specText: normalizedSpecText,
+							spec: normalizedSpecText,
+							sizeText: normalizedSpecText,
+						}
+					: item;
+			}),
+		[generatedItems, generatedWip, normalizedSpecText],
+	);
+
 	const isExitLocked = zoneScanCompleted && !isSavePopupOpen;
 
 	const detailData = useMemo(
@@ -56,11 +135,7 @@ const App_ProcessingQrWipPage = () => {
 				generatedWip.materialName ??
 				generatedWip.material ??
 				"SM355A",
-			specText:
-				generatedWip.specText ??
-				generatedWip.spec ??
-				generatedWip.sizeText ??
-				"-",
+			specText: normalizedSpecText,
 			weightText:
 				generatedWip.weightText ??
 				generatedWip.weight ??
@@ -68,7 +143,7 @@ const App_ProcessingQrWipPage = () => {
 				"-",
 			zone: generatedWip.zone ?? generatedWip.toZone ?? "-",
 		}),
-		[generatedWip],
+		[generatedWip, normalizedSpecText],
 	);
 
 	const displayedZoneScanTime = useMemo(
@@ -93,13 +168,41 @@ const App_ProcessingQrWipPage = () => {
 		return () => window.clearTimeout(timer);
 	}, [isSavePopupOpen, navigate, nextPathAfterSave, nextStateAfterSave]);
 
+	const handleSpecEditClick = () => {
+		if (isSaving || zoneScanCompleted) return;
+		setDraftSpecParts(confirmedSpecParts);
+		setIsSpecEditing(true);
+	};
+
+	const handleSpecCancelClick = () => {
+		setDraftSpecParts(confirmedSpecParts);
+		setIsSpecEditing(false);
+	};
+
+	const handleSpecChange = (key, value) => {
+		setDraftSpecParts((prev) => ({
+			...prev,
+			[key]: onlyNumber(value),
+		}));
+	};
+
+	const handleSpecConfirmClick = () => {
+		setConfirmedSpecParts(draftSpecParts);
+		setIsSpecEditing(false);
+	};
+
 	const handleZoneScanClick = () => {
 		if (zoneScanCompleted) return;
 
+		if (isSpecEditing) {
+			alert("규격 수정을 먼저 완료해주세요.");
+			return;
+		}
+
 		navigate("/App/processing/qr/wip/zone", {
 			state: {
-				generatedWip,
-				generatedItems,
+				generatedWip: currentGeneratedWip,
+				generatedItems: currentGeneratedItems,
 				batches,
 				summary,
 				scannedWipQr,
@@ -111,6 +214,11 @@ const App_ProcessingQrWipPage = () => {
 
 	const handleSaveClick = async () => {
 		if (!zoneScanCompleted || isSaving) return;
+
+		if (isSpecEditing) {
+			alert("규격 수정을 먼저 완료해주세요.");
+			return;
+		}
 
 		const batchItemId = generatedWip.batchItemId;
 		if (!batchItemId) {
@@ -134,6 +242,15 @@ const App_ProcessingQrWipPage = () => {
 			const response = await saveBatchItem(batchItemId, {
 				wipQR: scannedWipQr,
 				locQR: scannedLocQr,
+				thickness: confirmedSpecParts.thickness
+					? parseFloat(confirmedSpecParts.thickness)
+					: undefined,
+				width: confirmedSpecParts.width
+					? parseFloat(confirmedSpecParts.width)
+					: undefined,
+				length: confirmedSpecParts.length
+					? parseFloat(confirmedSpecParts.length)
+					: undefined,
 			});
 
 			const saveResult = response.data?.data ?? {};
@@ -148,11 +265,13 @@ const App_ProcessingQrWipPage = () => {
 							selectedScenarioId: summary?.scenarioId ?? null,
 							justCompletedBatch: true,
 							savedGeneratedWipId: generatedWip.id,
+							updatedGeneratedWip: currentGeneratedWip,
 						}
 					: {
 							savedGeneratedWipId: generatedWip.id,
 							savedStatus: "complete",
 							zoneScannedAt,
+							updatedGeneratedWip: currentGeneratedWip,
 						},
 			);
 
@@ -218,12 +337,99 @@ const App_ProcessingQrWipPage = () => {
 									</div>
 
 									<div className="col-span-2 pt-2">
-										<p className="mb-1 text-xs font-medium text-slate-500">
-											규격 (두께 x 폭 x 길이)
-										</p>
-										<p className="text-lg font-bold text-[#24389c]">
-											{detailData.specText}
-										</p>
+										<div className="mb-1 flex items-center justify-between">
+											<p className="text-xs font-medium text-slate-500">
+												규격 (두께 x 폭 x 길이)
+											</p>
+
+											{!isSpecEditing ? (
+												<button
+													type="button"
+													onClick={handleSpecEditClick}
+													disabled={isSaving || zoneScanCompleted}
+													className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-[#24389c] transition active:bg-[#24389c]/10 disabled:cursor-not-allowed disabled:text-slate-300"
+												>
+													<span className="material-symbols-outlined text-[16px]">
+														edit
+													</span>
+													수정하기
+												</button>
+											) : null}
+										</div>
+
+										{isSpecEditing ? (
+											<div className="space-y-3">
+												<div className="flex items-center gap-2">
+													<input
+														type="text"
+														inputMode="numeric"
+														value={draftSpecParts.thickness}
+														onChange={(event) =>
+															handleSpecChange("thickness", event.target.value)
+														}
+														disabled={isSaving}
+														placeholder="두께"
+														className="min-w-0 flex-1 rounded-xl border border-[#24389c]/30 bg-[#f7f9fb] px-2 py-2 text-center text-lg font-bold text-[#24389c] outline-none transition focus:border-[#24389c] focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+													/>
+
+													<span className="shrink-0 text-lg font-bold text-[#24389c]">
+														×
+													</span>
+
+													<input
+														type="text"
+														inputMode="numeric"
+														value={draftSpecParts.width}
+														onChange={(event) =>
+															handleSpecChange("width", event.target.value)
+														}
+														disabled={isSaving}
+														placeholder="폭"
+														className="min-w-0 flex-1 rounded-xl border border-[#24389c]/30 bg-[#f7f9fb] px-2 py-2 text-center text-lg font-bold text-[#24389c] outline-none transition focus:border-[#24389c] focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+													/>
+
+													<span className="shrink-0 text-lg font-bold text-[#24389c]">
+														×
+													</span>
+
+													<input
+														type="text"
+														inputMode="numeric"
+														value={draftSpecParts.length}
+														onChange={(event) =>
+															handleSpecChange("length", event.target.value)
+														}
+														disabled={isSaving}
+														placeholder="길이"
+														className="min-w-0 flex-1 rounded-xl border border-[#24389c]/30 bg-[#f7f9fb] px-2 py-2 text-center text-lg font-bold text-[#24389c] outline-none transition focus:border-[#24389c] focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+													/>
+												</div>
+
+												<div className="grid grid-cols-2 gap-2">
+													<button
+														type="button"
+														onClick={handleSpecCancelClick}
+														disabled={isSaving}
+														className="rounded-xl bg-[#ECEEF0] py-2 text-sm font-bold text-slate-500 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+													>
+														취소
+													</button>
+
+													<button
+														type="button"
+														onClick={handleSpecConfirmClick}
+														disabled={isSaving}
+														className="rounded-xl bg-[#24389c] py-2 text-sm font-bold text-white shadow-lg shadow-[#24389c]/20 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+													>
+														확인
+													</button>
+												</div>
+											</div>
+										) : (
+											<p className="text-lg font-bold text-[#24389c]">
+												{detailData.specText}
+											</p>
+										)}
 									</div>
 
 									<div>

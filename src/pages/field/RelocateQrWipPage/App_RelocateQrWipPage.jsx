@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
 import QrCameraScanner from "../../../components/field/Qr/QrCameraScanner";
+import App_ScanIssue from "../../../components/modal/App_ScanIssue/App_ScanIssue";
 
 const fallbackRelocation = {
 	id: "relocate-01",
@@ -38,6 +39,7 @@ const App_RelocateQrWipPage = () => {
 	const [scanError, setScanError] = useState("");
 	const [scannerVisible, setScannerVisible] = useState(true);
 	const [scannerSessionKey, setScannerSessionKey] = useState(0);
+	const [isScanIssueOpen, setIsScanIssueOpen] = useState(false);
 
 	useEffect(() => {
 		if (!state?.relocation) {
@@ -61,12 +63,21 @@ const App_RelocateQrWipPage = () => {
 		zoneScannedAt: "",
 	};
 
+	const getExpectedWipQr = () =>
+		String(
+			relocation.wipQr ||
+				relocation.wipQR ||
+				relocation.qr ||
+				relocation.qrCode ||
+				"",
+		).trim();
+
 	const badgeItems = useMemo(
 		() => [
 			{
-				key: "material",
-				icon: "inventory_2",
-				label: relocation.material || relocation.wipCode || "SM355A",
+				key: "wipQr",
+				icon: "qr_code_2",
+				label: getExpectedWipQr() || "-",
 			},
 			{
 				key: "fromZone",
@@ -93,6 +104,50 @@ const App_RelocateQrWipPage = () => {
 		} catch (_) {}
 
 		forceStopAllVideos();
+	};
+
+	const completeWipScan = async (scannedValue, stopScanner) => {
+		const scannedAt = formatNowTime();
+
+		scanBusyRef.current = true;
+		setScanError("");
+		setScanStatus("recognized");
+
+		try {
+			await stopScanner?.();
+		} catch (_) {}
+
+		await stopCameraSafely();
+
+		navigate("/App/ready/relocate", {
+			replace: true,
+			state: {
+				type: "RELOCATE_WIP_SCAN_SUCCESS",
+				scannedAt,
+				scannedValue,
+				batchItemId,
+				relocation,
+				scanState: {
+					...scanState,
+					wipScanned: true,
+					wipScannedAt: scannedAt,
+					wipScannedValue: scannedValue,
+				},
+			},
+		});
+	};
+
+	const handleScanIssueConfirm = async () => {
+		const expectedWipQr = getExpectedWipQr();
+
+		if (!expectedWipQr) {
+			setIsScanIssueOpen(false);
+			setScanError("비교할 재공품 QR 값이 없습니다.");
+			return;
+		}
+
+		setIsScanIssueOpen(false);
+		await completeWipScan(expectedWipQr);
 	};
 
 	const restartScannerAfterCooldown = async (message, stopScanner) => {
@@ -146,9 +201,8 @@ const App_RelocateQrWipPage = () => {
 	) => {
 		if (scanBusyRef.current || scanStatus === "recognized") return;
 
-		const scannedAt = formatNowTime();
 		const scannedValue = String(decodedText ?? "").trim();
-		const expectedWipQr = String(relocation.wipQr ?? "").trim();
+		const expectedWipQr = getExpectedWipQr();
 
 		if (!expectedWipQr) {
 			await restartScannerAfterCooldown(
@@ -166,32 +220,7 @@ const App_RelocateQrWipPage = () => {
 			return;
 		}
 
-		scanBusyRef.current = true;
-		setScanError("");
-		setScanStatus("recognized");
-
-		try {
-			await stopScanner?.();
-		} catch (_) {}
-
-		await stopCameraSafely();
-
-		navigate("/App/ready/relocate", {
-			replace: true,
-			state: {
-				type: "RELOCATE_WIP_SCAN_SUCCESS",
-				scannedAt,
-				scannedValue,
-				batchItemId,
-				relocation,
-				scanState: {
-					...scanState,
-					wipScanned: true,
-					wipScannedAt: scannedAt,
-					wipScannedValue: scannedValue,
-				},
-			},
-		});
+		await completeWipScan(scannedValue, stopScanner);
 	};
 
 	return (
@@ -229,6 +258,7 @@ const App_RelocateQrWipPage = () => {
 								key={scannerSessionKey}
 								ref={scannerControlRef}
 								onScanSuccess={handleScanSuccess}
+								paused={isScanIssueOpen || scanStatus === "recognized"}
 							/>
 						) : (
 							<div className="relative aspect-square w-full max-w-[340px] overflow-hidden rounded-3xl bg-black shadow-2xl" />
@@ -245,9 +275,20 @@ const App_RelocateQrWipPage = () => {
 								<p className="text-base font-bold text-[#191C1E]">
 									QR 코드를 중앙에 맞춰주세요
 								</p>
-								<p className="text-sm leading-relaxed text-[#505F76]">
-									인식이 완료되면 자동으로 다음 단계로 넘어갑니다.
-								</p>
+
+								<div className="space-y-0.5">
+									<p className="text-sm leading-relaxed text-[#505F76]">
+										인식이 완료되면 자동으로 다음 단계로 넘어갑니다.
+									</p>
+									<button
+										type="button"
+										onClick={() => setIsScanIssueOpen(true)}
+										className="block text-left text-sm font-medium leading-relaxed text-[#505F76] underline underline-offset-2 decoration-[#505F76]/70"
+									>
+										QR 인식에 문제가 있나요?
+									</button>
+								</div>
+
 								{scanError ? (
 									<p className="pt-1 text-sm font-semibold text-red-600">
 										{scanError}
@@ -269,6 +310,21 @@ const App_RelocateQrWipPage = () => {
 					Previous
 				</button>
 			</nav>
+
+			<App_ScanIssue
+	isOpen={isScanIssueOpen}
+	description="아래 상세 정보와 스캔하려는 재공품 QR 정보가 맞나요?"
+	details={[
+					{ label: "제조사", value: relocation.manufacturer },
+					{ label: "재질", value: relocation.material },
+					{ label: "규격", value: relocation.specText },
+					{ label: "중량", value: relocation.weightText },
+					{ label: "QR", value: getExpectedWipQr() || "-" },
+					{ label: "현재 위치", value: relocation.from?.zone || relocation.fromZone },
+				]}
+				onCancel={() => setIsScanIssueOpen(false)}
+				onConfirm={handleScanIssueConfirm}
+			/>
 		</div>
 	);
 };

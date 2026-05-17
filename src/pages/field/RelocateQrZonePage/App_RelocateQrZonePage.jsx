@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
 import QrCameraScanner from "../../../components/field/Qr/QrCameraScanner";
+import App_ScanIssue from "../../../components/modal/App_ScanIssue/App_ScanIssue";
 
 const fallbackRelocation = {
 	id: "relocate-01",
@@ -38,6 +39,7 @@ const App_RelocateQrZonePage = () => {
 	const [scanError, setScanError] = useState("");
 	const [scannerVisible, setScannerVisible] = useState(true);
 	const [scannerSessionKey, setScannerSessionKey] = useState(0);
+	const [isScanIssueOpen, setIsScanIssueOpen] = useState(false);
 
 	useEffect(() => {
 		if (!state?.relocation) {
@@ -60,6 +62,9 @@ const App_RelocateQrZonePage = () => {
 		zoneScanned: false,
 		zoneScannedAt: "",
 	};
+
+	const getExpectedLocQr = () =>
+		String(relocation.to?.zone || relocation.toZone || "").trim();
 
 	const badgeItems = useMemo(
 		() => [
@@ -88,6 +93,50 @@ const App_RelocateQrZonePage = () => {
 		} catch (_) {}
 
 		forceStopAllVideos();
+	};
+
+	const completeZoneScan = async (scannedValue, stopScanner) => {
+		const scannedAt = formatNowTime();
+
+		scanBusyRef.current = true;
+		setScanError("");
+		setScanStatus("recognized");
+
+		try {
+			await stopScanner?.();
+		} catch (_) {}
+
+		await stopCameraSafely();
+
+		navigate("/App/ready/relocate", {
+			replace: true,
+			state: {
+				type: "RELOCATE_ZONE_SCAN_SUCCESS",
+				scannedAt,
+				scannedValue,
+				batchItemId,
+				relocation,
+				scanState: {
+					...scanState,
+					zoneScanned: true,
+					zoneScannedAt: scannedAt,
+					zoneScannedValue: scannedValue,
+				},
+			},
+		});
+	};
+
+	const handleScanIssueConfirm = async () => {
+		const expectedLocQr = getExpectedLocQr();
+
+		if (!expectedLocQr) {
+			setIsScanIssueOpen(false);
+			setScanError("비교할 구역 QR 값이 없습니다.");
+			return;
+		}
+
+		setIsScanIssueOpen(false);
+		await completeZoneScan(expectedLocQr);
 	};
 
 	const restartScannerAfterCooldown = async (message, stopScanner) => {
@@ -141,11 +190,8 @@ const App_RelocateQrZonePage = () => {
 	) => {
 		if (scanBusyRef.current || scanStatus === "recognized") return;
 
-		const scannedAt = formatNowTime();
 		const scannedValue = String(decodedText ?? "").trim();
-		const expectedLocQr = String(
-			relocation.to?.zone ?? relocation.toZone ?? "",
-		).trim();
+		const expectedLocQr = getExpectedLocQr();
 
 		if (!expectedLocQr) {
 			await restartScannerAfterCooldown(
@@ -163,32 +209,7 @@ const App_RelocateQrZonePage = () => {
 			return;
 		}
 
-		scanBusyRef.current = true;
-		setScanError("");
-		setScanStatus("recognized");
-
-		try {
-			await stopScanner?.();
-		} catch (_) {}
-
-		await stopCameraSafely();
-
-		navigate("/App/ready/relocate", {
-			replace: true,
-			state: {
-				type: "RELOCATE_ZONE_SCAN_SUCCESS",
-				scannedAt,
-				scannedValue,
-				batchItemId,
-				relocation,
-				scanState: {
-					...scanState,
-					zoneScanned: true,
-					zoneScannedAt: scannedAt,
-					zoneScannedValue: scannedValue,
-				},
-			},
-		});
+		await completeZoneScan(scannedValue, stopScanner);
 	};
 
 	return (
@@ -226,6 +247,7 @@ const App_RelocateQrZonePage = () => {
 								key={scannerSessionKey}
 								ref={scannerControlRef}
 								onScanSuccess={handleScanSuccess}
+								paused={isScanIssueOpen || scanStatus === "recognized"}
 							/>
 						) : (
 							<div className="relative aspect-square w-full max-w-[340px] overflow-hidden rounded-3xl bg-black shadow-2xl" />
@@ -242,9 +264,19 @@ const App_RelocateQrZonePage = () => {
 								<p className="text-base font-bold text-[#191C1E]">
 									QR 코드를 중앙에 맞춰주세요
 								</p>
-								<p className="text-sm leading-relaxed text-[#505F76]">
-									인식이 완료되면 자동으로 다음 단계로 넘어갑니다.
-								</p>
+
+								<div className="space-y-0.5">
+									<p className="text-sm leading-relaxed text-[#505F76]">
+										인식이 완료되면 자동으로 다음 단계로 넘어갑니다.
+									</p>
+									<button
+										type="button"
+										onClick={() => setIsScanIssueOpen(true)}
+										className="block text-left text-sm font-medium leading-relaxed text-[#505F76] underline underline-offset-2 decoration-[#505F76]/70"
+									>
+										QR 인식에 문제가 있나요?
+									</button>
+								</div>
 
 								{scanError ? (
 									<p className="pt-1 text-sm font-semibold text-red-600">
@@ -267,6 +299,17 @@ const App_RelocateQrZonePage = () => {
 					Previous
 				</button>
 			</nav>
+
+			<App_ScanIssue
+				isOpen={isScanIssueOpen}
+				title="QR 정보 확인"
+				description="아래 위치 정보와 스캔하려는 구역 QR 정보가 맞나요?"
+				details={[
+					{ label: "이동 위치", value: relocation.to?.zone || relocation.toZone || "-" },
+				]}
+				onCancel={() => setIsScanIssueOpen(false)}
+				onConfirm={handleScanIssueConfirm}
+			/>
 		</div>
 	);
 };
