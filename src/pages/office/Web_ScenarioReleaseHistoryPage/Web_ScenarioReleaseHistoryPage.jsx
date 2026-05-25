@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
@@ -293,7 +293,6 @@ export default function Web_ScenarioReleaseHistoryPage() {
 	const navigate = useNavigate();
 
 	const [filters, setFilters] = useState(DEFAULT_FILTERS);
-	const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS);
 	const [projects, setProjects] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
@@ -325,24 +324,6 @@ export default function Web_ScenarioReleaseHistoryPage() {
 		fetchHistory();
 	}, []);
 
-	const filteredProjects = useMemo(() => {
-		const planKeyword = appliedFilters.productionPlanName.trim().toLowerCase();
-
-		if (!planKeyword) return projects;
-
-		return projects
-			.map((project) => {
-				const filteredRows = (project.rows ?? []).filter((row) =>
-					row.productionPlanName.toLowerCase().includes(planKeyword),
-				);
-
-				if (filteredRows.length === 0) return null;
-
-				return { ...project, rows: filteredRows };
-			})
-			.filter(Boolean);
-	}, [projects, appliedFilters.productionPlanName]);
-
 	const handleToggleProject = (projectId) => {
 		setOpenProjectMap((prev) => ({
 			...prev,
@@ -363,6 +344,8 @@ export default function Web_ScenarioReleaseHistoryPage() {
 		const params = {};
 
 		if (filters.projectName) params.projectName = filters.projectName;
+		if (filters.productionPlanName)
+			params.scenarioName = filters.productionPlanName;
 		if (filters.projectDeadlineFrom)
 			params.projDueMin = filters.projectDeadlineFrom;
 		if (filters.projectDeadlineTo)
@@ -372,17 +355,11 @@ export default function Web_ScenarioReleaseHistoryPage() {
 		if (filters.sendDateFrom) params.sendDateMin = filters.sendDateFrom;
 		if (filters.sendDateTo) params.sendDateMax = filters.sendDateTo;
 
-		setAppliedFilters((prev) => ({
-			...prev,
-			productionPlanName: filters.productionPlanName,
-		}));
-
 		fetchHistory(params);
 	};
 
 	const handleReset = () => {
 		setFilters(DEFAULT_FILTERS);
-		setAppliedFilters(DEFAULT_FILTERS);
 		fetchHistory();
 	};
 
@@ -501,8 +478,8 @@ export default function Web_ScenarioReleaseHistoryPage() {
 
 				{!loading && !error && (
 					<div className="space-y-4">
-						{filteredProjects.length > 0 ? (
-							filteredProjects.map((project) => (
+						{projects.length > 0 ? (
+							projects.map((project) => (
 								<ScenarioReleaseProjectAccordion
 									key={project.id}
 									project={project}
