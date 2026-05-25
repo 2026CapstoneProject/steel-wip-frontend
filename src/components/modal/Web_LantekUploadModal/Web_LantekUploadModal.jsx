@@ -7,6 +7,8 @@ export default function Web_LantekUploadModal({
 	scenarioId,
 	projectId,
 	shipmentDate,
+	equipmentName,
+	processPriority,
 	tempSavedFile,
 	onScenarioResolved,
 	onClose,
@@ -24,6 +26,8 @@ export default function Web_LantekUploadModal({
 		const response = await createScenario({
 			project_id: projectId,
 			scenario_due: shipmentDate,
+			lazer_name: equipmentName,
+			process_priority: processPriority,
 		});
 		const scenario = response.data?.data;
 		if (!scenario?.id) {

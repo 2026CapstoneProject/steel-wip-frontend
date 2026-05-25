@@ -33,8 +33,8 @@ export default function Web_LantekInputPage() {
 		productionPlanName: "",
 		projectDueDate: "",
 		shipmentDate: "", // 시나리오 납기일 (scenario_due 역할)
-		equipmentName: "레이저 1호기",
-		processPriority: "low",
+		equipmentName: "LAZER1",
+		processPriority: "LOW",
 	});
 
 	const [lantekRows, setLantekRows] = useState([]);
@@ -68,7 +68,6 @@ export default function Web_LantekInputPage() {
 			setProjectInfo((prev) => ({
 				...prev,
 				...cachedData.projectInfo,
-				equipmentName: "레이저 1호기",
 			}));
 		}
 		if (Array.isArray(cachedData?.lantekRows)) {
@@ -99,8 +98,6 @@ export default function Web_LantekInputPage() {
 	const isScenarioDisabled = lantekRows.length === 0;
 
 	const handleProjectInfoChange = (name, value) => {
-		if (name === "equipmentName") return;
-
 		setProjectInfo((prev) => {
 			const next = { ...prev, [name]: value };
 
@@ -142,12 +139,16 @@ export default function Web_LantekInputPage() {
 			const response = await createScenario({
 				project_id: projectInfo.projectId,
 				scenario_due: projectInfo.shipmentDate,
+				lazer_name: projectInfo.equipmentName,
+				process_priority: projectInfo.processPriority,
 			});
 			const scenario = response.data?.data;
 			setProjectInfo((prev) => ({
 				...prev,
 				scenarioId: scenario.id,
 				productionPlanName: scenario.title,
+				equipmentName: scenario.lazer_name || prev.equipmentName,
+				processPriority: scenario.process_priority || prev.processPriority,
 			}));
 		} catch (err) {
 			console.error("시나리오 생성 실패:", err);
@@ -288,12 +289,17 @@ export default function Web_LantekInputPage() {
 					scenarioId={projectInfo.scenarioId}
 					projectId={projectInfo.projectId}
 					shipmentDate={projectInfo.shipmentDate}
+					equipmentName={projectInfo.equipmentName}
+					processPriority={projectInfo.processPriority}
 					tempSavedFile={tempSavedFile}
 					onScenarioResolved={(scenario) => {
 						setProjectInfo((prev) => ({
 							...prev,
 							scenarioId: scenario.id,
 							productionPlanName: scenario.title,
+							equipmentName: scenario.lazer_name || prev.equipmentName,
+							processPriority:
+								scenario.process_priority || prev.processPriority,
 						}));
 					}}
 					onClose={() => setIsUploadModalOpen(false)}
