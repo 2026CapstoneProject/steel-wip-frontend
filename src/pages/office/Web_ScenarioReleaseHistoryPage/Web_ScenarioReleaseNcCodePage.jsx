@@ -3,11 +3,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayout";
 import Web_ScenarioTaskTable from "../../../components/office/Web_ScenarioTaskTable/Web_ScenarioTaskTable";
-import {
-	getScenarioDetail,
-	getScenarioSendHistory,
-} from "../../../services/scenarioService";
+import { getScenarioDetail } from "../../../services/scenarioService";
 import { updateNcCode } from "../../../services/scenarioService";
+import { buildScenarioDetailSummary } from "../../../utils/Web/scenarioDetailSummary";
 
 function formatScenarioQr(item) {
 	if (item?.qrCode) return item.qrCode;
@@ -17,11 +15,6 @@ function formatScenarioQr(item) {
 function isPickingAction(action) {
 	const raw = String(action ?? "").trim();
 	return raw === "PICKING" || raw === "PICK" || raw === "피킹";
-}
-
-function formatDateValue(value) {
-	if (!value) return "-";
-	return String(value).slice(0, 10);
 }
 
 const NC_CODE_PAGE_CACHE_KEY = "web_release_nccode_page";
@@ -52,18 +45,6 @@ function writeNcCodePageCache(data) {
 			projectInfo: data.projectInfo ?? null,
 		}),
 	);
-}
-
-function findScenarioHistoryMeta(projects = [], scenarioId) {
-	for (const project of projects ?? []) {
-		for (const scenario of project?.scenarios ?? []) {
-			if (Number(scenario?.scenarioId) === Number(scenarioId)) {
-				return scenario;
-			}
-		}
-	}
-
-	return null;
 }
 
 function mapLocationLabel(value) {
@@ -103,8 +84,9 @@ function findMatchingBatchItem(batchItems = [], row) {
 		batchItems.find(
 			(item) =>
 				isPickingAction(item.batchItemAction) &&
-				(row.batchItemId && Number(item.batchItemId) === Number(row.batchItemId)) ||
-				Number(item.steelWipId) === Number(row.steelWipId),
+				((row.batchItemId &&
+					Number(item.batchItemId) === Number(row.batchItemId)) ||
+					Number(item.steelWipId) === Number(row.steelWipId)),
 		) ?? null
 	);
 }
@@ -139,9 +121,7 @@ function getPickingRows(scenarioData) {
 	const craneSchedule = scenarioData?.craneSchedule ?? [];
 	const batchItems = scenarioData?.batchItems ?? [];
 
-	if (
-		craneSchedule.some((item) => String(item.action ?? "").trim() === "PICK")
-	) {
+	if (craneSchedule.some((item) => isPickingAction(item.action))) {
 		return mapCraneScheduleToPickingRows(craneSchedule, batchItems);
 	}
 
@@ -161,7 +141,6 @@ export default function Web_ScenarioReleaseNcCodePage() {
 	const projectInfo = location.state?.projectInfo ?? cachedState?.projectInfo ?? null;
 
 	const [scenarioData, setScenarioData] = useState(null);
-	const [historyMeta, setHistoryMeta] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 
@@ -187,13 +166,9 @@ export default function Web_ScenarioReleaseNcCodePage() {
 		setError(null);
 
 		try {
-			const [detailResponse, historyResponse] = await Promise.all([
-				getScenarioDetail(id),
-				getScenarioSendHistory(),
-			]);
+			const detailResponse = await getScenarioDetail(id);
 			const dataList = detailResponse.data?.data ?? [];
 			setScenarioData(dataList[0] ?? null);
-			setHistoryMeta(findScenarioHistoryMeta(historyResponse.data?.data, id));
 		} catch (err) {
 			console.error("NC Code 목록 조회 실패:", err);
 			setError("NC Code 목록을 불러오는 데 실패했습니다.");
@@ -216,18 +191,17 @@ export default function Web_ScenarioReleaseNcCodePage() {
 	if (!scenarioId && !projectInfo) return null;
 
 	const pickingRows = scenarioData ? getPickingRows(scenarioData) : [];
-	const releaseDate = historyMeta?.orderedAt
-		? formatDateValue(historyMeta.orderedAt)
-		: formatDateValue(projectInfo?.releaseDate);
-	const materialCount = historyMeta?.numInputWip ?? projectInfo?.materialCount ?? "-";
+	const detailSummary = buildScenarioDetailSummary({
+		scenarioData,
+		projectInfo,
+	});
 
 	const summary = {
-		projectName: scenarioData?.projectTitle || projectInfo?.projectName || "-",
-		productionPlanName:
-			scenarioData?.scenarioTitle || projectInfo?.productionPlanName || "-",
-		shipmentDate: scenarioData?.scenarioDue || projectInfo?.shipmentDate || "-",
-		releaseDate,
-		materialCount,
+		projectName: detailSummary.projectName,
+		productionPlanName: detailSummary.productionPlanName,
+		shipmentDate: detailSummary.shipmentDate,
+		releaseDate: detailSummary.releaseDate,
+		materialCount: detailSummary.materialCount,
 	};
 
 	return (
