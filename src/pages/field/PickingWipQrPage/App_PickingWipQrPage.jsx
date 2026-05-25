@@ -3,6 +3,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
 import QrCameraScanner from "../../../components/field/Qr/QrCameraScanner";
 import App_ScanIssue from "../../../components/modal/App_ScanIssue/App_ScanIssue";
+import { getPickingQr } from "../../../services/fieldService";
+import {
+	buildFieldQrSpecText,
+	buildFieldQrWeightText,
+	getFieldQrFlowState,
+	setFieldQrFlowState,
+} from "../../../utils/App/fieldQrFlow";
 
 const fallbackPicking = {
 	id: "picking-wip-01",
@@ -30,6 +37,7 @@ const fallbackPicking = {
 };
 
 const ERROR_COOLDOWN_MS = 300;
+const PICKING_WIP_QR_CACHE_KEY = "picking-wip-qr";
 
 const extractSlotNumber = (value) => {
 	const match = String(value ?? "").match(/(\d+)/);
@@ -173,11 +181,15 @@ const normalizePickingData = (source = {}) => {
 export default function App_PickingWipQrPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const routeState =
+		location.state ?? getFieldQrFlowState(PICKING_WIP_QR_CACHE_KEY) ?? {};
 
 	const scannerControlRef = useRef(null);
 	const cooldownTimerRef = useRef(null);
 	const scanBusyRef = useRef(false);
 
+	const [apiPicking, setApiPicking] = useState(null);
+	const [isLoading, setIsLoading] = useState(false);
 	const [scanStatus, setScanStatus] = useState("idle");
 	const [scanError, setScanError] = useState("");
 	const [scannerVisible, setScannerVisible] = useState(true);
@@ -185,10 +197,15 @@ export default function App_PickingWipQrPage() {
 	const [isScanIssueOpen, setIsScanIssueOpen] = useState(false);
 
 	useEffect(() => {
+		if (routeState?.batchItemId || routeState?.picking || routeState?.item) {
+			setFieldQrFlowState(PICKING_WIP_QR_CACHE_KEY, routeState);
+		}
+
 		if (
-			!location.state?.picking &&
-			!location.state?.item &&
-			!location.state?.task
+			!routeState?.picking &&
+			!routeState?.item &&
+			!routeState?.task &&
+			!routeState?.batchItemId
 		) {
 			navigate("/App/ready", { replace: true });
 		}
@@ -198,20 +215,71 @@ export default function App_PickingWipQrPage() {
 				window.clearTimeout(cooldownTimerRef.current);
 			}
 		};
-	}, [location.state, navigate]);
+	}, [routeState, navigate]);
 
-	const routeState = location.state || {};
+	useEffect(() => {
+		const batchItemId = routeState?.batchItemId;
+		if (!batchItemId) return;
+
+		let cancelled = false;
+		const fetchQrData = async () => {
+			try {
+				setIsLoading(true);
+				const response = await getPickingQr(batchItemId);
+				if (!cancelled) {
+					setApiPicking(response.data?.data?.[0] ?? null);
+				}
+			} catch (error) {
+				if (!cancelled) {
+					console.error("피킹 QR 화면 조회 실패:", error);
+				}
+			} finally {
+				if (!cancelled) {
+					setIsLoading(false);
+				}
+			}
+		};
+
+		fetchQrData();
+		return () => {
+			cancelled = true;
+		};
+	}, [routeState?.batchItemId]);
+
 	const returnPath = routeState.returnPath || "/App/ready/picking/wip";
 
 	const picking = useMemo(() => {
-		const source =
-			routeState.picking ||
-			routeState.item ||
-			routeState.task ||
-			fallbackPicking;
+		const base =
+			routeState.picking || routeState.item || routeState.task || fallbackPicking;
+		const source = apiPicking
+			? {
+					...base,
+					manufacturer: apiPicking.manufacturer || base.manufacturer,
+					material: apiPicking.material || base.material,
+					specText:
+						buildFieldQrSpecText({
+							thickness: apiPicking.thickness,
+							width: apiPicking.width,
+							height: apiPicking.height,
+						}) || base.specText,
+					weightText:
+						buildFieldQrWeightText(apiPicking.weight) || base.weightText,
+					currentZone:
+						apiPicking.fromLocationName || base.currentZone || base.from?.zone,
+					from: {
+						...(base.from ?? {}),
+						zone:
+							apiPicking.fromLocationName || base.from?.zone || "Zone C-3",
+					},
+					to: {
+						...(base.to ?? {}),
+						zone: base.to?.zone || apiPicking.toLocationName || "Position 1",
+					},
+			  }
+			: base;
 
 		return normalizePickingData(source);
-	}, [routeState]);
+	}, [apiPicking, routeState]);
 
 	const forceStopAllVideos = () => {
 		document.querySelectorAll("video").forEach((video) => {
@@ -345,10 +413,7 @@ export default function App_PickingWipQrPage() {
 		const expectedWipQr = String(picking.wipQr ?? "").trim();
 
 		if (!expectedWipQr) {
-			await restartScannerAfterCooldown(
-				"비교할 재공품 QR 값이 없습니다.",
-				stopScanner,
-			);
+			await completePickingWipScan(scannedValue, stopScanner, scannedDate);
 			return;
 		}
 
@@ -445,6 +510,11 @@ export default function App_PickingWipQrPage() {
 								{scanError ? (
 									<p className="pt-1 text-sm font-semibold text-red-600">
 										{scanError}
+									</p>
+								) : null}
+								{isLoading ? (
+									<p className="pt-1 text-sm font-medium text-[#505F76]">
+										작업 정보를 다시 불러오는 중...
 									</p>
 								) : null}
 							</div>

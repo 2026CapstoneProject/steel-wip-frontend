@@ -3,6 +3,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
 import QrCameraScanner from "../../../components/field/Qr/QrCameraScanner";
 import App_ScanIssue from "../../../components/modal/App_ScanIssue/App_ScanIssue";
+import {
+	getFieldQrFlowState,
+	setFieldQrFlowState,
+} from "../../../utils/App/fieldQrFlow";
 
 const fallbackRelocation = {
 	id: "relocate-01",
@@ -19,6 +23,7 @@ const fallbackRelocation = {
 };
 
 const ERROR_COOLDOWN_MS = 100;
+const RELOCATE_ZONE_QR_CACHE_KEY = "relocate-zone-qr";
 
 const formatNowTime = () => {
 	const now = new Date();
@@ -29,7 +34,9 @@ const formatNowTime = () => {
 
 const App_RelocateQrZonePage = () => {
 	const navigate = useNavigate();
-	const { state } = useLocation();
+	const location = useLocation();
+	const routeState =
+		location.state ?? getFieldQrFlowState(RELOCATE_ZONE_QR_CACHE_KEY) ?? {};
 
 	const scannerControlRef = useRef(null);
 	const cooldownTimerRef = useRef(null);
@@ -42,7 +49,11 @@ const App_RelocateQrZonePage = () => {
 	const [isScanIssueOpen, setIsScanIssueOpen] = useState(false);
 
 	useEffect(() => {
-		if (!state?.relocation) {
+		if (routeState?.batchItemId || routeState?.relocation) {
+			setFieldQrFlowState(RELOCATE_ZONE_QR_CACHE_KEY, routeState);
+		}
+
+		if (!routeState?.relocation) {
 			navigate("/App/ready", { replace: true });
 		}
 
@@ -51,12 +62,12 @@ const App_RelocateQrZonePage = () => {
 				window.clearTimeout(cooldownTimerRef.current);
 			}
 		};
-	}, [state, navigate]);
+	}, [routeState, navigate]);
 
-	const relocation = state?.relocation ?? fallbackRelocation;
-	const batchItemId = state?.batchItemId ?? null;
+	const relocation = routeState?.relocation ?? fallbackRelocation;
+	const batchItemId = routeState?.batchItemId ?? null;
 
-	const scanState = state?.scanState ?? {
+	const scanState = routeState?.scanState ?? {
 		wipScanned: false,
 		wipScannedAt: "",
 		zoneScanned: false,

@@ -3,6 +3,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
 import QrCameraScanner from "../../../components/field/Qr/QrCameraScanner";
 import App_ScanIssue from "../../../components/modal/App_ScanIssue/App_ScanIssue";
+import { getRelocQr } from "../../../services/fieldService";
+import {
+	buildFieldQrSpecText,
+	buildFieldQrWeightText,
+	getFieldQrFlowState,
+	setFieldQrFlowState,
+} from "../../../utils/App/fieldQrFlow";
 
 const fallbackRelocation = {
 	id: "relocate-01",
@@ -19,6 +26,7 @@ const fallbackRelocation = {
 };
 
 const ERROR_COOLDOWN_MS = 100;
+const RELOCATE_WIP_QR_CACHE_KEY = "relocate-wip-qr";
 
 const formatNowTime = () => {
 	const now = new Date();
@@ -29,12 +37,16 @@ const formatNowTime = () => {
 
 const App_RelocateQrWipPage = () => {
 	const navigate = useNavigate();
-	const { state } = useLocation();
+	const location = useLocation();
+	const routeState =
+		location.state ?? getFieldQrFlowState(RELOCATE_WIP_QR_CACHE_KEY) ?? {};
 
 	const scannerControlRef = useRef(null);
 	const cooldownTimerRef = useRef(null);
 	const scanBusyRef = useRef(false);
 
+	const [apiRelocation, setApiRelocation] = useState(null);
+	const [isLoading, setIsLoading] = useState(false);
 	const [scanStatus, setScanStatus] = useState("idle");
 	const [scanError, setScanError] = useState("");
 	const [scannerVisible, setScannerVisible] = useState(true);
@@ -42,7 +54,11 @@ const App_RelocateQrWipPage = () => {
 	const [isScanIssueOpen, setIsScanIssueOpen] = useState(false);
 
 	useEffect(() => {
-		if (!state?.relocation) {
+		if (routeState?.batchItemId || routeState?.relocation) {
+			setFieldQrFlowState(RELOCATE_WIP_QR_CACHE_KEY, routeState);
+		}
+
+		if (!routeState?.batchItemId && !routeState?.relocation) {
 			navigate("/App/ready", { replace: true });
 		}
 
@@ -51,12 +67,67 @@ const App_RelocateQrWipPage = () => {
 				window.clearTimeout(cooldownTimerRef.current);
 			}
 		};
-	}, [state, navigate]);
+	}, [routeState, navigate]);
 
-	const relocation = state?.relocation ?? fallbackRelocation;
-	const batchItemId = state?.batchItemId ?? null;
+	useEffect(() => {
+		const batchItemId = routeState?.batchItemId;
+		if (!batchItemId) return;
 
-	const scanState = state?.scanState ?? {
+		let cancelled = false;
+		const fetchQrData = async () => {
+			try {
+				setIsLoading(true);
+				const response = await getRelocQr(batchItemId);
+				if (!cancelled) {
+					setApiRelocation(response.data?.data?.[0] ?? null);
+				}
+			} catch (error) {
+				if (!cancelled) {
+					console.error("재배치 QR 화면 조회 실패:", error);
+				}
+			} finally {
+				if (!cancelled) {
+					setIsLoading(false);
+				}
+			}
+		};
+
+		fetchQrData();
+		return () => {
+			cancelled = true;
+		};
+	}, [routeState?.batchItemId]);
+
+	const relocation = useMemo(() => {
+		const base = routeState?.relocation ?? fallbackRelocation;
+		if (!apiRelocation) return base;
+
+		return {
+			...base,
+			manufacturer: apiRelocation.manufacturer || base.manufacturer,
+			material: apiRelocation.material || base.material,
+			specText:
+				buildFieldQrSpecText({
+					thickness: apiRelocation.thickness,
+					width: apiRelocation.width,
+					height: apiRelocation.height,
+				}) || base.specText,
+			weightText:
+				buildFieldQrWeightText(apiRelocation.weight) || base.weightText,
+			from: {
+				...(base.from ?? {}),
+				zone: apiRelocation.fromLocationName || base.from?.zone || "Zone A-1",
+			},
+			to: {
+				...(base.to ?? {}),
+				zone: apiRelocation.toLocationName || base.to?.zone || "Zone B-1",
+			},
+		};
+	}, [apiRelocation, routeState]);
+
+	const batchItemId = routeState?.batchItemId ?? null;
+
+	const scanState = routeState?.scanState ?? {
 		wipScanned: false,
 		wipScannedAt: "",
 		zoneScanned: false,
@@ -205,10 +276,7 @@ const App_RelocateQrWipPage = () => {
 		const expectedWipQr = getExpectedWipQr();
 
 		if (!expectedWipQr) {
-			await restartScannerAfterCooldown(
-				"비교할 재공품 QR 값이 없습니다.",
-				stopScanner,
-			);
+			await completeWipScan(scannedValue, stopScanner);
 			return;
 		}
 
@@ -292,6 +360,11 @@ const App_RelocateQrWipPage = () => {
 								{scanError ? (
 									<p className="pt-1 text-sm font-semibold text-red-600">
 										{scanError}
+									</p>
+								) : null}
+								{isLoading ? (
+									<p className="pt-1 text-sm font-medium text-[#505F76]">
+										작업 정보를 다시 불러오는 중...
 									</p>
 								) : null}
 							</div>
