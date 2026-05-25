@@ -9,6 +9,7 @@ import Web_SolverTimelineSection from "../../../components/office/Web_SolverTime
 
 import { getScenarioDetail } from "../../../services/scenarioService";
 import { mapBatchItemsToTimeline } from "../../../utils/Web/scenarioTimeline";
+import { buildScenarioDetailSummary } from "../../../utils/Web/scenarioDetailSummary";
 
 // ─── DB status → 표시용 label 변환 (detail 페이지용) ───────────
 function resolveStatusLabel(dbStatus) {
@@ -73,17 +74,10 @@ export default function Web_ScenarioDetailHistoryPage() {
 
 	if (!scenarioId && !projectInfo) return null;
 
-	const scenarioSummary = {
-		scenarioId: scenarioData
-			? `#${String(scenarioData.scenarioId).padStart(5, "0")}`
-			: projectInfo?.scenarioId || "-",
-		projectName: scenarioData?.projectTitle || projectInfo?.projectName || "-",
-		productionPlanName:
-			scenarioData?.scenarioTitle || projectInfo?.productionPlanName || "-",
-		shipmentDate: scenarioData?.scenarioDue || projectInfo?.shipmentDate || "-",
-		equipmentName: scenarioData?.lazerName || projectInfo?.equipmentName || "-",
-		status: scenarioData?.status || projectInfo?.dbStatus || "",
-	};
+	const scenarioSummary = buildScenarioDetailSummary({
+		scenarioData,
+		projectInfo,
+	});
 
 	const metrics = scenarioData
 		? [
