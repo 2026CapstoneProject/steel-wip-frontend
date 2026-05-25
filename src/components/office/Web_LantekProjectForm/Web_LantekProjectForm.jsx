@@ -6,6 +6,12 @@ export default function Web_LantekProjectForm({
   onOpenHistory,
   onFetchProductionPlanName,
 }) {
+  const equipmentLabelMap = {
+    LAZER1: "레이저 1호기",
+    LAZER2: "레이저 2호기",
+    LAZER3: "레이저 3호기",
+  };
+
   return (
     <section className="relative bg-surface-container-lowest p-8 pb-16 rounded-xl shadow-sm border border-outline-variant/10">
       <div className="grid grid-cols-12 gap-x-8 gap-y-6">
@@ -91,17 +97,22 @@ export default function Web_LantekProjectForm({
         </div>
 
         <div className="col-span-12 md:col-span-6 flex flex-col gap-2">
-  <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
-    설비 명
-  </label>
+          <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
+            설비 명
+          </label>
 
-  <div
-    className="w-full cursor-default select-none bg-surface-container-high border-none rounded-lg px-4 py-3 text-sm text-on-surface"
-    aria-readonly="true"
-  >
-    레이저 1호기
-  </div>
-</div>
+          <select
+            className="w-full bg-surface-container-high border-none rounded-lg px-4 py-3 text-sm"
+            value={projectInfo.equipmentName}
+            onChange={(e) => onChange("equipmentName", e.target.value)}
+          >
+            {Object.entries(equipmentLabelMap).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <div className="col-span-12 md:col-span-6 flex flex-col gap-2">
           <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
@@ -112,8 +123,9 @@ export default function Web_LantekProjectForm({
             value={projectInfo.processPriority}
             onChange={(e) => onChange("processPriority", e.target.value)}
           >
-            <option value="general">일반</option>
-            <option value="urgent">긴급</option>
+            <option value="LOW">일반</option>
+            <option value="MIDDLE">중요</option>
+            <option value="HIGH">긴급</option>
           </select>
         </div>
       </div>
