@@ -3,6 +3,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
 import QrCameraScanner from "../../../components/field/Qr/QrCameraScanner";
 import App_ScanIssue from "../../../components/modal/App_ScanIssue/App_ScanIssue";
+import {
+	getFieldQrFlowState,
+	setFieldQrFlowState,
+} from "../../../utils/App/fieldQrFlow";
+
+const PROCESSING_ZONE_QR_CACHE_KEY = "processing-zone-qr";
 
 const getTargetZone = (generatedWip = {}) =>
 	generatedWip.zone ?? generatedWip.toZone ?? generatedWip.toLocation ?? "-";
@@ -24,15 +30,21 @@ const getTargetZoneQr = (generatedWip = {}) => {
 const App_ProcessingQrWipZonePage = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const routeState =
+		location.state ?? getFieldQrFlowState(PROCESSING_ZONE_QR_CACHE_KEY) ?? {};
 
 	const [scanError, setScanError] = useState("");
 	const [isScanIssueOpen, setIsScanIssueOpen] = useState(false);
 
 	React.useEffect(() => {
-		if (!location.state?.generatedWip) {
+		if (routeState?.generatedWip) {
+			setFieldQrFlowState(PROCESSING_ZONE_QR_CACHE_KEY, routeState);
+		}
+
+		if (!routeState?.generatedWip) {
 			navigate("/App/processing", { replace: true });
 		}
-	}, [location.state, navigate]);
+	}, [routeState, navigate]);
 
 	const {
 		generatedWip = {},
@@ -42,7 +54,7 @@ const App_ProcessingQrWipZonePage = () => {
 		scannedWipQr = "",
 		wipScannedAt = "",
 		returnTo = "/App/processing/qr/wip",
-	} = location.state ?? {};
+	} = routeState ?? {};
 
 	const targetZone = useMemo(() => getTargetZone(generatedWip), [generatedWip]);
 
