@@ -52,18 +52,8 @@ function extractColorFromClass(colorClass) {
 
 function mapLocationLabel(value) {
 	const raw = String(value ?? "").trim();
-
 	if (!raw) return "-";
-	if (raw === "설비") return raw;
-
-	const zoneMap = {
-		1: "A-1",
-		2: "A-2",
-		3: "A-3",
-		4: "A-4",
-	};
-
-	return zoneMap[raw] ?? raw;
+	return raw;
 }
 
 function formatScenarioQr(itemDetail, steelWipId) {
@@ -79,40 +69,30 @@ function normalizeAction(action) {
 function createBatchItemLookup(batchItems = []) {
 	const lookup = new Map();
 
-	batchItems.forEach((item, index) => {
+	batchItems.forEach((item) => {
 		const action = String(item.batchItemAction ?? "").trim();
-		const key = `${action}:${item.steelWipId}:${index}`;
-		lookup.set(key, item);
+		if (item.batchItemId != null) {
+			lookup.set(`id:${item.batchItemId}`, item);
+		}
+		lookup.set(`${action}:${item.steelWipId}`, item);
 	});
 
-	return Array.from(lookup.values());
+	return lookup;
 }
 
 // ✅ 수정: 백엔드 enum 값으로 직접 매칭
-function findMatchingBatchItem(batchItems, action, steelWipId) {
-	const normalizedAction = normalizeAction(action);
-	return (
-		batchItems.find(
-			(item) =>
-				normalizeAction(item.batchItemAction) === normalizedAction &&
-				Number(item.steelWipId) === Number(steelWipId),
-		) ?? null
-	);
-}
+function findMatchingBatchItem(batchItemLookup, row, action, steelWipId) {
+	if (row?.batchItemId != null) {
+		return batchItemLookup.get(`id:${row.batchItemId}`) ?? null;
+	}
 
-function createMockNcCode(row, itemDetail) {
-	return (
-		row.ncCode ||
-		itemDetail?.ncCode ||
-		`NC-${String(row.steelWipId ?? "000").padStart(3, "0")}-${String(
-			row.order ?? 1,
-		).padStart(2, "0")}`
-	);
+	const normalizedAction = normalizeAction(action);
+	return batchItemLookup.get(`${normalizedAction}:${steelWipId}`) ?? null;
 }
 
 // ✅ 수정: 백엔드 enum 값 사용, 모든 액션 타입 지원
 function buildSequentialGroups(craneSchedule = [], batchItems = []) {
-	const details = createBatchItemLookup(batchItems);
+	const batchItemLookup = createBatchItemLookup(batchItems);
 	const groups = [];
 
 	craneSchedule.forEach((row) => {
@@ -122,10 +102,15 @@ function buildSequentialGroups(craneSchedule = [], batchItems = []) {
 
 		if (!colorMap) return; // 알 수 없는 액션은 스킵
 
-		const itemDetail = findMatchingBatchItem(details, action, row.steelWipId);
+		const itemDetail = findMatchingBatchItem(
+			batchItemLookup,
+			row,
+			action,
+			row.steelWipId,
+		);
 
 		const nextRow = {
-			batchItemId: itemDetail?.batchItemId,
+			batchItemId: row.batchItemId ?? itemDetail?.batchItemId,
 			qrNumber: row?.qrCode
 				? formatScenarioQr(row, row.steelWipId)
 				: formatScenarioQr(itemDetail, row.steelWipId),
@@ -137,10 +122,15 @@ function buildSequentialGroups(craneSchedule = [], batchItems = []) {
 
 			// ✅ 피킹 유형만 ncCode 표시
 			...(action === "PICKING" && {
-				ncCode: createMockNcCode(row, itemDetail),
+				ncCode: row?.ncCode ?? itemDetail?.ncCode ?? "-",
 			}),
 
-			estimatedTime: Number(row.eventMinute ?? 0).toFixed(2),
+			estimatedTime: Number(
+				row.expectedDurationMinutes ??
+					itemDetail?.expectedRunningTime ??
+					row.eventMinute ??
+					0,
+			).toFixed(2),
 			status: row.moveType ?? "-",
 			statusClass: "bg-surface-container-highest text-on-surface-variant",
 		};
