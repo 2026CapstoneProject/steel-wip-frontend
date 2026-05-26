@@ -74,6 +74,13 @@ function mapStatusClass(status) {
 	}
 }
 
+function shouldCountAsRemainingLiveTask(item) {
+	const status = String(item?.status ?? "").toUpperCase();
+	const action = String(item?.batchItemAction ?? "").toUpperCase();
+
+	return status !== "COMPLETED" && action !== "INBOUND";
+}
+
 function summarizeEquipment(items, equipmentId) {
 	if (!items.length) {
 		return {
@@ -89,6 +96,7 @@ function summarizeEquipment(items, equipmentId) {
 	const actionSet = [
 		...new Set(items.map((item) => mapActionLabel(item.batchItemAction))),
 	];
+	const remainingTasks = items.filter(shouldCountAsRemainingLiveTask).length;
 
 	return {
 		equipmentId,
@@ -98,7 +106,7 @@ function summarizeEquipment(items, equipmentId) {
 			Number.isFinite(first.batchOrder) || first.batchOrder
 				? `Batch ${String(first.batchOrder).padStart(2, "0")}`
 				: "-",
-		remainingTasks: items.length,
+		remainingTasks,
 		actionSummary: actionSet.join(", "),
 	};
 }
