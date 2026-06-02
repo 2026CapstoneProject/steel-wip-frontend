@@ -37,14 +37,13 @@ const parseDurationMinutes = (value) => {
 const formatMinuteText = (value) => `${Number(value ?? 0)}분`;
 
 const formatExpectedTimeText = (startTime, runningTime) => {
-	const start = Number(startTime ?? 0);
 	const running = Number(runningTime ?? 0);
 
 	if (running > 0) {
-		return `예상 시작 ${formatMinuteText(start)} · 소요 ${formatMinuteText(running)}`;
+		return `예상 소요 시간 ${formatMinuteText(running)}`;
 	}
 
-	return `예상 시작 ${formatMinuteText(start)}`;
+	return "";
 };
 
 const formatSpecText = (value) => {
