@@ -127,12 +127,6 @@ const App_ProcessingQrPage = () => {
 	const handleScanIssueConfirm = () => {
 		const expectedWipQr = String(selectedIssueItem?.wipQr ?? "").trim();
 
-		if (!expectedWipQr) {
-			setIsScanIssueOpen(false);
-			setScanError("선택한 재공품 QR 값이 없습니다.");
-			return;
-		}
-
 		setIsScanIssueOpen(false);
 		setScanStatus("recognized");
 

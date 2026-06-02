@@ -305,11 +305,6 @@ const App_ProcessingQrWipPage = () => {
 			return;
 		}
 
-		if (!scannedWipQr) {
-			alert("재공품 QR 스캔값이 없습니다.");
-			return;
-		}
-
 		if (!scannedLocQr) {
 			alert("적재공간 QR 스캔값이 없습니다.");
 			return;
@@ -318,8 +313,7 @@ const App_ProcessingQrWipPage = () => {
 		try {
 			setIsSaving(true);
 
-			const response = await saveBatchItem(batchItemId, {
-				wipQR: scannedWipQr,
+			const payload = {
 				locQR: scannedLocQr,
 				thickness: confirmedSpecParts.thickness
 					? parseFloat(confirmedSpecParts.thickness)
@@ -330,7 +324,12 @@ const App_ProcessingQrWipPage = () => {
 				length: confirmedSpecParts.length
 					? parseFloat(confirmedSpecParts.length)
 					: undefined,
-			});
+			};
+			if (scannedWipQr) {
+				payload.wipQR = scannedWipQr;
+			}
+
+			const response = await saveBatchItem(batchItemId, payload);
 
 			const saveResult = response.data?.data ?? {};
 			const shouldMoveToReady = Boolean(saveResult.shouldMoveToReady);

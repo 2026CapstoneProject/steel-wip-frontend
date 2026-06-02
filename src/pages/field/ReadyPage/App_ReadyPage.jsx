@@ -619,6 +619,12 @@ const App_ReadyPage = () => {
 	}, [selectedScenarioId]);
 
 	useEffect(() => {
+		if (location.state?.savedGeneratedWipId || location.state?.justCompletedBatch) {
+			fetchReadyData();
+		}
+	}, [location.state]);
+
+	useEffect(() => {
 		if (!isOrderPopupOpen) return;
 
 		const timer = window.setTimeout(() => {
