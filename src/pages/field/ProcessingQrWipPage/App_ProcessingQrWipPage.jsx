@@ -1,9 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
-import { saveBatchItem } from "../../../services/fieldService";
+import { getInboundQr, saveBatchItem } from "../../../services/fieldService";
+import {
+	buildFieldQrSpecText,
+	buildFieldQrWeightText,
+	getFieldQrFlowState,
+	setFieldQrFlowState,
+} from "../../../utils/App/fieldQrFlow";
 
 const POPUP_DELAY_MS = 1200;
+const PROCESSING_WIP_QR_CACHE_KEY = "processing-wip-qr";
 
 const formatScanTime = (value) => {
 	if (!value) return "";
@@ -47,12 +54,49 @@ const onlyNumber = (value) => String(value ?? "").replace(/\D/g, "");
 const App_ProcessingQrWipPage = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const routeState =
+		location.state ?? getFieldQrFlowState(PROCESSING_WIP_QR_CACHE_KEY) ?? {};
+	const [apiGeneratedWip, setApiGeneratedWip] = useState(null);
+	const [isLoading, setIsLoading] = useState(false);
 
 	useEffect(() => {
-		if (!location.state?.generatedWip) {
+		if (routeState?.generatedWip) {
+			setFieldQrFlowState(PROCESSING_WIP_QR_CACHE_KEY, routeState);
+		}
+
+		if (!routeState?.generatedWip) {
 			navigate("/App/processing", { replace: true });
 		}
-	}, [location.state, navigate]);
+	}, [routeState, navigate]);
+
+	useEffect(() => {
+		const batchItemId = routeState?.generatedWip?.batchItemId;
+		if (!batchItemId) return;
+
+		let cancelled = false;
+		const fetchQrData = async () => {
+			try {
+				setIsLoading(true);
+				const response = await getInboundQr(batchItemId);
+				if (!cancelled) {
+					setApiGeneratedWip(response.data?.data?.[0] ?? null);
+				}
+			} catch (error) {
+				if (!cancelled) {
+					console.error("적재 QR 화면 조회 실패:", error);
+				}
+			} finally {
+				if (!cancelled) {
+					setIsLoading(false);
+				}
+			}
+		};
+
+		fetchQrData();
+		return () => {
+			cancelled = true;
+		};
+	}, [routeState?.generatedWip?.batchItemId]);
 
 	const {
 		generatedWip = {},
@@ -64,7 +108,7 @@ const App_ProcessingQrWipPage = () => {
 		scannedWipQr = "",
 		scannedLocQr = "",
 		wipScannedAt = "",
-	} = location.state ?? {};
+	} = routeState ?? {};
 
 	const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
 	const [nextPathAfterSave, setNextPathAfterSave] = useState("/App/processing");
@@ -72,8 +116,13 @@ const App_ProcessingQrWipPage = () => {
 	const [isSaving, setIsSaving] = useState(false);
 
 	const initialSpecText = useMemo(
-		() => getGeneratedWipSpecText(generatedWip),
-		[generatedWip],
+		() =>
+			buildFieldQrSpecText({
+				thickness: apiGeneratedWip?.thickness,
+				width: apiGeneratedWip?.width,
+				height: apiGeneratedWip?.height,
+			}) || getGeneratedWipSpecText(generatedWip),
+		[apiGeneratedWip, generatedWip],
 	);
 
 	const initialSpecParts = useMemo(
@@ -97,11 +146,38 @@ const App_ProcessingQrWipPage = () => {
 	const currentGeneratedWip = useMemo(
 		() => ({
 			...generatedWip,
+			...(apiGeneratedWip
+				? {
+						manufacturer: apiGeneratedWip.manufacturer || generatedWip.manufacturer,
+						material:
+							apiGeneratedWip.material ||
+							generatedWip.inputMaterialName ||
+							generatedWip.materialName ||
+							generatedWip.material,
+						weightText:
+							buildFieldQrWeightText(apiGeneratedWip.weight) ||
+							generatedWip.weightText ||
+							generatedWip.weight,
+						zone:
+							apiGeneratedWip.toLocationName ||
+							generatedWip.zone ||
+							generatedWip.toZone,
+						toZone:
+							apiGeneratedWip.toLocationName ||
+							generatedWip.toZone ||
+							generatedWip.zone,
+						locQr:
+							generatedWip.locQr ||
+							generatedWip.locQR ||
+							apiGeneratedWip.toLocationName ||
+							"",
+				  }
+				: {}),
 			specText: normalizedSpecText,
 			spec: normalizedSpecText,
 			sizeText: normalizedSpecText,
 		}),
-		[generatedWip, normalizedSpecText],
+		[apiGeneratedWip, generatedWip, normalizedSpecText],
 	);
 
 	const currentGeneratedItems = useMemo(
@@ -129,21 +205,24 @@ const App_ProcessingQrWipPage = () => {
 	const detailData = useMemo(
 		() => ({
 			title: generatedWip.title ?? "발생한 재공품",
-			manufacturer: generatedWip.manufacturer ?? "-",
+			manufacturer:
+				currentGeneratedWip.manufacturer ?? generatedWip.manufacturer ?? "-",
 			material:
+				currentGeneratedWip.material ??
 				generatedWip.inputMaterialName ??
 				generatedWip.materialName ??
 				generatedWip.material ??
 				"SM355A",
 			specText: normalizedSpecText,
 			weightText:
+				currentGeneratedWip.weightText ??
 				generatedWip.weightText ??
 				generatedWip.weight ??
 				generatedWip.weightLabel ??
 				"-",
-			zone: generatedWip.zone ?? generatedWip.toZone ?? "-",
+			zone: currentGeneratedWip.zone ?? generatedWip.zone ?? generatedWip.toZone ?? "-",
 		}),
-		[generatedWip, normalizedSpecText],
+		[currentGeneratedWip, generatedWip, normalizedSpecText],
 	);
 
 	const displayedZoneScanTime = useMemo(
@@ -226,11 +305,6 @@ const App_ProcessingQrWipPage = () => {
 			return;
 		}
 
-		if (!scannedWipQr) {
-			alert("재공품 QR 스캔값이 없습니다.");
-			return;
-		}
-
 		if (!scannedLocQr) {
 			alert("적재공간 QR 스캔값이 없습니다.");
 			return;
@@ -239,8 +313,7 @@ const App_ProcessingQrWipPage = () => {
 		try {
 			setIsSaving(true);
 
-			const response = await saveBatchItem(batchItemId, {
-				wipQR: scannedWipQr,
+			const payload = {
 				locQR: scannedLocQr,
 				thickness: confirmedSpecParts.thickness
 					? parseFloat(confirmedSpecParts.thickness)
@@ -251,7 +324,12 @@ const App_ProcessingQrWipPage = () => {
 				length: confirmedSpecParts.length
 					? parseFloat(confirmedSpecParts.length)
 					: undefined,
-			});
+			};
+			if (scannedWipQr) {
+				payload.wipQR = scannedWipQr;
+			}
+
+			const response = await saveBatchItem(batchItemId, payload);
 
 			const saveResult = response.data?.data ?? {};
 			const shouldMoveToReady = Boolean(saveResult.shouldMoveToReady);
@@ -448,6 +526,11 @@ const App_ProcessingQrWipPage = () => {
 										<p className="font-semibold text-slate-900">
 											{displayedWipScanTime || "-"}
 										</p>
+										{isLoading ? (
+											<p className="mt-1 text-xs font-medium text-slate-500">
+												작업 정보를 다시 불러오는 중...
+											</p>
+										) : null}
 									</div>
 								</div>
 							</div>

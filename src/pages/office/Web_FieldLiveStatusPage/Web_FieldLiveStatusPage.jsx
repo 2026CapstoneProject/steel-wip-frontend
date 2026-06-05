@@ -74,6 +74,13 @@ function mapStatusClass(status) {
 	}
 }
 
+function shouldCountAsRemainingLiveTask(item) {
+	const status = String(item?.status ?? "").toUpperCase();
+	const action = String(item?.batchItemAction ?? "").toUpperCase();
+
+	return status !== "COMPLETED" && action !== "INBOUND";
+}
+
 function summarizeEquipment(items, equipmentId) {
 	if (!items.length) {
 		return {
@@ -89,6 +96,7 @@ function summarizeEquipment(items, equipmentId) {
 	const actionSet = [
 		...new Set(items.map((item) => mapActionLabel(item.batchItemAction))),
 	];
+	const remainingTasks = items.filter(shouldCountAsRemainingLiveTask).length;
 
 	return {
 		equipmentId,
@@ -98,19 +106,25 @@ function summarizeEquipment(items, equipmentId) {
 			Number.isFinite(first.batchOrder) || first.batchOrder
 				? `Batch ${String(first.batchOrder).padStart(2, "0")}`
 				: "-",
-		remainingTasks: items.length,
+		remainingTasks,
 		actionSummary: actionSet.join(", "),
 	};
 }
 
+function isDirectStartLiveItem(item) {
+	return (
+		String(item?.batchItemAction ?? "").toUpperCase() === "RELOCATE" &&
+		!item?.fromLocationName &&
+		String(item?.toLocationName ?? "").startsWith("S4-")
+	);
+}
+
 // FieldBatchItem → timeline 아이템 형태로 변환
 function mapBatchItemToTimeline(item, equipmentId) {
-	// ✅ 원자재 판별: fromLocation이 없으면 원자재 (PICKING → DIRECT_START)
-	const isRaw = !item.fromLocationName || item.fromLocationName === "";
-	const normalizedAction = item.batchItemAction === "RELOCATE" ? "PICKING" : item.batchItemAction;
-
-	// ✅ 원자재 피킹(from 없음)은 DIRECT_START(원자재 투입)으로 표시
-	const displayAction = isRaw && normalizedAction === "PICKING" ? "DIRECT_START" : normalizedAction;
+	const rawAction = String(item?.batchItemAction ?? "").toUpperCase();
+	const displayAction = isDirectStartLiveItem(item) ? "DIRECT_START" : rawAction;
+	const showsNcCode =
+		displayAction === "PICKING" || displayAction === "DIRECT_START";
 
 	// ✅ INBOUND의 경우 placeholder row 생성
 	let rows = (item.wip ?? []).map((w) => ({
@@ -123,8 +137,8 @@ function mapBatchItemToTimeline(item, equipmentId) {
 		from: item.fromLocationName || "-",
 		to: item.toLocationName || "-",
 
-		// PICKING인 경우만 ncCode 컬럼 표시, null이면 "-"
-		...(normalizedAction === "PICKING" && {
+		// 피킹/원자재 투입인 경우만 ncCode 컬럼 표시, null이면 "-"
+		...(showsNcCode && {
 			ncCode: w.ncCode ?? null, // ← 더미 생성 없이 실제 값만
 		}),
 
@@ -134,7 +148,7 @@ function mapBatchItemToTimeline(item, equipmentId) {
 	}));
 
 	// INBOUND인데 wip이 없으면 placeholder 행 생성
-	if (normalizedAction === "INBOUND" && rows.length === 0) {
+	if (rawAction === "INBOUND" && rows.length === 0) {
 		rows = [{
 			batchItemId: item.batchItemId,
 			scenarioId: item.scenarioId,

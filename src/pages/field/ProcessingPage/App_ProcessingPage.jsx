@@ -307,7 +307,9 @@ const App_ProcessingPage = () => {
 		[currentProcessingBatch],
 	);
 	const totalEstimatedTimeText = formatDurationText(
-		currentProcessingBatch?.estimatedCuttingTime ?? 0,
+		currentProcessingBatch?.estimatedCuttingTime ??
+			mappedData.expectedTotalMinutes ??
+			0,
 	);
 
 	const remainingGeneratedCount = useMemo(
@@ -329,33 +331,31 @@ const App_ProcessingPage = () => {
 
 	const generatedItemsForQr = useMemo(
 		() =>
-			mappedData.batches.flatMap((batch) =>
-				(batch.generatedItems ?? []).map((item) => ({
+			(currentProcessingBatch?.generatedItems ?? []).map((item) => ({
 					...item,
-					inputMaterialName: batch.materialName,
-					manufacturer: item.manufacturer ?? batch.manufacturer ?? "-",
-					expectedDurationText: batch.duration,
-					estimatedCuttingTime: batch.estimatedCuttingTime,
+					inputMaterialName: currentProcessingBatch?.materialName,
+					manufacturer: item.manufacturer ?? currentProcessingBatch?.manufacturer ?? "-",
+					expectedDurationText: currentProcessingBatch?.duration,
+					estimatedCuttingTime: currentProcessingBatch?.estimatedCuttingTime,
 				})),
-			),
-		[mappedData.batches],
+		[currentProcessingBatch],
 	);
 
-	// ✅ QR 적재 대상: "적재 대기" 상태인 항목만 (절단 완료 후 스캔 가능)
-	// "생성 대기" 항목은 절단 진행 중이므로 QR 흐름에서 제외
-	const pendingGeneratedItems = useMemo(
-		() => generatedItemsForQr.filter((item) => item.status === "pending"),
+	// 생산중 페이지에서는 시간 경과와 무관하게 QR 흐름에 진입할 수 있도록
+	// complete가 아닌 생성 재공품 전체를 스캔 대상으로 노출한다.
+	const qrGeneratedItems = useMemo(
+		() => generatedItemsForQr.filter((item) => item.status !== "complete"),
 		[generatedItemsForQr],
 	);
 
-	const isQrEnabled = pendingGeneratedItems.length > 0;
+	const isQrEnabled = qrGeneratedItems.length > 0;
 
 	const handleQrClick = () => {
 		if (!isQrEnabled) return;
 
 		navigate("/App/processing/qr", {
 			state: {
-				generatedItems: pendingGeneratedItems,
+				generatedItems: qrGeneratedItems,
 				batches: mappedData.batches,
 				summary: {
 					scenarioId: mappedData.scenarioId,
@@ -428,13 +428,13 @@ const App_ProcessingPage = () => {
 						</div>
 					) : (
 						<div className="space-y-4 pb-2">
-							{mappedData.batches.map((batch) => (
+							{currentProcessingBatch ? (
 								<ProcessingBatchCard
-									key={batch.id}
-									batch={batch}
+									key={currentProcessingBatch.id}
+									batch={currentProcessingBatch}
 									onWorkOrderClick={handleWorkOrderClick}
 								/>
-							))}
+							) : null}
 
 							{/* ✅ 재공품 없는 배치일 때만 생산완료 버튼 표시 */}
 							{mappedData.hasNoWip && mappedData.canCompleteProduction && (

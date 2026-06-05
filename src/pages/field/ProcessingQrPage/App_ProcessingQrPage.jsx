@@ -3,8 +3,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
 import QrCameraScanner from "../../../components/field/Qr/QrCameraScanner";
 import App_ScanIssue from "../../../components/modal/App_ScanIssue/App_ScanIssue";
+import {
+	getFieldQrFlowState,
+	setFieldQrFlowState,
+} from "../../../utils/App/fieldQrFlow";
 
 const MOVE_NEXT_DELAY_MS = 250;
+const PROCESSING_QR_CACHE_KEY = "processing-qr";
 
 const getItemMaterial = (item) =>
 	item?.material || item?.materialName || item?.inputMaterialName || "-";
@@ -26,19 +31,25 @@ const getItemQrNumber = (item) => {
 const App_ProcessingQrPage = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const routeState =
+		location.state ?? getFieldQrFlowState(PROCESSING_QR_CACHE_KEY) ?? {};
 	const moveTimerRef = useRef(null);
 
 	React.useEffect(() => {
-		if (!location.state?.generatedItems) {
+		if (routeState?.generatedItems) {
+			setFieldQrFlowState(PROCESSING_QR_CACHE_KEY, routeState);
+		}
+
+		if (!routeState?.generatedItems) {
 			navigate("/App/processing", { replace: true });
 		}
-	}, [location.state, navigate]);
+	}, [routeState, navigate]);
 
 	const {
 		generatedItems = [],
 		batches = [],
 		summary = {},
-	} = location.state ?? {};
+	} = routeState ?? {};
 
 	const pendingItems = useMemo(
 		() => generatedItems.filter((item) => item.status !== "complete"),
@@ -115,12 +126,6 @@ const App_ProcessingQrPage = () => {
 
 	const handleScanIssueConfirm = () => {
 		const expectedWipQr = String(selectedIssueItem?.wipQr ?? "").trim();
-
-		if (!expectedWipQr) {
-			setIsScanIssueOpen(false);
-			setScanError("선택한 재공품 QR 값이 없습니다.");
-			return;
-		}
 
 		setIsScanIssueOpen(false);
 		setScanStatus("recognized");

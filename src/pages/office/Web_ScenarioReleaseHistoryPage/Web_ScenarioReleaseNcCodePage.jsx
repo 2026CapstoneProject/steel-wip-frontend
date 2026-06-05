@@ -5,6 +5,7 @@ import Web_AppLayout from "../../../components/common/Web_AppLayout/Web_AppLayou
 import Web_ScenarioTaskTable from "../../../components/office/Web_ScenarioTaskTable/Web_ScenarioTaskTable";
 import { getScenarioDetail } from "../../../services/scenarioService";
 import { updateNcCode } from "../../../services/scenarioService";
+import { buildScenarioDetailSummary } from "../../../utils/Web/scenarioDetailSummary";
 
 function formatScenarioQr(item) {
 	if (item?.qrCode) return item.qrCode;
@@ -14,6 +15,36 @@ function formatScenarioQr(item) {
 function isPickingAction(action) {
 	const raw = String(action ?? "").trim();
 	return raw === "PICKING" || raw === "PICK" || raw === "피킹";
+}
+
+const NC_CODE_PAGE_CACHE_KEY = "web_release_nccode_page";
+
+function readNcCodePageCache() {
+	if (typeof window === "undefined") return null;
+
+	try {
+		const raw = window.sessionStorage.getItem(NC_CODE_PAGE_CACHE_KEY);
+		return raw ? JSON.parse(raw) : null;
+	} catch (error) {
+		return null;
+	}
+}
+
+function writeNcCodePageCache(data) {
+	if (typeof window === "undefined") return;
+
+	if (!data?.scenarioId) {
+		window.sessionStorage.removeItem(NC_CODE_PAGE_CACHE_KEY);
+		return;
+	}
+
+	window.sessionStorage.setItem(
+		NC_CODE_PAGE_CACHE_KEY,
+		JSON.stringify({
+			scenarioId: data.scenarioId,
+			projectInfo: data.projectInfo ?? null,
+		}),
+	);
 }
 
 function mapLocationLabel(value) {
@@ -35,7 +66,7 @@ function mapLocationLabel(value) {
 function mapBatchItemsToPickingRows(batchItems = []) {
 	return batchItems
 		.filter((item) => isPickingAction(item.batchItemAction))
-		.map((item, index) => ({
+		.map((item) => ({
 			batchItemId: item.batchItemId,
 			qrNumber: formatScenarioQr(item),
 			thickness: item.thickness ?? "-",
@@ -44,27 +75,27 @@ function mapBatchItemsToPickingRows(batchItems = []) {
 			from: item.fromLocation || "-",
 			to: item.toLocation || "-",
 			ncCode: item.ncCode ?? "-",
-			estimatedTime: String(
-				item.expectedStartTime ?? item.expectedRunningTime ?? "-",
-			),
+			estimatedTime: String(item.expectedRunningTime ?? "-"),
 		}));
 }
 
-function findMatchingBatchItem(batchItems = [], steelWipId) {
+function findMatchingBatchItem(batchItems = [], row) {
 	return (
 		batchItems.find(
 			(item) =>
 				isPickingAction(item.batchItemAction) &&
-				Number(item.steelWipId) === Number(steelWipId),
+				((row.batchItemId &&
+					Number(item.batchItemId) === Number(row.batchItemId)) ||
+					Number(item.steelWipId) === Number(row.steelWipId)),
 		) ?? null
 	);
 }
 
 function mapCraneScheduleToPickingRows(craneSchedule = [], batchItems = []) {
 	return craneSchedule
-		.filter((row) => String(row.action ?? "").trim() === "PICK")
-		.map((row, index) => {
-			const itemDetail = findMatchingBatchItem(batchItems, row.steelWipId);
+		.filter((row) => isPickingAction(row.action))
+		.map((row) => {
+			const itemDetail = findMatchingBatchItem(batchItems, row);
 
 			return {
 				batchItemId: row.batchItemId ?? itemDetail?.batchItemId,
@@ -77,7 +108,11 @@ function mapCraneScheduleToPickingRows(craneSchedule = [], batchItems = []) {
 				from: mapLocationLabel(row.fromLocation ?? itemDetail?.fromLocation),
 				to: mapLocationLabel(row.toLocation ?? itemDetail?.toLocation),
 				ncCode: row?.ncCode ?? itemDetail?.ncCode ?? "-",
-				estimatedTime: Number(row.eventMinute ?? 0).toFixed(2),
+				estimatedTime: String(
+					row.expectedDurationMinutes ??
+						itemDetail?.expectedRunningTime ??
+						"-",
+				),
 			};
 		});
 }
@@ -86,9 +121,7 @@ function getPickingRows(scenarioData) {
 	const craneSchedule = scenarioData?.craneSchedule ?? [];
 	const batchItems = scenarioData?.batchItems ?? [];
 
-	if (
-		craneSchedule.some((item) => String(item.action ?? "").trim() === "PICK")
-	) {
+	if (craneSchedule.some((item) => isPickingAction(item.action))) {
 		return mapCraneScheduleToPickingRows(craneSchedule, batchItems);
 	}
 
@@ -98,15 +131,24 @@ function getPickingRows(scenarioData) {
 export default function Web_ScenarioReleaseNcCodePage() {
 	const location = useLocation();
 	const navigate = useNavigate();
+	const cachedState = readNcCodePageCache();
 
-	const scenarioId = location.state?.scenarioId ?? null;
-	const projectInfo = location.state?.projectInfo ?? null;
+	const scenarioId =
+		location.state?.scenarioId ??
+		location.state?.projectInfo?.scenarioId ??
+		cachedState?.scenarioId ??
+		null;
+	const projectInfo = location.state?.projectInfo ?? cachedState?.projectInfo ?? null;
 
 	const [scenarioData, setScenarioData] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 
 	useEffect(() => {
+		if (scenarioId) {
+			writeNcCodePageCache({ scenarioId, projectInfo });
+		}
+
 		if (!scenarioId && !projectInfo) {
 			navigate("/office/scenario/releasehistory", { replace: true });
 			return;
@@ -124,8 +166,8 @@ export default function Web_ScenarioReleaseNcCodePage() {
 		setError(null);
 
 		try {
-			const response = await getScenarioDetail(id);
-			const dataList = response.data?.data ?? [];
+			const detailResponse = await getScenarioDetail(id);
+			const dataList = detailResponse.data?.data ?? [];
 			setScenarioData(dataList[0] ?? null);
 		} catch (err) {
 			console.error("NC Code 목록 조회 실패:", err);
@@ -149,14 +191,17 @@ export default function Web_ScenarioReleaseNcCodePage() {
 	if (!scenarioId && !projectInfo) return null;
 
 	const pickingRows = scenarioData ? getPickingRows(scenarioData) : [];
+	const detailSummary = buildScenarioDetailSummary({
+		scenarioData,
+		projectInfo,
+	});
 
 	const summary = {
-		projectName: scenarioData?.projectTitle || projectInfo?.projectName || "-",
-		productionPlanName:
-			scenarioData?.scenarioTitle || projectInfo?.productionPlanName || "-",
-		shipmentDate: scenarioData?.scenarioDue || projectInfo?.shipmentDate || "-",
-		releaseDate: projectInfo?.releaseDate || "-",
-		materialCount: projectInfo?.materialCount ?? "-",
+		projectName: detailSummary.projectName,
+		productionPlanName: detailSummary.productionPlanName,
+		shipmentDate: detailSummary.shipmentDate,
+		releaseDate: detailSummary.releaseDate,
+		materialCount: detailSummary.materialCount,
 	};
 
 	return (
