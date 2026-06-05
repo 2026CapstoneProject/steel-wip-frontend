@@ -8,6 +8,7 @@ import {
 	getFieldQrFlowState,
 	setFieldQrFlowState,
 } from "../../../utils/App/fieldQrFlow";
+import { formatFieldLocationLabel } from "../../../utils/App/locationLabel";
 
 const POPUP_DELAY_MS = 1200;
 const PROCESSING_WIP_QR_CACHE_KEY = "processing-wip-qr";
@@ -158,14 +159,17 @@ const App_ProcessingQrWipPage = () => {
 							buildFieldQrWeightText(apiGeneratedWip.weight) ||
 							generatedWip.weightText ||
 							generatedWip.weight,
-						zone:
+						zone: formatFieldLocationLabel(
 							apiGeneratedWip.toLocationName ||
 							generatedWip.zone ||
 							generatedWip.toZone,
+						),
 						toZone:
-							apiGeneratedWip.toLocationName ||
-							generatedWip.toZone ||
-							generatedWip.zone,
+							formatFieldLocationLabel(
+								apiGeneratedWip.toLocationName ||
+								generatedWip.toZone ||
+								generatedWip.zone,
+							),
 						locQr:
 							generatedWip.locQr ||
 							generatedWip.locQR ||
@@ -220,7 +224,9 @@ const App_ProcessingQrWipPage = () => {
 				generatedWip.weight ??
 				generatedWip.weightLabel ??
 				"-",
-			zone: currentGeneratedWip.zone ?? generatedWip.zone ?? generatedWip.toZone ?? "-",
+			zone: formatFieldLocationLabel(
+				currentGeneratedWip.zone ?? generatedWip.zone ?? generatedWip.toZone ?? "-",
+			),
 		}),
 		[currentGeneratedWip, generatedWip, normalizedSpecText],
 	);

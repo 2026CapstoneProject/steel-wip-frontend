@@ -9,6 +9,7 @@ import {
 	getSelectedFieldScenarioId,
 	setSelectedFieldScenarioId,
 } from "../../../utils/App/selectedScenario";
+import { formatFieldLocationLabel } from "../../../utils/App/locationLabel";
 
 // ─── 헬퍼 함수 ──────────────────────────────────────────────────────
 
@@ -128,12 +129,12 @@ const mapOrderedItemsToDisplayEntries = (orderedItems = []) => {
 							materialName: wip?.material ?? "-",
 							specText,
 							weightText,
-							currentZone: item?.fromLocationName || "",
-							targetPositionLabel: item?.toLocationName || "",
+							currentZone: formatFieldLocationLabel(item?.fromLocationName),
+							targetPositionLabel: formatFieldLocationLabel(item?.toLocationName),
 							infoLabel: isRaw ? "투입 위치" : "현재 위치",
 							infoValue: isRaw
-								? item?.toLocationName || "-"
-								: item?.fromLocationName || "-",
+								? formatFieldLocationLabel(item?.toLocationName)
+								: formatFieldLocationLabel(item?.fromLocationName),
 							expectedStartTime,
 							expectedRunningTime,
 							expectedTimeText: formatExpectedTimeText(
@@ -163,8 +164,8 @@ const mapOrderedItemsToDisplayEntries = (orderedItems = []) => {
 						materialName: wip?.material ?? "-",
 						specText,
 						weightText,
-						fromZone: item?.fromLocationName || "-",
-						toZone: item?.toLocationName || "-",
+						fromZone: formatFieldLocationLabel(item?.fromLocationName),
+						toZone: formatFieldLocationLabel(item?.toLocationName),
 						expectedStartTime,
 						expectedRunningTime,
 						expectedTimeText: formatExpectedTimeText(
@@ -200,8 +201,8 @@ function mapBatchesToTaskGroups(batchGroups) {
 					materialName: item.material || "-",
 					specText: formatSpecText(item.specText ?? ""),
 					weightText: item.weightText ?? "-",
-					fromZone: item.fromLocationName || "-",
-					toZone: item.toLocationName || "-",
+					fromZone: formatFieldLocationLabel(item.fromLocationName),
+					toZone: formatFieldLocationLabel(item.toLocationName),
 					expectedStartTime: Number(item.expectedStartTime ?? 0),
 					expectedRunningTime: Number(item.expectedRunningTime ?? 0),
 					expectedTimeText: formatExpectedTimeText(
@@ -238,13 +239,15 @@ function mapBatchesToTaskGroups(batchGroups) {
 						materialName: item.material || "-",
 						specText,
 						weightText: item.weightText ?? "-",
-						currentZone: item.fromLocationName || "",
+						currentZone: formatFieldLocationLabel(item.fromLocationName),
 						targetPositionLabel:
-							item.toLocationName || `Position ${pickIdx + 1}`,
+							formatFieldLocationLabel(item.toLocationName) ||
+							`Position ${pickIdx + 1}`,
 						infoLabel: isRaw ? "투입 위치" : "현재 위치",
 						infoValue: isRaw
-							? item.toLocationName || `Position ${pickIdx + 1}`
-							: item.fromLocationName || "-",
+							? formatFieldLocationLabel(item.toLocationName) ||
+								`Position ${pickIdx + 1}`
+							: formatFieldLocationLabel(item.fromLocationName),
 						expectedStartTime: Number(item.expectedStartTime ?? 0),
 						expectedRunningTime: Number(item.expectedRunningTime ?? 0),
 						expectedTimeText: formatExpectedTimeText(

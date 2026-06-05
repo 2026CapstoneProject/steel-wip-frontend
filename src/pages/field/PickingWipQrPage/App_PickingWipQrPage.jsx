@@ -10,6 +10,7 @@ import {
 	getFieldQrFlowState,
 	setFieldQrFlowState,
 } from "../../../utils/App/fieldQrFlow";
+import { formatFieldLocationLabel } from "../../../utils/App/locationLabel";
 
 const fallbackPicking = {
 	id: "picking-wip-01",
@@ -121,7 +122,9 @@ const normalizePickingData = (source = {}) => {
 			fallbackPicking.layout.highlightedSlot,
 	);
 
-	const toZone = formatPositionLabel(rawPosition) || `Position ${highlightedSlot}`;
+	const toZone =
+		formatFieldLocationLabel(formatPositionLabel(rawPosition)) ||
+		`Position ${highlightedSlot}`;
 
 	const expectedDurationText =
 		source?.expectedDurationText ||
@@ -161,7 +164,7 @@ const normalizePickingData = (source = {}) => {
 		from: {
 			...fallbackPicking.from,
 			...(source?.from ?? {}),
-			zone: currentZone,
+			zone: formatFieldLocationLabel(currentZone),
 			time: source?.from?.time || source?.fromTime || "",
 		},
 		to: {
@@ -265,15 +268,21 @@ export default function App_PickingWipQrPage() {
 					weightText:
 						buildFieldQrWeightText(apiPicking.weight) || base.weightText,
 					currentZone:
-						apiPicking.fromLocationName || base.currentZone || base.from?.zone,
+						formatFieldLocationLabel(
+							apiPicking.fromLocationName || base.currentZone || base.from?.zone,
+						),
 					from: {
 						...(base.from ?? {}),
 						zone:
-							apiPicking.fromLocationName || base.from?.zone || "Zone C-3",
+							formatFieldLocationLabel(
+								apiPicking.fromLocationName || base.from?.zone || "Zone C-3",
+							),
 					},
 					to: {
 						...(base.to ?? {}),
-						zone: base.to?.zone || apiPicking.toLocationName || "Position 1",
+						zone: formatFieldLocationLabel(
+							base.to?.zone || apiPicking.toLocationName || "Position 1",
+						),
 					},
 			  }
 			: base;

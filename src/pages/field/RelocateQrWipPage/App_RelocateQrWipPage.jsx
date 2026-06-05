@@ -10,6 +10,7 @@ import {
 	getFieldQrFlowState,
 	setFieldQrFlowState,
 } from "../../../utils/App/fieldQrFlow";
+import { formatFieldLocationLabel } from "../../../utils/App/locationLabel";
 
 const fallbackRelocation = {
 	id: "relocate-01",
@@ -116,11 +117,15 @@ const App_RelocateQrWipPage = () => {
 				buildFieldQrWeightText(apiRelocation.weight) || base.weightText,
 			from: {
 				...(base.from ?? {}),
-				zone: apiRelocation.fromLocationName || base.from?.zone || "Zone A-1",
+				zone: formatFieldLocationLabel(
+					apiRelocation.fromLocationName || base.from?.zone || "Zone A-1",
+				),
 			},
 			to: {
 				...(base.to ?? {}),
-				zone: apiRelocation.toLocationName || base.to?.zone || "Zone B-1",
+				zone: formatFieldLocationLabel(
+					apiRelocation.toLocationName || base.to?.zone || "Zone B-1",
+				),
 			},
 		};
 	}, [apiRelocation, routeState]);
@@ -153,7 +158,9 @@ const App_RelocateQrWipPage = () => {
 			{
 				key: "fromZone",
 				icon: "location_on",
-				label: relocation.from?.zone || relocation.fromZone || "Zone A-1",
+				label: formatFieldLocationLabel(
+					relocation.from?.zone || relocation.fromZone || "Zone A-1",
+				),
 			},
 		],
 		[relocation],
@@ -393,7 +400,12 @@ const App_RelocateQrWipPage = () => {
 					{ label: "규격", value: relocation.specText },
 					{ label: "중량", value: relocation.weightText },
 					{ label: "QR", value: getExpectedWipQr() || "-" },
-					{ label: "현재 위치", value: relocation.from?.zone || relocation.fromZone },
+					{
+						label: "현재 위치",
+						value: formatFieldLocationLabel(
+							relocation.from?.zone || relocation.fromZone,
+						),
+					},
 				]}
 				onCancel={() => setIsScanIssueOpen(false)}
 				onConfirm={handleScanIssueConfirm}

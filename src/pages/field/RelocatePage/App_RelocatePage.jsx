@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
 import { saveBatchItem } from "../../../services/fieldService";
+import { formatFieldLocationLabel } from "../../../utils/App/locationLabel";
 
 const fallbackRelocation = {
 	id: "relocate-01",
@@ -362,12 +363,12 @@ const App_RelocatePage = () => {
 						<section className="space-y-3">
 							<InfoCard
 								label="FROM"
-								zone={relocation.from?.zone}
+								zone={formatFieldLocationLabel(relocation.from?.zone)}
 								time={scanState.wipScannedAt}
 							/>
 							<InfoCard
 								label="TO"
-								zone={relocation.to?.zone}
+								zone={formatFieldLocationLabel(relocation.to?.zone)}
 								time={scanState.zoneScannedAt}
 							/>
 						</section>
@@ -521,7 +522,11 @@ const App_RelocatePage = () => {
 							설비 위에 올렸습니까?
 						</h2>
 						<p className="text-center text-sm text-slate-600 mb-6">
-							재공품을 <span className="font-bold text-amber-600">{toZone}</span> 위에 올렸다면
+							재공품을{" "}
+							<span className="font-bold text-amber-600">
+								{formatFieldLocationLabel(toZone)}
+							</span>{" "}
+							위에 올렸다면
 							<br />
 							확인 버튼을 눌러주세요.
 						</p>

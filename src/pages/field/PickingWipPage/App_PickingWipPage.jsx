@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import App_Header from "../../../components/field/Header/App_Header";
 import App_EquipmentLayout from "../../../components/modal/App_EquipmentLayout/App_EquipmentLayout";
 import { saveBatchItem } from "../../../services/fieldService";
+import { formatFieldLocationLabel } from "../../../utils/App/locationLabel";
 
 const fallbackPicking = {
 	id: "picking-wip-01",
@@ -134,7 +135,8 @@ const normalizePickingData = (source = {}) => {
 	);
 
 	const toZone =
-		formatPositionLabel(rawPosition) || `Position ${highlightedSlot}`;
+		formatFieldLocationLabel(formatPositionLabel(rawPosition)) ||
+		`Position ${highlightedSlot}`;
 
 	const expectedDurationText =
 		source?.expectedDurationText ||
@@ -167,7 +169,7 @@ const normalizePickingData = (source = {}) => {
 		from: {
 			...fallbackPicking.from,
 			...(source?.from ?? {}),
-			zone: currentZone,
+			zone: formatFieldLocationLabel(currentZone),
 			time: source?.from?.time || "",
 		},
 		to: {
