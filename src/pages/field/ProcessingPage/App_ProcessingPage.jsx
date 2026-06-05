@@ -307,7 +307,9 @@ const App_ProcessingPage = () => {
 		[currentProcessingBatch],
 	);
 	const totalEstimatedTimeText = formatDurationText(
-		currentProcessingBatch?.estimatedCuttingTime ?? 0,
+		currentProcessingBatch?.estimatedCuttingTime ??
+			mappedData.expectedTotalMinutes ??
+			0,
 	);
 
 	const remainingGeneratedCount = useMemo(

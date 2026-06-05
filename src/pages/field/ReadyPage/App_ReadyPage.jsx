@@ -36,6 +36,17 @@ const parseDurationMinutes = (value) => {
 
 const formatMinuteText = (value) => `${Number(value ?? 0)}분`;
 
+const formatSummaryMinuteText = (value) => {
+	const safeMinutes = Math.max(0, Number(value) || 0);
+	if (safeMinutes === 0) return "-";
+	const hours = Math.floor(safeMinutes / 60);
+	const remainMinutes = safeMinutes % 60;
+
+	if (hours > 0 && remainMinutes > 0) return `${hours}h ${remainMinutes}m`;
+	if (hours > 0) return `${hours}h`;
+	return `${safeMinutes}m`;
+};
+
 const formatExpectedTimeText = (startTime, runningTime) => {
 	const running = Number(runningTime ?? 0);
 
@@ -704,6 +715,18 @@ const App_ReadyPage = () => {
 		visibleReadyTaskCount > 0
 			? visibleReadyTaskCount
 			: hiddenCurrentBatchTaskCount;
+	const remainingWorkMinutes = allTasks.reduce((sum, task) => {
+		const relocationMinutes = (task.relocations ?? []).reduce(
+			(innerSum, item) => innerSum + Number(item?.expectedRunningTime ?? 0),
+			0,
+		);
+		const pickingMinutes = (task.pickings ?? []).reduce(
+			(innerSum, item) => innerSum + Number(item?.expectedRunningTime ?? 0),
+			0,
+		);
+		return sum + relocationMinutes + pickingMinutes;
+	}, 0);
+	const remainingWorkTime = formatSummaryMinuteText(remainingWorkMinutes);
 
 	const getTaskActionKeys = (task) => [
 		...(task.relocations ?? []).map((item) =>
@@ -886,7 +909,7 @@ const App_ReadyPage = () => {
 						className="mt-4 mb-4"
 						progressPercent={progressPercent}
 						remainingTaskCount={remainingTaskCount}
-						remainingWorkTime="-"
+						remainingWorkTime={remainingWorkTime}
 					/>
 				</div>
 
