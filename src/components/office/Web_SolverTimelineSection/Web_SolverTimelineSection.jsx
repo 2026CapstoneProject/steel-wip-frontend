@@ -1,5 +1,6 @@
 import Web_ScenarioTaskTable from "../Web_ScenarioTaskTable/Web_ScenarioTaskTable";
 import { BATCH_ACTION_METADATA, getActionMetadata } from "../../../utils/batchActionMetadata";
+import { formatLocationLabel } from "../../../utils/Web/locationLabel";
 
 // ✅ 표준화: batchActionMetadata 기반으로 UI 컬러 매핑
 const ACTION_COLOR_MAP = {
@@ -48,12 +49,6 @@ function extractColorFromClass(colorClass) {
 	// colorClass는 "bg-cyan-500 ring-surface" 형태
 	const bgClass = colorClass.split(" ")[0];
 	return COLOR_MAP[bgClass] || "#000000";
-}
-
-function mapLocationLabel(value) {
-	const raw = String(value ?? "").trim();
-	if (!raw) return "-";
-	return raw;
 }
 
 function formatScenarioQr(itemDetail, steelWipId) {
@@ -117,8 +112,8 @@ function buildSequentialGroups(craneSchedule = [], batchItems = []) {
 			thickness: row?.thickness ?? itemDetail?.thickness ?? "-",
 			width: row?.width ?? itemDetail?.width ?? "-",
 			length: row?.length ?? itemDetail?.length ?? "-",
-			from: mapLocationLabel(row.fromLocation ?? itemDetail?.fromLocation),
-			to: mapLocationLabel(row.toLocation ?? itemDetail?.toLocation),
+			from: formatLocationLabel(row.fromLocation ?? itemDetail?.fromLocation),
+			to: formatLocationLabel(row.toLocation ?? itemDetail?.toLocation),
 
 			// ✅ 피킹 유형만 ncCode 표시
 			...(action === "PICKING" && {

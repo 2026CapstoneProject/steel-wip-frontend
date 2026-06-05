@@ -7,11 +7,14 @@ import {
 	getFieldQrFlowState,
 	setFieldQrFlowState,
 } from "../../../utils/App/fieldQrFlow";
+import { formatFieldLocationLabel } from "../../../utils/App/locationLabel";
 
 const PROCESSING_ZONE_QR_CACHE_KEY = "processing-zone-qr";
 
 const getTargetZone = (generatedWip = {}) =>
-	generatedWip.zone ?? generatedWip.toZone ?? generatedWip.toLocation ?? "-";
+	formatFieldLocationLabel(
+		generatedWip.zone ?? generatedWip.toZone ?? generatedWip.toLocation ?? "-",
+	);
 
 const getTargetZoneQr = (generatedWip = {}) => {
 	const qr = String(

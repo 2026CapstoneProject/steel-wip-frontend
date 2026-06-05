@@ -9,6 +9,7 @@ import {
 	getSelectedFieldScenarioId,
 	setSelectedFieldScenarioId,
 } from "../../../utils/App/selectedScenario";
+import { formatFieldLocationLabel } from "../../../utils/App/locationLabel";
 
 const formatSummaryDate = () => {
 	const now = new Date();
@@ -72,8 +73,8 @@ function mapEndDataToTasks(endDataList) {
 					specText: item.specText || "-",
 					weightText: item.weightText || "-",
 					wipQr: item.wipQr || "-",
-					fromZone: item.fromLocationName || "-",
-					toZone: item.toLocationName || "-",
+					fromZone: formatFieldLocationLabel(item.fromLocationName),
+					toZone: formatFieldLocationLabel(item.toLocationName),
 				});
 			});
 
@@ -91,13 +92,13 @@ function mapEndDataToTasks(endDataList) {
 					specText: item.specText || "-",
 					weightText: item.weightText || "-",
 					wipQr: item.wipQr || "-",
-					fromZone: item.fromLocationName || "-",
-					toZone: item.toLocationName || "-",
+					fromZone: formatFieldLocationLabel(item.fromLocationName),
+					toZone: formatFieldLocationLabel(item.toLocationName),
 					type: isRaw ? "원자재" : "재공품",
 					infoLabel: isRaw ? "투입 위치" : "현재 위치",
 					infoValue: isRaw
-						? item.toLocationName || "-"
-						: item.fromLocationName || "-",
+						? formatFieldLocationLabel(item.toLocationName)
+						: formatFieldLocationLabel(item.fromLocationName),
 				});
 			});
 
@@ -112,8 +113,8 @@ function mapEndDataToTasks(endDataList) {
 					specText: item.specText || "-",
 					weightText: item.weightText || "-",
 					wipQr: item.wipQr || "-",
-					fromZone: item.fromLocationName || "-",
-					toZone: item.toLocationName || "-",
+					fromZone: formatFieldLocationLabel(item.fromLocationName),
+					toZone: formatFieldLocationLabel(item.toLocationName),
 				});
 			});
 		});

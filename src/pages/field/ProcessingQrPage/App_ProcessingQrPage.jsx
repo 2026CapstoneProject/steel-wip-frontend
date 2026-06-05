@@ -7,6 +7,7 @@ import {
 	getFieldQrFlowState,
 	setFieldQrFlowState,
 } from "../../../utils/App/fieldQrFlow";
+import { formatFieldLocationLabel } from "../../../utils/App/locationLabel";
 
 const MOVE_NEXT_DELAY_MS = 250;
 const PROCESSING_QR_CACHE_KEY = "processing-qr";
@@ -21,7 +22,7 @@ const getItemWeightText = (item) =>
 	item?.weightText || item?.weight || item?.weightLabel || "-";
 
 const getItemZone = (item) =>
-	item?.zone || item?.toLocation || item?.toZone || "-";
+	formatFieldLocationLabel(item?.zone || item?.toLocation || item?.toZone || "-");
 
 const getItemQrNumber = (item) => {
 	const qr = String(item?.wipQr || item?.qr || item?.qrCode || "").trim();

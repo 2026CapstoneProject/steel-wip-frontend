@@ -1,3 +1,5 @@
+import { formatLocationLabel } from "../../../utils/Web/locationLabel";
+
 function formatWipList(values = []) {
   return `[${values.join(", ")}]`;
 }
@@ -34,8 +36,8 @@ function buildSolverText({ solverSummary, jobSchedule, craneSchedule }) {
     ...craneSchedule.map((row) => {
       const actionLabel = String(row.action ?? "").padEnd(10, " ");
       const wipLabel = String(row.steelWipId ?? "").padStart(4, " ");
-      const fromLabel = String(row.fromLocation ?? "-").padStart(5, " ");
-      const toLabel = String(row.toLocation ?? "-").padStart(5, " ");
+      const fromLabel = String(formatLocationLabel(row.fromLocation)).padStart(5, " ");
+      const toLabel = String(formatLocationLabel(row.toLocation)).padStart(5, " ");
       const minuteLabel = formatEventMinute(row.eventMinute).padStart(10, " ");
       const typeLabel = row.moveType ? `  ${row.moveType}` : "";
       return `  ${String(row.order).padStart(2, " ")}  ${actionLabel} ${wipLabel} ${fromLabel} ${toLabel} ${minuteLabel}${typeLabel}`;

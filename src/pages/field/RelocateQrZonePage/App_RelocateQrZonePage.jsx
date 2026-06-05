@@ -7,6 +7,7 @@ import {
 	getFieldQrFlowState,
 	setFieldQrFlowState,
 } from "../../../utils/App/fieldQrFlow";
+import { formatFieldLocationLabel } from "../../../utils/App/locationLabel";
 
 const fallbackRelocation = {
 	id: "relocate-01",
@@ -82,7 +83,9 @@ const App_RelocateQrZonePage = () => {
 			{
 				key: "toZone",
 				icon: "location_on",
-				label: relocation.to?.zone || relocation.toZone || "Zone B-1",
+				label: formatFieldLocationLabel(
+					relocation.to?.zone || relocation.toZone || "Zone B-1",
+				),
 			},
 		],
 		[relocation],
@@ -316,7 +319,12 @@ const App_RelocateQrZonePage = () => {
 				title="QR 정보 확인"
 				description="아래 위치 정보와 스캔하려는 구역 QR 정보가 맞나요?"
 				details={[
-					{ label: "이동 위치", value: relocation.to?.zone || relocation.toZone || "-" },
+					{
+						label: "이동 위치",
+						value: formatFieldLocationLabel(
+							relocation.to?.zone || relocation.toZone || "-",
+						),
+					},
 				]}
 				onCancel={() => setIsScanIssueOpen(false)}
 				onConfirm={handleScanIssueConfirm}

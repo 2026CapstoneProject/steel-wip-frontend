@@ -6,6 +6,7 @@ import Web_ScenarioTaskTable from "../../../components/office/Web_ScenarioTaskTa
 import { getScenarioDetail } from "../../../services/scenarioService";
 import { updateNcCode } from "../../../services/scenarioService";
 import { buildScenarioDetailSummary } from "../../../utils/Web/scenarioDetailSummary";
+import { formatLocationLabel } from "../../../utils/Web/locationLabel";
 
 function formatScenarioQr(item) {
 	if (item?.qrCode) return item.qrCode;
@@ -47,22 +48,6 @@ function writeNcCodePageCache(data) {
 	);
 }
 
-function mapLocationLabel(value) {
-	const raw = String(value ?? "").trim();
-
-	if (!raw) return "-";
-	if (raw === "설비") return raw;
-
-	const zoneMap = {
-		1: "A-1",
-		2: "A-2",
-		3: "A-3",
-		4: "A-4",
-	};
-
-	return zoneMap[raw] ?? raw;
-}
-
 function mapBatchItemsToPickingRows(batchItems = []) {
 	return batchItems
 		.filter((item) => isPickingAction(item.batchItemAction))
@@ -72,8 +57,8 @@ function mapBatchItemsToPickingRows(batchItems = []) {
 			thickness: item.thickness ?? "-",
 			width: item.width ?? "-",
 			length: item.length ?? "-",
-			from: item.fromLocation || "-",
-			to: item.toLocation || "-",
+			from: formatLocationLabel(item.fromLocation),
+			to: formatLocationLabel(item.toLocation),
 			ncCode: item.ncCode ?? "-",
 			estimatedTime: String(item.expectedRunningTime ?? "-"),
 		}));
@@ -105,8 +90,8 @@ function mapCraneScheduleToPickingRows(craneSchedule = [], batchItems = []) {
 				thickness: row?.thickness ?? itemDetail?.thickness ?? "-",
 				width: row?.width ?? itemDetail?.width ?? "-",
 				length: row?.length ?? itemDetail?.length ?? "-",
-				from: mapLocationLabel(row.fromLocation ?? itemDetail?.fromLocation),
-				to: mapLocationLabel(row.toLocation ?? itemDetail?.toLocation),
+				from: formatLocationLabel(row.fromLocation ?? itemDetail?.fromLocation),
+				to: formatLocationLabel(row.toLocation ?? itemDetail?.toLocation),
 				ncCode: row?.ncCode ?? itemDetail?.ncCode ?? "-",
 				estimatedTime: String(
 					row.expectedDurationMinutes ??

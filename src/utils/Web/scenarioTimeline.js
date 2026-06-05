@@ -1,3 +1,5 @@
+import { formatLocationLabel } from "./locationLabel";
+
 // ✅ 통일된 메타데이터: 백엔드는 한글명, 프론트는 영문/한글 모두 지원
 const ACTION_META = {
 	// 영문 키 (일부 API/내부 로직용)
@@ -112,8 +114,8 @@ function buildRow(item, timeField) {
 		thickness: String(item.thickness ?? ""),
 		width: String(item.width ?? ""),
 		length: String(item.length ?? ""),
-		from: item.fromLocation || "-",
-		to: item.toLocation || "-",
+		from: formatLocationLabel(item.fromLocation),
+		to: formatLocationLabel(item.toLocation),
 		estimatedTime: String(item?.[timeField] ?? ""),
 	};
 }

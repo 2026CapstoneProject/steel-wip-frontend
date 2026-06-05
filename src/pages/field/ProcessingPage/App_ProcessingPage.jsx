@@ -12,6 +12,7 @@ import {
 	getSelectedFieldScenarioId,
 	setSelectedFieldScenarioId,
 } from "../../../utils/App/selectedScenario";
+import { formatFieldLocationLabel } from "../../../utils/App/locationLabel";
 
 const PROCESS_STATUS_META = {
 	// 절단 완료 → 적재 대기 (QR 스캔하여 적재 가능)
@@ -60,7 +61,7 @@ function mapProgressData(progressData) {
 			material: wip.material ?? "-",
 			specText: wip.specText ?? "",
 			weightText: wip.weightText ?? "",
-			zone: wip.toLocation || "-",
+			zone: formatFieldLocationLabel(wip.toLocation),
 			// ✅ 백엔드 상태값 3단계 매핑
 			// - "적재 완료" → complete (완료)
 			// - "적재 대기" → pending (절단 완료, QR 스캔 가능)
